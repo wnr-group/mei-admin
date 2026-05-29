@@ -1,0 +1,84 @@
+"use client";
+
+import React, { useState } from "react";
+
+const Login = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(""); // Initial state matches screenshot error
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      setError("Invalid email or password.");
+    } else {
+      // Mock validation / action
+      setError("Invalid email or password.");
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-off-white px-4 font-inter">
+      <div className="w-full max-w-[420px] bg-white border border-border px-12 pt-16 pb-14 text-center">
+        {/* Logo Section */}
+        <div className="flex flex-col items-center select-none">
+          <span className="font-cormorant text-[42px] font-normal leading-none text-gold tracking-wide">
+            MEI
+          </span>
+          <span className="font-inter text-[9px] font-medium tracking-[0.28em] text-gold mt-2">
+            BRIDAL COUTURE
+          </span>
+        </div>
+
+        {/* Title */}
+        <h2 className="font-inter text-[15px] font-semibold text-text-primary mt-12 mb-8 tracking-wide">
+          Admin Sign In
+        </h2>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="flex flex-col text-left">
+          {/* Email Input */}
+          <div className="mb-6">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="w-full border-b border-border py-2.5 text-[14px] text-text-primary placeholder:text-text-muted focus:outline-hidden focus:border-gold bg-transparent transition-colors font-inter"
+              required
+            />
+          </div>
+
+          {/* Password Input */}
+          <div className="mb-6">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              className="w-full border-b border-border py-2.5 text-[14px] text-text-primary placeholder:text-text-muted focus:outline-hidden focus:border-gold bg-transparent transition-colors font-inter"
+              required
+            />
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="text-[#d32f2f] text-[11px] font-bold text-center mt-2 mb-6 tracking-wide font-inter">
+              {error}
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            className="w-full bg-gold hover:bg-gold-hover text-white text-[12px] font-bold py-3.5 tracking-[0.18em] transition-colors duration-200 uppercase cursor-pointer border-0 rounded-none"
+          >
+            SIGN IN
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
