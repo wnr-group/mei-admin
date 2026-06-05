@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { fetchProducts, addProduct, updateProduct, deleteProduct, Product } from '@/lib/mockDb';
 import { Image as ImageIcon, X, Plus } from 'lucide-react';
 
@@ -186,13 +187,13 @@ export default function ProductsPage() {
           Products
         </h3>
         
-        <button
-          // onClick={handleOpenAdd}
+        <Link
+          href="/products/add"
           className="bg-[#B38B5D] hover:bg-[#A37B4D] text-white text-[10px] font-bold tracking-widest px-6 py-3.5 transition-colors duration-200 rounded-none uppercase cursor-pointer flex items-center gap-1.5"
         >
           <Plus className="w-3.5 h-3.5 stroke-[3]" />
           ADD PRODUCT
-        </button>
+        </Link>
       </div>
 
       {/* 2. Product Listing Table Container */}

@@ -7,7 +7,18 @@ export interface Product {
   workTypes: string[];
   status: 'PUBLISHED' | 'DRAFT';
   image?: string;
+  slug?: string;
+  shortDescription?: string;
+  description?: string;
+  compareAtPrice?: number;
+  featured?: boolean;
+  newArrival?: boolean;
+  images?: string[];
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
 }
+
 
 export interface Order {
   id: string;
@@ -15,6 +26,16 @@ export interface Order {
   total: number;
   status: 'DELIVERED' | 'SHIPPED' | 'CONFIRMED' | 'PROCESSING' | 'PENDING';
   date: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  subtitle: string;
+  slug: string;
+  sortOrder: number;
+  status: 'ACTIVE' | 'INACTIVE';
+  image?: string;
 }
 
 // Initial mock dataset with real saree and lehenga image URLs from Unsplash
@@ -253,8 +274,39 @@ const INITIAL_ORDERS: Order[] = [
   { id: '#ORD-9010', customerName: 'Sneha Roy', total: 275000, status: 'PENDING', date: 'Oct 01, 2024' },
 ];
 
+const INITIAL_CATEGORIES: Category[] = [
+  {
+    id: 'cat-1',
+    name: 'Bridal Jewellery',
+    subtitle: 'Heritage Adornments',
+    slug: 'bridal-jewellery',
+    sortOrder: 1,
+    status: 'ACTIVE',
+    image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=150&auto=format&fit=crop'
+  },
+  {
+    id: 'cat-2',
+    name: 'Designer Wear',
+    subtitle: 'Modern Silhouettes',
+    slug: 'designer-wear',
+    sortOrder: 2,
+    status: 'ACTIVE',
+    image: 'https://images.unsplash.com/photo-1618220179428-22790b461013?q=80&w=150&auto=format&fit=crop'
+  },
+  {
+    id: 'cat-3',
+    name: 'Customized Costumes',
+    subtitle: 'Bespoke Tailoring',
+    slug: 'customized-costumes',
+    sortOrder: 3,
+    status: 'ACTIVE',
+    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=150&auto=format&fit=crop'
+  }
+];
+
 const PRODUCTS_KEY = 'mei_products_db';
 const ORDERS_KEY = 'mei_orders_db';
+const CATEGORIES_KEY = 'mei_categories_db';
 
 // Helper to get raw data from local storage
 function getRawProducts(): Product[] {
@@ -335,6 +387,20 @@ export async function fetchOrders(): Promise<Order[]> {
   if (!data) {
     localStorage.setItem(ORDERS_KEY, JSON.stringify(INITIAL_ORDERS));
     return INITIAL_ORDERS;
+  }
+  return JSON.parse(data);
+}
+
+/**
+ * Fetch all categories from the database
+ */
+export async function fetchCategories(): Promise<Category[]> {
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  if (typeof window === 'undefined') return INITIAL_CATEGORIES;
+  const data = localStorage.getItem(CATEGORIES_KEY);
+  if (!data) {
+    localStorage.setItem(CATEGORIES_KEY, JSON.stringify(INITIAL_CATEGORIES));
+    return INITIAL_CATEGORIES;
   }
   return JSON.parse(data);
 }
