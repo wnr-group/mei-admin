@@ -19,7 +19,7 @@ export default function Topbar() {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-zinc-100 flex items-center justify-between px-8 sticky top-0 z-40">
+    <header className="h-13 bg-white border-b border-zinc-100 flex items-center justify-between px-8 sticky top-0 z-40">
       
       {/* Left side: Dynamic Page Title */}
       <h2 className="text-[14px] font-bold tracking-wide text-zinc-700 uppercase">
