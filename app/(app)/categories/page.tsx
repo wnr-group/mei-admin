@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchCategories, Category } from '@/lib/mockDb';
 import { Image as ImageIcon } from 'lucide-react';
+import Link from 'next/link';
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -55,11 +56,13 @@ export default function CategoriesPage() {
           Categories
         </h3>
         
-        <button
-          className="bg-[#B38B5D] hover:bg-[#A37B4D] text-white text-[10px] font-bold tracking-widest px-6 py-3.5 transition-colors duration-200 rounded-none uppercase cursor-pointer"
-        >
-          ADD CATEGORY
-        </button>
+        <Link href="/categories/add">
+          <button
+            className="bg-[#B38B5D] hover:bg-[#A37B4D] text-white text-[10px] font-bold tracking-widest px-6 py-3.5 transition-colors duration-200 rounded-none uppercase cursor-pointer"
+          >
+            ADD CATEGORY
+          </button>
+        </Link>
       </div>
 
       {/* 2. Categories Listing Table Container */}
