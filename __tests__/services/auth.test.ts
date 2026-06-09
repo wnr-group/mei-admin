@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { AppError } from '@/lib/errors'
 
 const mockSignIn = vi.fn()
 const mockSignOut = vi.fn()
@@ -17,25 +18,30 @@ const { signIn, signOut } = await import('@/services/auth')
 describe('signIn', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('returns user on success', async () => {
+  it('returns user and session on success', async () => {
     const mockUser = { id: 'u1', email: 'admin@mei.com' }
+    const mockSession = { access_token: 'tok' }
     mockSignIn.mockResolvedValue({
-      data: { user: mockUser, session: { access_token: 'tok' } },
+      data: { user: mockUser, session: mockSession },
       error: null,
     })
     const result = await signIn('admin@mei.com', 'pass')
     expect(result.user).toEqual(mockUser)
-    expect(result.error).toBeNull()
+    expect(result.session).toEqual(mockSession)
   })
 
-  it('returns error message on failure', async () => {
+  it('throws AppError on failure', async () => {
     mockSignIn.mockResolvedValue({
       data: { user: null, session: null },
       error: { message: 'Invalid login credentials' },
     })
-    const result = await signIn('bad@email.com', 'bad')
-    expect(result.user).toBeNull()
-    expect(result.error).toBe('Invalid login credentials')
+    await expect(signIn('bad@email.com', 'bad')).rejects.toThrow(AppError)
+    try {
+      await signIn('bad@email.com', 'bad')
+    } catch (err) {
+      expect(err).toBeInstanceOf(AppError)
+      expect((err as AppError).message).toBe('Invalid login credentials')
+    }
   })
 })
 

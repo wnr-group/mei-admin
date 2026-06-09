@@ -16,16 +16,15 @@ const Login = () => {
     setError(null);
     setLoading(true);
 
-    const result = await signIn(email, password);
-
-    if (result.error) {
-      setError(result.error);
+    try {
+      await signIn(email, password);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An error occurred during sign in';
+      setError(message);
       setLoading(false);
-      return;
     }
-
-    router.push("/dashboard");
-    router.refresh();
   };
 
   return (

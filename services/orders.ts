@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { toAppError } from '@/lib/errors'
 import type { Order, OrderStatus } from '@/types'
 
 interface GetOrdersOptions {
@@ -23,7 +24,7 @@ export async function getOrders(options: GetOrdersOptions = {}) {
 
   const { data, error, count } = await query
 
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return { orders: (data as Order[] | null) ?? [], total: count ?? 0 }
 }
 
@@ -36,6 +37,6 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
     .select()
     .single()
   const { data, error } = response as { data: Order | null; error: { message: string } | null }
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return data as Order
 }

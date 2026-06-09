@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { toAppError } from '@/lib/errors'
 import type { Category, CategoryInsert, CategoryUpdate } from '@/types'
 
 interface GetCategoriesOptions {
@@ -17,7 +18,7 @@ export async function getCategories(options: GetCategoriesOptions = {}) {
     .order('created_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1)
 
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return { categories: (data as Category[] | null) ?? [], total: count ?? 0 }
 }
 
@@ -29,7 +30,7 @@ export async function createCategory(category: CategoryInsert) {
     .select()
     .single()
   const { data, error } = response as { data: Category | null; error: { message: string } | null }
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return data as Category
 }
 
@@ -42,7 +43,7 @@ export async function updateCategory(id: string, updates: CategoryUpdate) {
     .select()
     .single()
   const { data, error } = response as { data: Category | null; error: { message: string } | null }
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return data as Category
 }
 
@@ -52,5 +53,5 @@ export async function deleteCategory(id: string) {
     .from('categories')
     .update({ deleted_at: new Date().toISOString() } as never)
     .eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
 }

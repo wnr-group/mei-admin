@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { toAppError } from '@/lib/errors'
 import type { Banner, BannerInsert, BannerUpdate } from '@/types'
 
 interface GetBannersOptions {
@@ -16,7 +17,7 @@ export async function getBanners(options: GetBannersOptions = {}) {
     .order('sort_order', { ascending: true })
     .range((page - 1) * limit, page * limit - 1)
 
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return { banners: (data as Banner[] | null) ?? [], total: count ?? 0 }
 }
 
@@ -28,7 +29,7 @@ export async function createBanner(banner: BannerInsert) {
     .select()
     .single()
   const { data, error } = response as { data: Banner | null; error: { message: string } | null }
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return data as Banner
 }
 
@@ -41,7 +42,7 @@ export async function updateBanner(id: string, updates: BannerUpdate) {
     .select()
     .single()
   const { data, error } = response as { data: Banner | null; error: { message: string } | null }
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return data as Banner
 }
 
@@ -51,5 +52,5 @@ export async function deleteBanner(id: string) {
     .from('banners')
     .delete()
     .eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
 }

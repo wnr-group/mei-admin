@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { toAppError } from '@/lib/errors'
 import type { Setting } from '@/types'
 
 export async function getSettings() {
@@ -8,7 +9,7 @@ export async function getSettings() {
     .from('settings')
     .select('*')
 
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return (data as Setting[] | null) ?? []
 }
 
@@ -21,6 +22,6 @@ export async function updateSetting(key: string, value: unknown) {
     .select()
     .single()
   const { data, error } = response as { data: Setting | null; error: { message: string } | null }
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return data as Setting
 }

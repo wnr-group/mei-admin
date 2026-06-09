@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { toAppError } from '@/lib/errors'
 import type { Product, ProductInsert, ProductUpdate } from '@/types'
 
 interface GetProductsOptions {
@@ -31,7 +32,7 @@ export async function getProducts(options: GetProductsOptions = {}) {
   }
 
   const { data, error, count } = await query
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return { products: data as Product[] | null ?? [], total: count ?? 0 }
 }
 
@@ -43,7 +44,7 @@ export async function createProduct(product: ProductInsert) {
     .select()
     .single()
   const { data, error } = response as { data: Product | null; error: { message: string } | null }
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return data as Product
 }
 
@@ -56,7 +57,7 @@ export async function updateProduct(id: string, updates: ProductUpdate) {
     .select()
     .single()
   const { data, error } = response as { data: Product | null; error: { message: string } | null }
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return data as Product
 }
 
@@ -66,5 +67,5 @@ export async function deleteProduct(id: string) {
     .from('products')
     .update({ deleted_at: new Date().toISOString() } as never)
     .eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
 }

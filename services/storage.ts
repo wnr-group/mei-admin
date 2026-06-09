@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { toAppError } from '@/lib/errors'
 
 const BUCKET = 'product-images'
 
@@ -11,7 +12,7 @@ export async function uploadProductImage(file: File, productId: string): Promise
     .from(BUCKET)
     .upload(path, file, { upsert: true, contentType: file.type })
 
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
   return data.publicUrl

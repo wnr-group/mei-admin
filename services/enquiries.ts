@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { toAppError } from '@/lib/errors'
 import type { Enquiry, EnquiryStatus } from '@/types'
 
 interface GetEnquiriesOptions {
@@ -23,7 +24,7 @@ export async function getEnquiries(options: GetEnquiriesOptions = {}) {
 
   const { data, error, count } = await query
 
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return { enquiries: (data as Enquiry[] | null) ?? [], total: count ?? 0 }
 }
 
@@ -41,7 +42,7 @@ export async function replyToEnquiry(id: string, adminReply: string) {
     .select()
     .single()
   const { data, error } = response as { data: Enquiry | null; error: { message: string } | null }
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return data as Enquiry
 }
 
@@ -54,6 +55,6 @@ export async function closeEnquiry(id: string) {
     .select()
     .single()
   const { data, error } = response as { data: Enquiry | null; error: { message: string } | null }
-  if (error) throw new Error(error.message)
+  if (error) throw toAppError(new Error(error.message))
   return data as Enquiry
 }
