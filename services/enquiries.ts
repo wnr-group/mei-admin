@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/client'
 import { toAppError } from '@/lib/errors'
+import { logAuditEvent } from '@/lib/audit'
 import type { Enquiry, EnquiryStatus } from '@/types'
+import type { Json } from '@/types/database'
 
 interface GetEnquiriesOptions {
   page?: number
@@ -43,6 +45,15 @@ export async function replyToEnquiry(id: string, adminReply: string) {
     .single()
   const { data, error } = response as { data: Enquiry | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+
+  // Add logging
+  await logAuditEvent({
+    action: 'UPDATE',
+    resourceType: 'enquiry',
+    resourceId: id,
+    newData: { admin_reply: adminReply, status: 'REPLIED' } as Json,
+  })
+
   return data as Enquiry
 }
 
@@ -56,5 +67,14 @@ export async function closeEnquiry(id: string) {
     .single()
   const { data, error } = response as { data: Enquiry | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+
+  // Add logging
+  await logAuditEvent({
+    action: 'UPDATE',
+    resourceType: 'enquiry',
+    resourceId: id,
+    newData: { status: 'CLOSED' } as Json,
+  })
+
   return data as Enquiry
 }

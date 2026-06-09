@@ -37,9 +37,10 @@ export async function logAuditEvent(params: AuditParams) {
       resource_id:   params.resourceId ?? null,
       old_data:      params.oldData ?? null,
       new_data:      params.newData ?? null,
+      user_agent:    typeof navigator !== 'undefined' ? navigator.userAgent : null,
+      session_id:    null, // TODO: implement session ID tracking in future
     }
 
-    // Note: user_agent and session_id will be added after migration 009
     await supabase.from('audit_logs').insert([insertData] as never)
   } catch {
     // Silently fail audit logging to avoid breaking the main operation

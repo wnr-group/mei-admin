@@ -55,8 +55,8 @@ export type Database = {
         Update: { value?: unknown; description?: string | null; updated_by?: string | null }
       }
       audit_logs: {
-        Row: { id: string; admin_id: string | null; action: string; resource_type: string; resource_id: string | null; old_data: Record<string, unknown> | null; new_data: Record<string, unknown> | null; created_at: string }
-        Insert: { id?: string; admin_id?: string | null; action: string; resource_type: string; resource_id?: string | null; old_data?: Record<string, unknown> | null; new_data?: Record<string, unknown> | null }
+        Row: { id: string; admin_id: string | null; action: string; resource_type: string; resource_id: string | null; old_data: Record<string, unknown> | null; new_data: Record<string, unknown> | null; user_agent: string | null; session_id: string | null; created_at: string }
+        Insert: { id?: string; admin_id?: string | null; action: string; resource_type: string; resource_id?: string | null; old_data?: Record<string, unknown> | null; new_data?: Record<string, unknown> | null; user_agent?: string | null; session_id?: string | null }
         Update: never
       }
     }
