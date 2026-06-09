@@ -18,11 +18,13 @@ export async function uploadProductImage(file: File, productId: string): Promise
   return data.publicUrl
 }
 
-export async function deleteProductImage(imageUrl: string) {
+export async function deleteProductImage(imageUrl: string): Promise<void> {
   const supabase = createClient()
   const marker = `/storage/v1/object/public/${BUCKET}/`
   const idx = imageUrl.indexOf(marker)
-  if (idx === -1) return
+  if (idx === -1) return  // URL doesn't match our bucket — nothing to delete
   const path = imageUrl.slice(idx + marker.length)
-  await supabase.storage.from(BUCKET).remove([path])
+
+  const { error } = await supabase.storage.from(BUCKET).remove([path])
+  if (error) throw toAppError(new Error(error.message))
 }
