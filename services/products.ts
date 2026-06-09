@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/client'
 import { toAppError } from '@/lib/errors'
+import { logAuditEvent } from '@/lib/audit'
 import type { Product, ProductInsert, ProductUpdate } from '@/types'
+import type { Json } from '@/types/database'
 
 interface GetProductsOptions {
   page?: number
@@ -45,6 +47,15 @@ export async function createProduct(product: ProductInsert) {
     .single()
   const { data, error } = response as { data: Product | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+
+  // Add logging
+  await logAuditEvent({
+    action: 'CREATE',
+    resourceType: 'product',
+    resourceId: data!.id,
+    newData: data as Json,
+  })
+
   return data as Product
 }
 
@@ -58,6 +69,15 @@ export async function updateProduct(id: string, updates: ProductUpdate) {
     .single()
   const { data, error } = response as { data: Product | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+
+  // Add logging
+  await logAuditEvent({
+    action: 'UPDATE',
+    resourceType: 'product',
+    resourceId: id,
+    newData: updates as Json,
+  })
+
   return data as Product
 }
 
@@ -68,4 +88,11 @@ export async function deleteProduct(id: string) {
     .update({ deleted_at: new Date().toISOString() } as never)
     .eq('id', id)
   if (error) throw toAppError(new Error(error.message))
+
+  // Add logging
+  await logAuditEvent({
+    action: 'DELETE',
+    resourceType: 'product',
+    resourceId: id,
+  })
 }

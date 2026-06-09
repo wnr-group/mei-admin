@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/client'
 import { toAppError } from '@/lib/errors'
+import { logAuditEvent } from '@/lib/audit'
 import type { Banner, BannerInsert, BannerUpdate } from '@/types'
+import type { Json } from '@/types/database'
 
 interface GetBannersOptions {
   page?: number
@@ -30,6 +32,15 @@ export async function createBanner(banner: BannerInsert) {
     .single()
   const { data, error } = response as { data: Banner | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+
+  // Add logging
+  await logAuditEvent({
+    action: 'CREATE',
+    resourceType: 'banner',
+    resourceId: data!.id,
+    newData: data as Json,
+  })
+
   return data as Banner
 }
 
@@ -43,6 +54,15 @@ export async function updateBanner(id: string, updates: BannerUpdate) {
     .single()
   const { data, error } = response as { data: Banner | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+
+  // Add logging
+  await logAuditEvent({
+    action: 'UPDATE',
+    resourceType: 'banner',
+    resourceId: id,
+    newData: updates as Json,
+  })
+
   return data as Banner
 }
 
@@ -53,4 +73,11 @@ export async function deleteBanner(id: string) {
     .delete()
     .eq('id', id)
   if (error) throw toAppError(new Error(error.message))
+
+  // Add logging
+  await logAuditEvent({
+    action: 'DELETE',
+    resourceType: 'banner',
+    resourceId: id,
+  })
 }

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { toAppError } from '@/lib/errors'
+import { logAuditEvent } from '@/lib/audit'
 import type { Order, OrderStatus } from '@/types'
 
 interface GetOrdersOptions {
@@ -38,5 +39,14 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
     .single()
   const { data, error } = response as { data: Order | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+
+  // Add logging
+  await logAuditEvent({
+    action: 'UPDATE',
+    resourceType: 'order',
+    resourceId: id,
+    newData: { status },
+  })
+
   return data as Order
 }
