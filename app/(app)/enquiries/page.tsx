@@ -1,380 +1,318 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { fetchEnquiries, Enquiry } from '@/lib/mockDb';
-import { Search } from 'lucide-react';
-import Link from 'next/link';
+import React, { useState } from 'react'
+import { X } from 'lucide-react'
+import { useEnquiries, useReplyToEnquiry, useCloseEnquiry } from '@/hooks/use-enquiries'
+import { TableSkeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
+import { EmptyState } from '@/components/ui/empty-state'
+import type { Enquiry, EnquiryStatus } from '@/types'
 
-type TabType = 'ALL' | 'NEW' | 'CONTACTED' | 'QUOTED' | 'CONVERTED' | 'CLOSED';
+const STATUS_TABS: EnquiryStatus[] = ['NEW', 'REPLIED', 'CLOSED']
 
 export default function EnquiriesPage() {
-  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
-  const [activeTab, setActiveTab] = useState<TabType>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [mounted, setMounted] = useState(false);
+  const [page, setPage] = useState(1)
+  const [selectedStatus, setSelectedStatus] = useState<EnquiryStatus | null>(null)
+  const { data, isLoading, error, refetch } = useEnquiries({ page, limit: 6, status: selectedStatus ?? undefined })
+  const replyMutation = useReplyToEnquiry()
+  const closeMutation = useCloseEnquiry()
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
+  const enquiries = data?.enquiries ?? []
+  const total = data?.total ?? 0
+  const totalPages = Math.ceil(total / 6)
+  const itemsPerPage = 6
 
-  // Load enquiries on mount
-  useEffect(() => {
-    async function loadData() {
-      const data = await fetchEnquiries();
-      setEnquiries(data);
-      setMounted(true);
+  // Side panel state
+  const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null)
+  const [replyText, setReplyText] = useState('')
+
+  if (isLoading) return <TableSkeleton rows={6} />
+  if (error) return <ErrorState message={error.message} onRetry={refetch} />
+
+  const handleReply = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedEnquiry || !replyText.trim()) return
+
+    try {
+      await replyMutation.mutateAsync({ id: selectedEnquiry.id, reply: replyText })
+      setReplyText('')
+      setSelectedEnquiry(null)
+    } catch (err) {
+      alert('Failed to send reply')
     }
-    loadData();
-  }, []);
-
-  // Filter & Search Logic
-  const filteredEnquiries = useMemo(() => {
-    let result = enquiries;
-
-    // Filter by tab
-    if (activeTab !== 'ALL') {
-      result = result.filter((item) => item.status === activeTab);
-    }
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      result = result.filter(
-        (item) =>
-          item.id.toLowerCase().includes(query) ||
-          item.customerName.toLowerCase().includes(query) ||
-          item.product.toLowerCase().includes(query)
-      );
-    }
-
-    return result;
-  }, [activeTab, searchQuery, enquiries]);
-
-  // Tab counts
-  const newCount = enquiries.filter((item) => item.status === 'NEW').length;
-
-  // Pagination calculation
-  const totalItems = filteredEnquiries.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-  const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-  const endIndex = Math.min(currentPage * itemsPerPage, totalItems);
-
-  // Paginated chunk
-  const paginatedEnquiries = filteredEnquiries.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  // Export CSV mock trigger
-  const handleExportCSV = () => {
-    alert('Enquiries data exported to CSV successfully.');
-  };
-
-  // Status mapping matching mockup styling
-  const getStatusBadgeStyle = (status: Enquiry['status']) => {
-    switch (status) {
-      case 'NEW':
-        return 'bg-zinc-100 text-zinc-900 border border-zinc-200/80';
-      case 'CONTACTED':
-        return 'bg-zinc-100/60 text-zinc-500 border border-zinc-200/80';
-      case 'QUOTED':
-        return 'bg-zinc-500 text-white border border-zinc-600';
-      case 'CONVERTED':
-        return 'bg-[#B38B5D] text-white border border-[#B38B5D]';
-      case 'CLOSED':
-        return 'bg-zinc-200 text-zinc-600 border border-zinc-300';
-      default:
-        return 'bg-zinc-100 text-zinc-700';
-    }
-  };
-
-  const getStatusDotColor = (status: Enquiry['status']) => {
-    switch (status) {
-      case 'NEW': return 'bg-zinc-900';
-      case 'CONTACTED': return 'bg-zinc-400';
-      case 'QUOTED': return 'bg-zinc-200';
-      case 'CONVERTED': return 'bg-white';
-      case 'CLOSED': return 'bg-zinc-500';
-      default: return 'bg-zinc-500';
-    }
-  };
-
-  const getStatusText = (status: Enquiry['status']) => {
-    switch (status) {
-      case 'NEW': return 'NEW';
-      case 'CONTACTED': return 'CONTACTED';
-      case 'QUOTED': return 'QUOTED';
-      case 'CONVERTED': return 'CONVERTED';
-      case 'CLOSED': return 'CLOSED';
-      default: return status;
-    }
-  };
-
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-pulse flex flex-col items-center gap-2">
-          <span className="font-serif text-lg text-[#B38B5D] tracking-widest uppercase">MEI BRIDAL COUTURE</span>
-          <span className="text-xs text-zinc-400">Loading Enquiries...</span>
-        </div>
-      </div>
-    );
   }
 
+  const handleClose = async () => {
+    if (!selectedEnquiry) return
+
+    try {
+      await closeMutation.mutateAsync(selectedEnquiry.id)
+      setSelectedEnquiry(null)
+    } catch (err) {
+      alert('Failed to close enquiry')
+    }
+  }
+
+  if (enquiries.length === 0) return <EmptyState message="No enquiries yet." />
+
   return (
-    <div className="space-y-6 px-8 pt-10 font-inter animate-fade-in pb-16">
-      {/* 1. Header & Search Area */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="font-serif text-[32px] text-zinc-950 font-normal tracking-wide">
-            Enquiries
-          </h1>
-          <p className="text-[12px] text-zinc-600 font-inter mt-1">
-            Manage incoming client requests, quotes, and custom consultations.
-          </p>
-        </div>
+    <div className="space-y-6 px-8 pt-10 font-inter relative animate-fade-in">
 
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          {/* Search Input */}
-          <div className="relative flex-1 md:flex-initial">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search enquiries..."
-              className="w-full md:w-[220px] pl-9 pr-4 py-2 border border-[#E8E0D5] bg-white text-[12px] font-sans font-medium text-zinc-800 focus:outline-hidden focus:border-[#B38B5D]"
-            />
-            <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-zinc-400" />
-          </div>
-
-          {/* Export button */}
-          <button
-            onClick={handleExportCSV}
-            className="bg-[#1A1A1A] hover:bg-black text-[#FAF8F5] text-[10px] font-bold tracking-widest px-5 py-2.5 transition-colors duration-200 rounded-none uppercase cursor-pointer flex-shrink-0"
-          >
-            EXPORT CSV
-          </button>
+      {/* Loading overlay for mutations */}
+      {(replyMutation.isPending || closeMutation.isPending) && (
+        <div className="fixed inset-0 bg-white/50 z-50 flex items-center justify-center">
+          <div className="text-zinc-500 font-medium text-xs">Processing...</div>
         </div>
+      )}
+
+      {/* 1. Header Page Section */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-[14px] font-bold tracking-wider text-zinc-800 uppercase font-sans">
+          Enquiries
+        </h3>
       </div>
 
-      {/* 2. Filter Tabs */}
-      <div className="flex gap-8 border-b border-[#E8E0D5] select-none flex-wrap">
+      {/* 2. Status Filter Tabs */}
+      <div className="flex gap-2 flex-wrap">
         <button
-          onClick={() => { setActiveTab('ALL'); setCurrentPage(1); }}
-          className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] ${
-            activeTab === 'ALL'
-              ? 'text-zinc-900 border-[#B38B5D]'
-              : 'text-zinc-600 border-transparent hover:text-zinc-800'
+          onClick={() => {
+            setSelectedStatus(null)
+            setPage(1)
+          }}
+          className={`px-4 py-2 text-[11px] font-bold tracking-widest uppercase transition-colors ${
+            selectedStatus === null
+              ? 'bg-[#B38B5D] text-white'
+              : 'border border-[#E8E0D5] bg-white text-zinc-500 hover:bg-zinc-50'
           }`}
         >
           ALL
         </button>
-        <button
-          onClick={() => { setActiveTab('NEW'); setCurrentPage(1); }}
-          className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] flex items-center gap-2 ${
-            activeTab === 'NEW'
-              ? 'text-zinc-900 border-[#B38B5D]'
-              : 'text-zinc-600 border-transparent hover:text-zinc-800'
-          }`}
-        >
-          <span>NEW</span>
-          <span className="bg-zinc-950 text-white rounded-full flex items-center justify-center text-[9px] w-4.5 h-4.5 font-bold font-sans">
-            {newCount}
-          </span>
-        </button>
-        <button
-          onClick={() => { setActiveTab('CONTACTED'); setCurrentPage(1); }}
-          className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] ${
-            activeTab === 'CONTACTED'
-              ? 'text-zinc-900 border-[#B38B5D]'
-              : 'text-zinc-600 border-transparent hover:text-zinc-800'
-          }`}
-        >
-          CONTACTED
-        </button>
-        <button
-          onClick={() => { setActiveTab('QUOTED'); setCurrentPage(1); }}
-          className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] ${
-            activeTab === 'QUOTED'
-              ? 'text-zinc-900 border-[#B38B5D]'
-              : 'text-zinc-600 border-transparent hover:text-zinc-800'
-          }`}
-        >
-          QUOTED
-        </button>
-        <button
-          onClick={() => { setActiveTab('CONVERTED'); setCurrentPage(1); }}
-          className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] ${
-            activeTab === 'CONVERTED'
-              ? 'text-zinc-900 border-[#B38B5D]'
-              : 'text-zinc-600 border-transparent hover:text-zinc-800'
-          }`}
-        >
-          CONVERTED
-        </button>
-        <button
-          onClick={() => { setActiveTab('CLOSED'); setCurrentPage(1); }}
-          className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] ${
-            activeTab === 'CLOSED'
-              ? 'text-zinc-900 border-[#B38B5D]'
-              : 'text-zinc-600 border-transparent hover:text-zinc-800'
-          }`}
-        >
-          CLOSED
-        </button>
+        {STATUS_TABS.map((status) => (
+          <button
+            key={status}
+            onClick={() => {
+              setSelectedStatus(status)
+              setPage(1)
+            }}
+            className={`px-4 py-2 text-[11px] font-bold tracking-widest uppercase transition-colors ${
+              selectedStatus === status
+                ? 'bg-[#B38B5D] text-white'
+                : 'border border-[#E8E0D5] bg-white text-zinc-500 hover:bg-zinc-50'
+            }`}
+          >
+            {status}
+          </button>
+        ))}
       </div>
 
-      {/* 3. Table Container */}
+      {/* 3. Enquiry Listing Table Container */}
       <div className="bg-white border border-[#E8E0D5] shadow-xs">
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#FAF8F5] border-b border-[#E8E0D5]">
-                <th className="px-8 py-3.5 text-[15px] font-bold tracking-widest text-zinc-600 uppercase w-[23%]">
-                  ENQUIRY #
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[15%]">
+                  NAME
                 </th>
-                <th className="px-8 py-3.5 text-[15px] font-bold tracking-widest text-zinc-600 uppercase w-[25%]">
-                  CUSTOMER
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[20%]">
+                  EMAIL
                 </th>
-                <th className="px-8 py-3.5 text-[15px] font-bold tracking-widest text-zinc-600 uppercase w-[17%]">
-                  PRODUCT
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[35%]">
+                  MESSAGE
                 </th>
-                <th className="px-8 py-3.5 text-[15px] font-bold tracking-widest text-zinc-600 uppercase w-[12%]">
-                  TYPE
-                </th>
-                <th className="px-8 py-3.5 text-[15px] font-bold tracking-widest text-zinc-600 uppercase w-[13%]">
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[15%]">
                   STATUS
                 </th>
-                <th className="px-8 py-3.5 text-[15px] font-bold tracking-widest text-zinc-600 uppercase w-[10%] text-right">
-                  DATE
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[15%] text-right">
+                  ACTIONS
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E8E0D5]">
-              {paginatedEnquiries.length > 0 ? (
-                paginatedEnquiries.map((item) => {
-                  const isNew = item.status === 'NEW';
-                  return (
-                    <tr key={item.id} className="hover:bg-[#FAF8F5]/40 transition-colors">
-                      {/* Enquiry ID with vertical left highlight bar if new */}
-                      <td className={`px-8 py-5 text-[12px] font-semibold text-[#B38B5D] font-sans tracking-wide ${isNew ? 'border-l-[3px] border-zinc-950 pl-[29px]' : ''}`}>
-                        <Link href={`/enquiries/${item.id}`} className="hover:text-[#a37b4d] transition-colors cursor-pointer">
-                          {item.id}
-                        </Link>
-                      </td>
-
-                      {/* Customer Info */}
-                      <td className="px-8 py-5">
-                        <div className="text-[12px] font-inter text-zinc-800">
-                          {item.customerName}
-                        </div>
-                        <div className="text-[10px] text-zinc-400 font-inter font-sans mt-0.5">
-                          {item.customerContact}
-                        </div>
-                      </td>
-
-                      {/* Product Name */}
-                      <td className="px-8 py-5 text-[12px] font-inter text-zinc-600">
-                        {item.product}
-                      </td>
-
-                      {/* Type Badge */}
-                      <td className="px-8 py-5">
-                        <span className="inline-block border border-black px-2 py-0.5 text-[9px] font-inter font-sans tracking-wider text-black rounded-none uppercase">
-                          {item.type}
-                        </span>
-                      </td>
-
-                      {/* Status Badge */}
-                      <td className="px-8 py-5">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 text-[9px] font-bold tracking-widest rounded-none text-center min-w-[100px] uppercase font-sans ${getStatusBadgeStyle(
-                            item.status
-                          )}`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(item.status)}`} />
-                          {getStatusText(item.status)}
-                        </span>
-                      </td>
-
-                      {/* Date */}
-                      <td className="px-8 py-5 text-[12px] text-zinc-500 font-inter font-sans text-right">
-                        {item.date}
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-8 py-12 text-center text-[12px] text-zinc-400 font-medium"
-                  >
-                    No enquiries found.
+              {enquiries.map((enquiry) => (
+                <tr key={enquiry.id} className="hover:bg-[#FAF8F5]/40 transition-colors">
+                  <td className="px-6 py-3 text-[12px] font-medium text-zinc-800">
+                    {enquiry.name}
+                  </td>
+                  <td className="px-6 py-3 text-[12px] text-zinc-700 font-medium">
+                    {enquiry.email}
+                  </td>
+                  <td className="px-6 py-3 text-[12px] text-zinc-700 font-medium line-clamp-2">
+                    {enquiry.message}
+                  </td>
+                  <td className="px-6 py-3">
+                    <span
+                      className={`inline-block px-2.5 py-0.5 text-[7.5px] font-bold tracking-widest rounded-none uppercase ${
+                        enquiry.status === 'NEW'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : enquiry.status === 'REPLIED'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {enquiry.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4.5 text-right space-x-3 text-[10px] font-bold tracking-widest">
+                    <button
+                      onClick={() => {
+                        setSelectedEnquiry(enquiry)
+                        setReplyText(enquiry.admin_reply ?? '')
+                      }}
+                      className="text-[#B38B5D] hover:text-[#A37B4D] uppercase transition-colors"
+                    >
+                      {enquiry.status === 'NEW' ? 'REPLY' : 'VIEW'}
+                    </button>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
 
-        {/* 4. Table Pagination Footer */}
-        <div className="px-8 py-4 border-t border-[#E8E0D5] bg-[#FAF8F5]/40 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="text-[11px] font-sans font-inter text-zinc-700">
-            Showing {startIndex} to {endIndex} of {totalItems} entries
-          </div>
+        {/* 4. Table Footer Pagination */}
+        <div className="flex flex-col sm:flex-row items-center justify-between px-8 py-5 border-t border-[#E8E0D5] gap-4 bg-[#FAF8F5]/30">
 
-          <div className="flex items-center gap-1">
-            {/* Previous page button */}
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className={`border px-3 py-1.5 text-[11px] font-sans font-medium rounded-none select-none ${
-                currentPage === 1
-                  ? 'border-zinc-100 text-zinc-300 cursor-not-allowed'
-                  : 'border-zinc-200 text-zinc-600 hover:bg-[#FAF8F5] cursor-pointer'
-              }`}
-            >
-              Previous
-            </button>
+          <span className="text-[10px] font-medium text-zinc-400 tracking-wide">
+            Showing {total === 0 ? 0 : (page - 1) * itemsPerPage + 1} to {Math.min(page * itemsPerPage, total)} of {total} entries
+          </span>
 
-            {/* Pagination numbers */}
-            {Array.from({ length: totalPages }).map((_, idx) => {
-              const pageNum = idx + 1;
-              const isActive = currentPage === pageNum;
-              return (
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+                className={`border border-[#E8E0D5] bg-white px-3.5 py-1.5 text-[9px] font-bold tracking-wider uppercase transition-colors duration-150 ${
+                  page === 1
+                    ? 'text-zinc-300 border-zinc-100 cursor-not-allowed'
+                    : 'text-zinc-500 hover:bg-zinc-50'
+                }`}
+              >
+                PREV
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                 <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`border px-3.5 py-1.5 text-[11px] font-sans font-medium rounded-none cursor-pointer transition-colors ${
-                    isActive
-                      ? 'border-[#B38B5D] text-[#B38B5D] font-bold bg-[#FAF8F5]/30'
-                      : 'border-zinc-200 text-zinc-600 hover:bg-[#FAF8F5]'
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`px-3 py-1.5 text-[9px] font-bold transition-all duration-150 ${
+                    page === p
+                      ? 'bg-[#B38B5D] text-white'
+                      : 'border border-[#E8E0D5] bg-white text-zinc-500 hover:bg-zinc-50'
                   }`}
                 >
-                  {pageNum}
+                  {p}
                 </button>
-              );
-            })}
+              ))}
 
-            {/* Next page button */}
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className={`border px-3 py-1.5 text-[11px] font-sans font-medium rounded-none select-none ${
-                currentPage === totalPages
-                  ? 'border-zinc-100 text-zinc-300 cursor-not-allowed'
-                  : 'border-zinc-200 text-zinc-600 hover:bg-[#FAF8F5] cursor-pointer'
-              }`}
-            >
-              Next
-            </button>
-          </div>
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage(page + 1)}
+                className={`border border-[#E8E0D5] bg-white px-3.5 py-1.5 text-[9px] font-bold tracking-wider uppercase transition-colors duration-150 ${
+                  page === totalPages
+                    ? 'text-zinc-300 border-zinc-100 cursor-not-allowed'
+                    : 'text-zinc-500 hover:bg-zinc-50'
+                }`}
+              >
+                NEXT
+              </button>
+            </div>
+          )}
+
         </div>
+
       </div>
+
+      {/* 5. Side Panel for Detail/Reply */}
+      {selectedEnquiry && (
+        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
+
+          <div
+            onClick={() => setSelectedEnquiry(null)}
+            className="absolute inset-0 bg-black/35 backdrop-blur-xs transition-opacity duration-300"
+          />
+
+          <div className="relative w-full max-w-[480px] bg-white h-full shadow-2xl flex flex-col justify-between py-10 px-8 animate-slide-in border-l border-[#E8E0D5]">
+
+            <div>
+              <div className="flex items-center justify-between border-b border-[#E8E0D5] pb-5">
+                <h4 className="font-serif text-[22px] text-[#B38B5D] font-medium tracking-wide">
+                  Enquiry Details
+                </h4>
+                <button
+                  onClick={() => setSelectedEnquiry(null)}
+                  className="text-zinc-400 hover:text-zinc-700 transition-colors p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mt-8 space-y-6">
+
+                {/* Customer Info */}
+                <div>
+                  <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">Name</p>
+                  <p className="text-[13px] text-zinc-800 mt-1">{selectedEnquiry.name}</p>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">Email</p>
+                  <p className="text-[13px] text-zinc-800 mt-1">{selectedEnquiry.email}</p>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">Phone</p>
+                  <p className="text-[13px] text-zinc-800 mt-1">{selectedEnquiry.phone ?? '-'}</p>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">Message</p>
+                  <p className="text-[13px] text-zinc-800 mt-1">{selectedEnquiry.message}</p>
+                </div>
+
+                {/* Reply Form */}
+                {selectedEnquiry.status !== 'CLOSED' && (
+                  <form onSubmit={handleReply} className="space-y-4 pt-4 border-t border-[#E8E0D5]">
+                    <div>
+                      <label className="block text-[10px] font-bold tracking-widest text-zinc-400 uppercase mb-2">
+                        Your Reply
+                      </label>
+                      <textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="Write your response here..."
+                        rows={4}
+                        className="w-full border border-[#E8E0D5] p-3 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
+                      />
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="submit"
+                        className="flex-1 bg-[#B38B5D] hover:bg-[#A37B4D] text-[10px] font-bold tracking-widest text-white py-2 transition-colors uppercase rounded-none"
+                      >
+                        Send Reply
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClose}
+                        className="flex-1 border border-zinc-200 hover:bg-zinc-50 text-[10px] font-bold tracking-widest text-zinc-500 py-2 transition-colors uppercase rounded-none"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
     </div>
-  );
+  )
 }
