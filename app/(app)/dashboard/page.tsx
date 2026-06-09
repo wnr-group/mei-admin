@@ -1,73 +1,48 @@
-'use client';
+import React from 'react'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import type { Order } from '@/types'
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { fetchProducts, fetchOrders, Order, Product } from '@/lib/mockDb';
+export default async function DashboardPage() {
+  const supabase = await createClient()
 
-export default function DashboardPage() {
-  const [mounted, setMounted] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  // Fetch real stats from Supabase
+  const [productsResult, ordersResult, enquiriesResult] = await Promise.all([
+    supabase.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+    supabase.from('orders').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(5),
+    supabase.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'NEW')
+  ])
 
-  // Loads data from the mock database asynchronously
-  useEffect(() => {
-    async function loadDashboardData() {
-      const fetchedProducts = await fetchProducts();
-      const fetchedOrders = await fetchOrders();
-      setProducts(fetchedProducts);
-      setOrders(fetchedOrders);
-      setMounted(true);
-    }
-    loadDashboardData();
-  }, []);
+  const totalProducts = productsResult.count ?? 0
+  const totalOrders = (ordersResult.data ?? []).length
+  const newEnquiries = enquiriesResult.count ?? 0
+  const recentOrders = (ordersResult.data ?? []) as Order[]
 
-  // Display loading screen while fetching data
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-pulse flex flex-col items-center gap-2">
-          <span className="font-serif text-lg text-[#B38B5D] tracking-widest uppercase">MEI BRIDAL COUTURE</span>
-          <span className="text-xs text-zinc-400">Loading Dashboard...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // Statistics calculations
-  const totalProducts = products.length;
-  const totalOrders = orders.length;
-  const newEnquiries = 5; // Static count matching the screenshot
-  
-  // Calculate total revenue from all orders
-  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+  // Calculate total revenue from recent orders
+  const totalRevenue = recentOrders.reduce((sum, order) => sum + order.total, 0)
   const formattedRevenue = new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 0
-  }).format(totalRevenue);
+  }).format(totalRevenue)
 
   // Styling maps for order status badges
   const getStatusStyle = (status: Order['status']) => {
     switch (status) {
       case 'DELIVERED':
-        return 'border-[2px] border-[#C8E6C9] bg-[#E8F5E9] text-gray-700';
+        return 'border-[2px] border-[#C8E6C9] bg-[#E8F5E9] text-gray-700'
       case 'SHIPPED':
-        return 'border-[2px] border-[#FFE0B2] bg-[#FFF3E0] text-gray-700';
+        return 'border-[2px] border-[#FFE0B2] bg-[#FFF3E0] text-gray-700'
       case 'CONFIRMED':
-        return 'border-[2px] border-[#B3E5FC] bg-[#E1F5FE] text-gray-700';
+        return 'border-[2px] border-[#B3E5FC] bg-[#E1F5FE] text-gray-700'
       case 'PROCESSING':
-        return 'border-[2px] border-[#D1C4E9] bg-[#F3E5F5] text-gray-700';
+        return 'border-[2px] border-[#D1C4E9] bg-[#F3E5F5] text-gray-700'
       case 'PENDING':
-        return 'border-[2px] border-[#FFE082] bg-[#FFF8E1] text-gray-700';
-      case 'CANCELLED':
-        return 'border-[2px] border-[#FFCDD2] bg-[#FFEBEE] text-gray-700';
+        return 'border-[2px] border-[#FFE082] bg-[#FFF8E1] text-gray-700'
       default:
-        return 'border-[2px] border-zinc-200 bg-zinc-50 text-zinc-600';
+        return 'border-[2px] border-zinc-200 bg-zinc-50 text-zinc-600'
     }
-  };
-
-  // Get the first 5 orders to match the dashboard screenshot
-  const recentOrders = orders.slice(0, 5);
+  }
 
   return (
     <div className="space-y-8 pb-8 pt-8 px-8  font-inter animate-fade-in">
@@ -169,15 +144,17 @@ export default function DashboardPage() {
                   style: 'currency',
                   currency: 'INR',
                   maximumFractionDigits: 0
-                }).format(order.total);
+                }).format(order.total)
+
+                const createdDate = new Date(order.created_at).toLocaleDateString('en-IN')
 
                 return (
                   <tr key={order.id} className="hover:bg-[#FAF8F5]/50 transition-colors">
                     <td className="px-8 py-2.5 text-[12px] font-medium text-gold">
-                      {order.id}
+                      {order.order_number}
                     </td>
                     <td className="px-8 py-2.5 text-[12px] font-medium text-zinc-800">
-                      {order.customerName}
+                      {order.customer_id ?? '-'}
                     </td>
                     <td className="px-8 py-2.5 text-[12px] font-medium text-zinc-900 font-sans">
                       {formattedTotal.replace('INR', '₹')}
@@ -188,10 +165,10 @@ export default function DashboardPage() {
                       </span>
                     </td>
                     <td className="px-8 py-2.5 text-[11px] text-zinc-500 font-medium">
-                      {order.date}
+                      {createdDate}
                     </td>
                   </tr>
-                );
+                )
               })}
             </tbody>
           </table>
