@@ -25,7 +25,7 @@ export async function uploadProductImage(file: File, productId: string): Promise
     .from(BUCKET)
     .upload(path, file, { upsert: true, contentType: file.type })
 
-  if (error) throw toAppError(new Error(error.message))
+  if (error) throw toAppError(error)
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
   return data.publicUrl
@@ -39,5 +39,5 @@ export async function deleteProductImage(imageUrl: string): Promise<void> {
   const path = imageUrl.slice(idx + marker.length)
 
   const { error } = await supabase.storage.from(BUCKET).remove([path])
-  if (error) throw toAppError(new Error(error.message))
+  if (error) throw toAppError(error)
 }
