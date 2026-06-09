@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { useOrders, useUpdateOrderStatus } from '@/hooks/use-orders'
+import { useRealtimeOrders } from '@/hooks/use-realtime-orders'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -14,6 +15,9 @@ export default function OrdersPage() {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null)
   const { data, isLoading, error, refetch } = useOrders({ page, limit: 6, status: selectedStatus ?? undefined })
   const updateOrderStatusMutation = useUpdateOrderStatus()
+
+  // Enable real-time updates
+  useRealtimeOrders()
 
   const orders = data?.orders ?? []
   const total = data?.total ?? 0
