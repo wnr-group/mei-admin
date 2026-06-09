@@ -1,0 +1,27 @@
+import { createClient } from '@/lib/supabase/client'
+
+const BUCKET = 'product-images'
+
+export async function uploadProductImage(file: File, productId: string): Promise<string> {
+  const supabase = createClient()
+  const ext = file.name.split('.').pop() ?? 'jpg'
+  const path = `products/${productId}/${Date.now()}.${ext}`
+
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, file, { upsert: true, contentType: file.type })
+
+  if (error) throw new Error(error.message)
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
+  return data.publicUrl
+}
+
+export async function deleteProductImage(imageUrl: string) {
+  const supabase = createClient()
+  const marker = `/storage/v1/object/public/${BUCKET}/`
+  const idx = imageUrl.indexOf(marker)
+  if (idx === -1) return
+  const path = imageUrl.slice(idx + marker.length)
+  await supabase.storage.from(BUCKET).remove([path])
+}
