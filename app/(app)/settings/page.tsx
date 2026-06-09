@@ -1,264 +1,159 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
-import { fetchSettings, saveSettings, StoreSettings } from '@/lib/mockDb';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react'
+import { useSettings, useUpdateSetting } from '@/hooks/use-settings'
+import { TableSkeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
+import { EmptyState } from '@/components/ui/empty-state'
+import type { Setting } from '@/types'
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<StoreSettings>({
-    whatsappNumber: '',
-    storeEmail: '',
-    storePhone: '',
-    streetAddress: '',
-    city: '',
-    state: '',
-    pincode: '',
-    instagramUrl: ''
-  });
+  const { data: settings = [], isLoading, error, refetch } = useSettings()
+  const updateSettingMutation = useUpdateSetting()
 
-  const [mounted, setMounted] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({})
 
+  // Initialize form values from settings
   useEffect(() => {
-    async function loadSettings() {
-      try {
-        const data = await fetchSettings();
-        setSettings(data);
-      } catch (err) {
-        console.error('Error loading settings:', err);
-      } finally {
-        setMounted(true);
-      }
-    }
-    loadSettings();
-  }, []);
+    const values: Record<string, unknown> = {}
+    settings.forEach((setting) => {
+      values[setting.key] = setting.value
+    })
+    setFormValues(values)
+  }, [settings])
 
-  const handleChange = (key: keyof StoreSettings, value: string) => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: value
-    }));
-  };
+  if (isLoading) return <TableSkeleton rows={6} />
+  if (error) return <ErrorState message={error.message} onRetry={refetch} />
+  if (settings.length === 0) return <EmptyState message="No settings configured." />
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setSaveSuccess(false);
+  const handleFieldChange = (key: string, value: unknown) => {
+    setFormValues((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleSave = async (setting: Setting) => {
+    const newValue = formValues[setting.key]
+    if (newValue === setting.value) return
 
     try {
-      await saveSettings(settings);
-      setSaveSuccess(true);
-      // Automatically dismiss the success message after 4 seconds
-      setTimeout(() => setSaveSuccess(false), 4000);
+      await updateSettingMutation.mutateAsync({ key: setting.key, value: newValue })
     } catch (err) {
-      console.error('Failed to save settings:', err);
-      alert('Failed to save settings. Please try again.');
-    } finally {
-      setIsSaving(false);
+      alert('Failed to update setting')
     }
-  };
-
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-pulse flex flex-col items-center gap-2">
-          <span className="font-serif text-lg text-[#B38B5D] tracking-widest uppercase">MEI BRIDAL COUTURE</span>
-          <span className="text-xs text-zinc-400">Loading Settings...</span>
-        </div>
-      </div>
-    );
   }
 
   return (
-    <div className="max-w-[680px] mx-auto space-y-6 pb-20 font-inter animate-fade-in">
-      
-      {/* 1. Header Section */}
-      <div className="pt-2">
-        <h3 className="font-serif text-[26px] text-zinc-900 font-medium tracking-wide">
+    <div className="space-y-6 px-8 pt-10 font-inter relative animate-fade-in">
+
+      {/* Loading overlay for mutations */}
+      {updateSettingMutation.isPending && (
+        <div className="fixed inset-0 bg-white/50 z-50 flex items-center justify-center">
+          <div className="text-zinc-500 font-medium text-xs">Saving settings...</div>
+        </div>
+      )}
+
+      {/* 1. Header Page Section */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-[14px] font-bold tracking-wider text-zinc-800 uppercase font-sans">
           Settings
         </h3>
       </div>
 
-      {/* Success Banner */}
-      {saveSuccess && (
-        <div className="bg-[#FAF6F0] border border-[#B38B5D] text-[#B38B5D] px-6 py-4 text-[10px] font-bold tracking-widest uppercase transition-all duration-200 animate-fade-in flex justify-between items-center">
-          <span>Settings saved successfully</span>
-          <button 
-            type="button" 
-            onClick={() => setSaveSuccess(false)}
-            className="text-[#B38B5D] hover:text-zinc-800 transition-colors text-xs font-sans cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      {/* 2. Settings Table */}
+      <div className="bg-white border border-[#E8E0D5] shadow-xs">
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        
-        {/* CARD 1: STORE INFO */}
-        <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
-          <h4 className="text-[10px] font-medium tracking-widest text-zinc-400 uppercase">
-            STORE INFO
-          </h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#FAF8F5] border-b border-[#E8E0D5]">
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[25%]">
+                  KEY
+                </th>
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[40%]">
+                  VALUE
+                </th>
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[35%]">
+                  DESCRIPTION
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E8E0D5]">
+              {settings.map((setting) => {
+                const currentValue = formValues[setting.key]
+                const isDirty = currentValue !== setting.value
 
-          {/* WhatsApp Number */}
-          <div className="space-y-1">
-            <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
-              WHATSAPP NUMBER
-            </label>
-            <input
-              type="text"
-              required
-              value={settings.whatsappNumber}
-              onChange={(e) => handleChange('whatsappNumber', e.target.value)}
-              placeholder="919XXXXXXXXX"
-              className="w-full border-b border-[#E8E0D5] py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
-            />
-            <p className="text-[9.5px] text-zinc-400 font-medium font-sans">
-              Include country code, no + sign.
-            </p>
-          </div>
-
-          {/* Store Email */}
-          <div className="space-y-1">
-            <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
-              STORE EMAIL
-            </label>
-            <input
-              type="email"
-              required
-              value={settings.storeEmail}
-              onChange={(e) => handleChange('storeEmail', e.target.value)}
-              placeholder="info@navarachna.in"
-              className="w-full border-b border-[#E8E0D5] py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
-            />
-          </div>
-
-          {/* Store Phone */}
-          <div className="space-y-1">
-            <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
-              STORE PHONE
-            </label>
-            <input
-              type="text"
-              required
-              value={settings.storePhone}
-              onChange={(e) => handleChange('storePhone', e.target.value)}
-              placeholder="+91 9XXXXXXXXX"
-              className="w-full border-b border-[#E8E0D5] py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
-            />
-          </div>
+                return (
+                  <tr key={setting.key} className="hover:bg-[#FAF8F5]/40 transition-colors">
+                    <td className="px-6 py-3 text-[12px] font-medium text-zinc-800">
+                      {setting.key}
+                    </td>
+                    <td className="px-6 py-3 space-y-2">
+                      {typeof setting.value === 'boolean' ? (
+                        <label className="flex items-center gap-2 text-[12px] text-zinc-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={currentValue as boolean}
+                            onChange={(e) => handleFieldChange(setting.key, e.target.checked)}
+                            className="w-4 h-4"
+                          />
+                          <span>{currentValue ? 'Enabled' : 'Disabled'}</span>
+                        </label>
+                      ) : typeof setting.value === 'number' ? (
+                        <input
+                          type="number"
+                          value={currentValue as number}
+                          onChange={(e) => handleFieldChange(setting.key, parseInt(e.target.value, 10))}
+                          className="w-full border-b border-[#E8E0D5] py-2 text-[13px] text-zinc-800 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={String(currentValue)}
+                          onChange={(e) => handleFieldChange(setting.key, e.target.value)}
+                          className="w-full border-b border-[#E8E0D5] py-2 text-[13px] text-zinc-800 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
+                        />
+                      )}
+                    </td>
+                    <td className="px-6 py-3 text-[12px] text-zinc-600">
+                      {setting.description ?? '-'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
 
-        {/* CARD 2: STORE ADDRESS */}
-        <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
-          <div className="space-y-0.5">
-            <h4 className="text-[10px] font-medium tracking-widest text-zinc-400 uppercase">
-              STORE ADDRESS
-            </h4>
-            <p className="text-[9.5px] text-zinc-400 font-inter">
-              Shown in the footer.
-            </p>
-          </div>
-
-          {/* Street Address */}
-          <div className="space-y-1">
-            <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
-              STREET ADDRESS
-            </label>
-            <input
-              type="text"
-              required
-              value={settings.streetAddress}
-              onChange={(e) => handleChange('streetAddress', e.target.value)}
-              placeholder="Street name, landmark..."
-              className="w-full border-b border-[#E8E0D5] py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
-            />
-          </div>
-
-          {/* City, State, Pincode Row */}
-          <div className="grid grid-cols-3 gap-6">
-            <div className="space-y-1">
-              <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
-                CITY
-              </label>
-              <input
-                type="text"
-                required
-                value={settings.city}
-                onChange={(e) => handleChange('city', e.target.value)}
-                placeholder="City"
-                className="w-full border-b border-[#E8E0D5] py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
-                STATE
-              </label>
-              <input
-                type="text"
-                required
-                value={settings.state}
-                onChange={(e) => handleChange('state', e.target.value)}
-                placeholder="State"
-                className="w-full border-b border-[#E8E0D5] py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
-                PINCODE
-              </label>
-              <input
-                type="text"
-                required
-                value={settings.pincode}
-                onChange={(e) => handleChange('pincode', e.target.value)}
-                placeholder="Pincode"
-                className="w-full border-b border-[#E8E0D5] py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* CARD 3: SOCIAL LINKS */}
-        <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
-          <h4 className="text-[10px] font-medium tracking-widest text-zinc-400 uppercase">
-            SOCIAL LINKS
-          </h4>
-
-          {/* Instagram URL */}
-          <div className="space-y-1">
-            <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
-              INSTAGRAM URL
-            </label>
-            <input
-              type="url"
-              required
-              value={settings.instagramUrl}
-              onChange={(e) => handleChange('instagramUrl', e.target.value)}
-              placeholder="https://instagram.com/brandname"
-              className="w-full border-b border-[#E8E0D5] py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
-            />
-          </div>
-        </div>
-
-        {/* Action Controls */}
-        <div className="pt-2">
+        {/* Footer Actions */}
+        <div className="border-t border-[#E8E0D5] px-8 py-5 flex gap-3 bg-[#FAF8F5]/30">
           <button
-            type="submit"
-            disabled={isSaving}
-            className="w-full bg-[#1A1A1A] hover:bg-black text-[#FAF8F5] text-[11px] font-bold tracking-widest py-4 transition-colors duration-200 rounded-none uppercase cursor-pointer flex items-center justify-center gap-2"
+            onClick={() => {
+              // Reset form values to original
+              const values: Record<string, unknown> = {}
+              settings.forEach((setting) => {
+                values[setting.key] = setting.value
+              })
+              setFormValues(values)
+            }}
+            className="border border-zinc-200 hover:bg-zinc-50 text-[10px] font-bold tracking-widest text-zinc-500 py-2 px-4 transition-colors uppercase rounded-none"
           >
-            {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin animate-infinite" />}
-            SAVE CHANGES
+            Reset
+          </button>
+          <button
+            onClick={() => {
+              // Save all dirty fields
+              const dirtySettings = settings.filter((s) => formValues[s.key] !== s.value)
+              dirtySettings.forEach((setting) => {
+                handleSave(setting)
+              })
+            }}
+            className="bg-[#B38B5D] hover:bg-[#A37B4D] text-[10px] font-bold tracking-widest text-white py-2 px-4 transition-colors uppercase rounded-none"
+          >
+            Save All Changes
           </button>
         </div>
 
-      </form>
+      </div>
+
     </div>
-  );
+  )
 }
