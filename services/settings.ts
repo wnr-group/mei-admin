@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { Setting, SettingUpdate } from '@/types'
+import type { Setting } from '@/types'
 
 export async function getSettings() {
   const supabase = createClient()

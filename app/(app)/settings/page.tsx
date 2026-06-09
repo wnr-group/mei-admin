@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useSettings, useUpdateSetting } from '@/hooks/use-settings'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
@@ -11,16 +11,13 @@ export default function SettingsPage() {
   const { data: settings = [], isLoading, error, refetch } = useSettings()
   const updateSettingMutation = useUpdateSetting()
 
-  const [formValues, setFormValues] = useState<Record<string, unknown>>({})
-
-  // Initialize form values from settings
-  useEffect(() => {
+  const [formValues, setFormValues] = useState<Record<string, unknown>>(() => {
     const values: Record<string, unknown> = {}
     settings.forEach((setting) => {
       values[setting.key] = setting.value
     })
-    setFormValues(values)
-  }, [settings])
+    return values
+  })
 
   if (isLoading) return <TableSkeleton rows={6} />
   if (error) return <ErrorState message={error.message} onRetry={refetch} />
@@ -36,7 +33,7 @@ export default function SettingsPage() {
 
     try {
       await updateSettingMutation.mutateAsync({ key: setting.key, value: newValue })
-    } catch (err) {
+    } catch {
       alert('Failed to update setting')
     }
   }
@@ -79,7 +76,6 @@ export default function SettingsPage() {
             <tbody className="divide-y divide-[#E8E0D5]">
               {settings.map((setting) => {
                 const currentValue = formValues[setting.key]
-                const isDirty = currentValue !== setting.value
 
                 return (
                   <tr key={setting.key} className="hover:bg-[#FAF8F5]/40 transition-colors">

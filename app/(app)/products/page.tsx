@@ -45,6 +45,7 @@ export default function ProductsPage() {
   const renderThumbnail = (product: Product) => {
     if (product.image_url) {
       return (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={product.image_url}
           alt={product.name}
@@ -85,12 +86,13 @@ export default function ProductsPage() {
     setIsDrawerOpen(true)
   }
 
-  // DELETE a product
+  // DELETE a product (placeholder - delete functionality not yet exposed in UI)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDeleteProduct = async (id: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
       try {
         await deleteProductMutation.mutateAsync(id)
-      } catch (err) {
+      } catch {
         alert('Failed to delete product')
       }
     }
@@ -129,7 +131,7 @@ export default function ProductsPage() {
         })
       }
       setIsDrawerOpen(false)
-    } catch (err) {
+    } catch {
       alert('Failed to save product')
     }
   }

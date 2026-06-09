@@ -60,7 +60,7 @@ export default function BannersPage() {
     if (confirm('Are you sure you want to delete this banner?')) {
       try {
         await deleteBannerMutation.mutateAsync(id)
-      } catch (err) {
+      } catch {
         alert('Failed to delete banner')
       }
     }
@@ -75,7 +75,7 @@ export default function BannersPage() {
       const url = await uploadProductImage(file, 'banner-' + Date.now())
       setFormImageUrl(url)
       setImagePreview(url)
-    } catch (err) {
+    } catch {
       alert('Failed to upload image')
     } finally {
       setUploadingImage(false)
@@ -108,7 +108,7 @@ export default function BannersPage() {
         })
       }
       setIsDrawerOpen(false)
-    } catch (err) {
+    } catch {
       alert('Failed to save banner')
     }
   }
@@ -151,6 +151,7 @@ export default function BannersPage() {
           >
             <div className="relative aspect-video bg-[#FAF8F5] overflow-hidden">
               {banner.image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={banner.image_url}
                   alt={banner.title}
@@ -243,6 +244,7 @@ export default function BannersPage() {
 
                   {imagePreview && (
                     <div className="relative aspect-video bg-[#FAF8F5] border border-[#E8E0D5] overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={imagePreview}
                         alt="preview"

@@ -9,14 +9,12 @@ import { EmptyState } from '@/components/ui/empty-state'
 import type { Category } from '@/types'
 
 export default function CategoriesPage() {
-  const [page, setPage] = useState(1)
-  const { data, isLoading, error, refetch } = useCategories({ page, limit: 6 })
+  const { data, isLoading, error, refetch } = useCategories({ page: 1, limit: 6 })
   const createCategoryMutation = useCreateCategory()
   const updateCategoryMutation = useUpdateCategory()
   const deleteCategoryMutation = useDeleteCategory()
 
   const categories = data ?? []
-  const itemsPerPage = 6
 
   // Drawer Form state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -50,7 +48,7 @@ export default function CategoriesPage() {
     if (confirm('Are you sure you want to delete this category?')) {
       try {
         await deleteCategoryMutation.mutateAsync(id)
-      } catch (err) {
+      } catch {
         alert('Failed to delete category')
       }
     }
@@ -81,7 +79,7 @@ export default function CategoriesPage() {
         })
       }
       setIsDrawerOpen(false)
-    } catch (err) {
+    } catch {
       alert('Failed to save category')
     }
   }

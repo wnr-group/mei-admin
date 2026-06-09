@@ -30,7 +30,7 @@ export default function OrdersPage() {
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
       await updateOrderStatusMutation.mutateAsync({ id: orderId, status: newStatus })
-    } catch (err) {
+    } catch {
       alert('Failed to update order status')
     }
   }

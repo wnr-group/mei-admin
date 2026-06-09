@@ -37,7 +37,7 @@ export default function EnquiriesPage() {
       await replyMutation.mutateAsync({ id: selectedEnquiry.id, reply: replyText })
       setReplyText('')
       setSelectedEnquiry(null)
-    } catch (err) {
+    } catch {
       alert('Failed to send reply')
     }
   }
@@ -48,7 +48,7 @@ export default function EnquiriesPage() {
     try {
       await closeMutation.mutateAsync(selectedEnquiry.id)
       setSelectedEnquiry(null)
-    } catch (err) {
+    } catch {
       alert('Failed to close enquiry')
     }
   }

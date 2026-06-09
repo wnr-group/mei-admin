@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { Enquiry, EnquiryUpdate, EnquiryStatus } from '@/types'
+import type { Enquiry, EnquiryStatus } from '@/types'
 
 interface GetEnquiriesOptions {
   page?: number

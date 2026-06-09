@@ -7,8 +7,14 @@ vi.mock('@/lib/supabase/client', () => ({
 
 const { getProducts, createProduct, updateProduct, deleteProduct } = await import('@/services/products')
 
-function createMockChainForQuery(finalValue: unknown) {
-  const chain: Record<string, any> = {}
+interface MockChain extends Record<string, unknown> {
+  then: (onFulfilled?: ((value: unknown) => unknown) | null, onRejected?: ((reason: unknown) => unknown) | null) => Promise<unknown>
+  catch: (onRejected?: ((reason: unknown) => unknown) | null) => Promise<unknown>
+  finally: (onFinally?: (() => void) | null) => Promise<unknown>
+}
+
+function createMockChainForQuery(finalValue: unknown): MockChain {
+  const chain: MockChain = {} as MockChain
   const methods = ['select', 'insert', 'update', 'is', 'eq', 'ilike', 'order', 'range', 'single', 'limit']
 
   methods.forEach(m => {
@@ -17,9 +23,9 @@ function createMockChainForQuery(finalValue: unknown) {
 
   // Make it thenable with proper Promise behavior
   const promise = Promise.resolve(finalValue)
-  chain.then = (onFulfilled: any, onRejected?: any) => promise.then(onFulfilled, onRejected)
-  chain.catch = (onRejected: any) => promise.catch(onRejected)
-  chain.finally = (onFinally: any) => promise.finally(onFinally)
+  chain.then = (onFulfilled?: ((value: unknown) => unknown) | null, onRejected?: ((reason: unknown) => unknown) | null) => promise.then(onFulfilled, onRejected)
+  chain.catch = (onRejected?: ((reason: unknown) => unknown) | null) => promise.catch(onRejected)
+  chain.finally = (onFinally?: (() => void) | null) => promise.finally(onFinally)
 
   mockFrom.mockReturnValue(chain)
   return chain

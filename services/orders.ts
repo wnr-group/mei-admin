@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { Order, OrderUpdate, OrderStatus } from '@/types'
+import type { Order, OrderStatus } from '@/types'
 
 interface GetOrdersOptions {
   page?: number
