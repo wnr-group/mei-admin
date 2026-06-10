@@ -9,6 +9,7 @@ export default function Topbar() {
   // Helper function to extract and format the page title from the URL string
   const getPageTitle = () => {
     if (!pathname) return 'Dashboard';
+    if (pathname === '/products/add') return 'Add Product';
     
     // Splits the path (e.g. "/products" or "/products/add") and grabs the primary folder
     const segment = pathname.split('/')[1];

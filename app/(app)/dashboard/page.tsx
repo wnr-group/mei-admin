@@ -59,6 +59,8 @@ export default function DashboardPage() {
         return 'border-[2px] border-[#D1C4E9] bg-[#F3E5F5] text-gray-700';
       case 'PENDING':
         return 'border-[2px] border-[#FFE082] bg-[#FFF8E1] text-gray-700';
+      case 'CANCELLED':
+        return 'border-[2px] border-[#FFCDD2] bg-[#FFEBEE] text-gray-700';
       default:
         return 'border-[2px] border-zinc-200 bg-zinc-50 text-zinc-600';
     }
