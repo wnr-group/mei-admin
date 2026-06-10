@@ -15,7 +15,9 @@ const ALLOWED_MIME_TYPES = [
   'image/gif',
 ] as const;
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+const MB_SIZE = 1024 * 1024;
+const MAX_FILE_SIZE = 5 * MB_SIZE; // 5MB in bytes
+const MAX_MB = Math.round(MAX_FILE_SIZE / MB_SIZE);
 
 /**
  * Validates an image file against allowed types and size constraints
@@ -35,7 +37,7 @@ export function validateImageFile(file: File): ImageValidationError | null {
   if (file.size > MAX_FILE_SIZE) {
     return {
       code: 'TOO_LARGE',
-      message: `File size exceeds 5MB limit. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      message: `File size exceeds ${MAX_MB}MB limit. Your file is ${(file.size / MB_SIZE).toFixed(2)}MB`,
     };
   }
 
