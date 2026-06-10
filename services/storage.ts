@@ -1,21 +1,14 @@
 import { createClient } from '@/lib/supabase/client'
 import { AppError, toAppError } from '@/lib/errors'
+import { validateImageFile } from '@/lib/validators/image'
 
 const BUCKET = 'product-images'
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-const MAX_SIZE_BYTES = 5 * 1024 * 1024 // 5MB
-
-export function validateImageFile(file: File): void {
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    throw new AppError('VALIDATION_ERROR', `File type not allowed. Use: ${ALLOWED_TYPES.join(', ')}`)
-  }
-  if (file.size > MAX_SIZE_BYTES) {
-    throw new AppError('VALIDATION_ERROR', `File too large. Maximum size is 5MB.`)
-  }
-}
 
 export async function uploadProductImage(file: File, productId: string): Promise<string> {
-  validateImageFile(file)
+  const validationError = validateImageFile(file)
+  if (validationError) {
+    throw new AppError('VALIDATION_ERROR', validationError.message)
+  }
 
   const supabase = createClient()
   const ext = file.name.split('.').pop() ?? 'jpg'
