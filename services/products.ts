@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import { toAppError } from '@/lib/errors'
+import { toAppError, AppError } from '@/lib/errors'
 import { logAuditEvent } from '@/lib/audit'
 import type { Product, ProductInsert, ProductUpdate } from '@/types'
 import type { Json } from '@/types/database'
@@ -47,12 +47,13 @@ export async function createProduct(product: ProductInsert) {
     .single()
   const { data, error } = response as { data: Product | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+  if (!data) throw new AppError('NOT_FOUND', 'Product not returned after insert')
 
   // Add logging
   await logAuditEvent({
     action: 'CREATE',
     resourceType: 'product',
-    resourceId: data!.id,
+    resourceId: data.id,
     newData: data as Json,
   })
 
@@ -69,6 +70,7 @@ export async function updateProduct(id: string, updates: ProductUpdate) {
     .single()
   const { data, error } = response as { data: Product | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+  if (!data) throw new AppError('NOT_FOUND', 'Product not returned after update')
 
   // Add logging
   await logAuditEvent({

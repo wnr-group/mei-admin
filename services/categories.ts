@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import { toAppError } from '@/lib/errors'
+import { toAppError, AppError } from '@/lib/errors'
 import { logAuditEvent } from '@/lib/audit'
 import type { Category, CategoryInsert, CategoryUpdate } from '@/types'
 import type { Json } from '@/types/database'
@@ -33,12 +33,13 @@ export async function createCategory(category: CategoryInsert) {
     .single()
   const { data, error } = response as { data: Category | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+  if (!data) throw new AppError('NOT_FOUND', 'Category not returned after insert')
 
   // Add logging
   await logAuditEvent({
     action: 'CREATE',
     resourceType: 'category',
-    resourceId: data!.id,
+    resourceId: data.id,
     newData: data as Json,
   })
 
@@ -55,6 +56,7 @@ export async function updateCategory(id: string, updates: CategoryUpdate) {
     .single()
   const { data, error } = response as { data: Category | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+  if (!data) throw new AppError('NOT_FOUND', 'Category not returned after update')
 
   // Add logging
   await logAuditEvent({

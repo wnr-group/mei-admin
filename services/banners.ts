@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import { toAppError } from '@/lib/errors'
+import { toAppError, AppError } from '@/lib/errors'
 import { logAuditEvent } from '@/lib/audit'
 import type { Banner, BannerInsert, BannerUpdate } from '@/types'
 import type { Json } from '@/types/database'
@@ -32,12 +32,13 @@ export async function createBanner(banner: BannerInsert) {
     .single()
   const { data, error } = response as { data: Banner | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+  if (!data) throw new AppError('NOT_FOUND', 'Banner not returned after insert')
 
   // Add logging
   await logAuditEvent({
     action: 'CREATE',
     resourceType: 'banner',
-    resourceId: data!.id,
+    resourceId: data.id,
     newData: data as Json,
   })
 
@@ -54,6 +55,7 @@ export async function updateBanner(id: string, updates: BannerUpdate) {
     .single()
   const { data, error } = response as { data: Banner | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
+  if (!data) throw new AppError('NOT_FOUND', 'Banner not returned after update')
 
   // Add logging
   await logAuditEvent({
