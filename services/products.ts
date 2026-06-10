@@ -3,6 +3,14 @@ import { toAppError, AppError } from '@/lib/errors'
 import { logAuditEvent } from '@/lib/audit'
 import type { Product, ProductInsert, ProductUpdate } from '@/types'
 import type { Json } from '@/types/database'
+import type { ColorVariant } from '@/types/color-variant'
+
+function deriveImageUrl(colorVariants: unknown): string | null {
+  if (!Array.isArray(colorVariants) || colorVariants.length === 0) return null
+  const variants = colorVariants as ColorVariant[]
+  const defaultVariant = variants.find((v) => v.isDefault) ?? variants[0]
+  return defaultVariant?.images?.[0] ?? null
+}
 
 interface GetProductsOptions {
   page?: number
@@ -40,9 +48,11 @@ export async function getProducts(options: GetProductsOptions = {}) {
 
 export async function createProduct(product: ProductInsert) {
   const supabase = createClient()
+  const image_url = deriveImageUrl(product.color_variants) ?? product.image_url ?? null
+
   const response = await supabase
     .from('products')
-    .insert([product] as never)
+    .insert([{ ...product, image_url }] as never)
     .select()
     .single()
   const { data, error } = response as { data: Product | null; error: { message: string } | null }
@@ -62,9 +72,13 @@ export async function createProduct(product: ProductInsert) {
 
 export async function updateProduct(id: string, updates: ProductUpdate) {
   const supabase = createClient()
+  const image_url = updates.color_variants !== undefined
+    ? deriveImageUrl(updates.color_variants) ?? updates.image_url ?? null
+    : updates.image_url
+
   const response = await supabase
     .from('products')
-    .update(updates as never)
+    .update({ ...updates, ...(image_url !== undefined ? { image_url } : {}) } as never)
     .eq('id', id)
     .select()
     .single()
