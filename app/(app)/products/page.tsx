@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Image as ImageIcon, X, Plus } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/use-products'
 import { useCategories } from '@/hooks/use-categories'
 import { TableSkeleton } from '@/components/ui/skeleton'
@@ -15,6 +16,7 @@ import type { Product } from '@/types'
 const WORK_TYPES_OPTIONS = ['ZARDOZI', 'AARI', 'HANDLOOM', 'SEQUIN', 'BESPOKE', 'GOTA PATTI', 'EMBROIDERY', 'CHIKANKARI', 'MUKAISH']
 
 export default function ProductsPage() {
+  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const { data, isLoading, error, refetch } = useProducts({ page, limit: 6 })
   const { data: categories = [] } = useCategories()
@@ -246,6 +248,8 @@ export default function ProductsPage() {
               finalImageUrl = uploadedUrl
               // Update product with new image URL directly (avoid mutation collision)
               await updateProductDirectly(editingProduct.id, { image_url: uploadedUrl })
+              // Invalidate products cache so the list reflects the new image_url immediately
+              await queryClient.invalidateQueries({ queryKey: ['products'] })
             }
           } catch (error) {
             if (isMountedRef.current) {
