@@ -1,12 +1,15 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Image as ImageIcon, X, Plus } from 'lucide-react'
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/use-products'
 import { useCategories } from '@/hooks/use-categories'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
+import { validateImageFile } from '@/lib/validators/image'
+import { uploadProductImage } from '@/services/storage'
+import { updateProduct as updateProductDirectly } from '@/services/products'
 import type { Product } from '@/types'
 
 const WORK_TYPES_OPTIONS = ['ZARDOZI', 'AARI', 'HANDLOOM', 'SEQUIN', 'BESPOKE', 'GOTA PATTI', 'EMBROIDERY', 'CHIKANKARI', 'MUKAISH']
@@ -37,6 +40,41 @@ export default function ProductsPage() {
   const [workInput, setWorkInput] = useState('')
   const [formImageUrl, setFormImageUrl] = useState('')
 
+  // Image upload state
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
+  const [isTemporaryPreview, setIsTemporaryPreview] = useState(false)
+  const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+
+  // Safety setup refs
+  const isMountedRef = useRef(true)
+  const previewUrlRef = useRef<string | null>(null)
+  const isTemporaryPreviewRef = useRef(false)
+
+  const cleanupPreviewUrl = () => {
+    try {
+      if (isTemporaryPreviewRef.current && previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current)
+      }
+    } catch {
+      // silently ignore cleanup failures (browser edge-cases)
+    }
+  }
+
+  useEffect(() => {
+    previewUrlRef.current = imagePreviewUrl
+    isTemporaryPreviewRef.current = isTemporaryPreview
+  }, [imagePreviewUrl, isTemporaryPreview])
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+      cleanupPreviewUrl()
+    }
+  }, [])
+
   if (isLoading) return <TableSkeleton rows={6} />
   if (error) return <ErrorState message={error.message} onRetry={refetch} />
   if (products.length === 0) return <EmptyState message="No products yet." />
@@ -60,6 +98,41 @@ export default function ProductsPage() {
     )
   }
 
+  // Handle image file selection
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.currentTarget.files?.[0]
+    if (!file) return
+
+    setUploadState('idle')
+
+    const validationError = validateImageFile(file)
+    if (validationError) {
+      setUploadError(validationError.message)
+      e.currentTarget.value = ''
+      return
+    }
+
+    cleanupPreviewUrl()
+
+    const preview = URL.createObjectURL(file)
+    setSelectedImageFile(file)
+    setImagePreviewUrl(preview)
+    setIsTemporaryPreview(true)
+    setUploadError(null)
+    setFormError(null)
+    setUploadState('idle')
+    e.currentTarget.value = ''
+  }
+
+  const handleRemoveImage = () => {
+    cleanupPreviewUrl()
+    setSelectedImageFile(null)
+    setImagePreviewUrl(editingProduct?.image_url || null)
+    setIsTemporaryPreview(false)
+    setUploadError(null)
+    setFormError(null)
+  }
+
   // Open drawer to ADD a new product
   const handleOpenAdd = () => {
     setEditingProduct(null)
@@ -70,6 +143,13 @@ export default function ProductsPage() {
     setFormWorkTypes([])
     setWorkInput('')
     setFormImageUrl('')
+    cleanupPreviewUrl()
+    setSelectedImageFile(null)
+    setImagePreviewUrl(null)
+    setIsTemporaryPreview(false)
+    setUploadState('idle')
+    setUploadError(null)
+    setFormError(null)
     setIsDrawerOpen(true)
   }
 
@@ -83,6 +163,13 @@ export default function ProductsPage() {
     setFormWorkTypes(product.work_types ?? [])
     setWorkInput('')
     setFormImageUrl(product.image_url ?? '')
+    cleanupPreviewUrl()
+    setSelectedImageFile(null)
+    setImagePreviewUrl(product.image_url || null)
+    setIsTemporaryPreview(false)
+    setUploadState('idle')
+    setUploadError(null)
+    setFormError(null)
     setIsDrawerOpen(true)
   }
 
@@ -101,13 +188,44 @@ export default function ProductsPage() {
   // SAVE product (Add or Edit)
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formName || !formPrice || !formCategoryId) return
 
-    const priceNum = parseInt(formPrice, 10)
+    // Early return duplicate submit protection
+    if (createProductMutation.isPending || updateProductMutation.isPending) {
+      return
+    }
+
+    // Validate required fields
+    if (!formName || !formPrice || !formCategoryId) {
+      setFormError('Please fill in all required fields.')
+      return
+    }
+
+    // Validate and parse price
+    const trimmedPrice = formPrice.trim()
+    if (!trimmedPrice) {
+      setFormError('Price is required.')
+      return
+    }
+
+    const priceNum = parseInt(trimmedPrice, 10)
+    if (isNaN(priceNum)) {
+      setFormError('Price must be a valid number.')
+      return
+    }
+
+    if (priceNum < 0) {
+      setFormError('Price cannot be negative.')
+      return
+    }
+
+    setFormError(null)
+    setUploadState('uploading')
 
     try {
+      let finalImageUrl = formImageUrl
+
       if (editingProduct) {
-        // Update in database
+        // EDIT FLOW: Update product first, then handle image
         await updateProductMutation.mutateAsync({
           id: editingProduct.id,
           updates: {
@@ -116,23 +234,74 @@ export default function ProductsPage() {
             price: priceNum,
             status: formStatus,
             work_types: formWorkTypes,
-            image_url: formImageUrl
+            image_url: finalImageUrl
           }
         })
+
+        // If user selected a new image, upload it
+        if (selectedImageFile && isMountedRef.current) {
+          try {
+            const uploadedUrl = await uploadProductImage(selectedImageFile, editingProduct.id)
+            if (isMountedRef.current) {
+              finalImageUrl = uploadedUrl
+              // Update product with new image URL directly (avoid mutation collision)
+              await updateProductDirectly(editingProduct.id, { image_url: uploadedUrl })
+            }
+          } catch (error) {
+            if (isMountedRef.current) {
+              setUploadState('error')
+              setUploadError(error instanceof Error ? error.message : 'Image upload failed. Product was updated but image could not be uploaded.')
+              return
+            }
+          }
+        }
       } else {
-        // Add new to database
-        await createProductMutation.mutateAsync({
+        // CREATE FLOW: Create product without image, upload image, then update with URL
+        const newProduct = await createProductMutation.mutateAsync({
           name: formName,
           category_id: formCategoryId,
           price: priceNum,
           status: formStatus,
           work_types: formWorkTypes,
-          image_url: formImageUrl
+          image_url: null
         })
+
+        if (!isMountedRef.current) return
+
+        // If user selected an image, upload it
+        if (selectedImageFile && isMountedRef.current) {
+          try {
+            const uploadedUrl = await uploadProductImage(selectedImageFile, newProduct.id)
+            if (isMountedRef.current) {
+              finalImageUrl = uploadedUrl
+              // Update the newly created product with the image URL
+              await updateProductMutation.mutateAsync({
+                id: newProduct.id,
+                updates: {
+                  image_url: uploadedUrl
+                }
+              })
+            }
+          } catch (error) {
+            if (isMountedRef.current) {
+              setUploadState('error')
+              setUploadError(error instanceof Error ? error.message : 'Image upload failed. Product was created but image could not be uploaded.')
+              return
+            }
+          }
+        }
       }
-      setIsDrawerOpen(false)
-    } catch {
-      alert('Failed to save product')
+
+      if (isMountedRef.current) {
+        setUploadState('success')
+        setIsDrawerOpen(false)
+      }
+    } catch (error) {
+      if (isMountedRef.current) {
+        setUploadState('error')
+        const errorMsg = error instanceof Error ? error.message : 'Failed to save product'
+        setFormError(errorMsg)
+      }
     }
   }
 
@@ -153,9 +322,11 @@ export default function ProductsPage() {
     <div className="space-y-6 px-8 pt-10 font-inter relative animate-fade-in">
 
       {/* Loading overlay for mutations */}
-      {(createProductMutation.isPending || updateProductMutation.isPending || deleteProductMutation.isPending) && (
+      {(createProductMutation.isPending || updateProductMutation.isPending || deleteProductMutation.isPending || uploadState === 'uploading') && (
         <div className="fixed inset-0 bg-white/50 z-50 flex items-center justify-center">
-          <div className="text-zinc-500 font-medium text-xs">Saving updates...</div>
+          <div className="text-zinc-500 font-medium text-xs">
+            {uploadState === 'uploading' ? 'Uploading image...' : 'Saving updates...'}
+          </div>
         </div>
       )}
 
@@ -344,7 +515,14 @@ export default function ProductsPage() {
               </div>
 
               <form onSubmit={handleSaveProduct} id="drawer-form" className="mt-8 space-y-6">
-                
+
+                {/* Form Error Display */}
+                {formError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium px-3 py-2.5 rounded-none">
+                    {formError}
+                  </div>
+                )}
+
                 {/* Product Name */}
                 <div className="space-y-1">
                   <label className="block text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
@@ -358,6 +536,64 @@ export default function ProductsPage() {
                     placeholder="e.g. Maharani Zardozi Lehenga"
                     className="w-full border-b border-[#E8E0D5] py-2 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
                   />
+                </div>
+
+                {/* Image Upload Section */}
+                <div className="space-y-3 pt-2">
+                  <label className="block text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
+                    Product Image
+                  </label>
+
+                  {/* Preview Container */}
+                  <div className="border border-[#E8E0D5] bg-[#FAF8F5] aspect-square flex items-center justify-center overflow-hidden">
+                    {imagePreviewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={imagePreviewUrl}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5 text-zinc-300">
+                        <ImageIcon className="w-6 h-6 stroke-[1.5]" />
+                        <span className="text-[10px] font-medium">No image</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Upload Error */}
+                  {uploadError && (
+                    <div className="text-[11px] text-red-600 font-medium">
+                      {uploadError}
+                    </div>
+                  )}
+
+                  {/* Upload Buttons */}
+                  <div className="flex gap-2">
+                    <label className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                        onChange={handleImageSelect}
+                        disabled={uploadState === 'uploading'}
+                        className="hidden"
+                      />
+                      <span className="block border border-[#B38B5D] text-[#B38B5D] hover:bg-[#FAF6F0] disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 text-[11px] font-bold uppercase transition-colors text-center cursor-pointer">
+                        {uploadState === 'uploading' ? 'Uploading...' : 'Select Image'}
+                      </span>
+                    </label>
+
+                    {(imagePreviewUrl || selectedImageFile) && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        disabled={uploadState === 'uploading'}
+                        className="flex-1 border border-zinc-300 text-zinc-500 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 text-[11px] font-bold uppercase transition-colors"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Category & Price */}
@@ -484,16 +720,18 @@ export default function ProductsPage() {
               <button
                 type="button"
                 onClick={() => setIsDrawerOpen(false)}
-                className="flex-1 border border-zinc-200 hover:bg-zinc-50 text-[10px] font-bold tracking-widest text-zinc-500 py-4 transition-colors uppercase rounded-none"
+                disabled={uploadState === 'uploading' || createProductMutation.isPending || updateProductMutation.isPending}
+                className="flex-1 border border-zinc-200 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed text-[10px] font-bold tracking-widest text-zinc-500 py-4 transition-colors uppercase rounded-none"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 form="drawer-form"
-                className="flex-1 bg-[#B38B5D] hover:bg-[#A37B4D] text-[10px] font-bold tracking-widest text-white py-4 transition-colors uppercase rounded-none"
+                disabled={uploadState === 'uploading' || createProductMutation.isPending || updateProductMutation.isPending}
+                className="flex-1 bg-[#B38B5D] hover:bg-[#A37B4D] disabled:opacity-50 disabled:cursor-not-allowed text-[10px] font-bold tracking-widest text-white py-4 transition-colors uppercase rounded-none"
               >
-                {editingProduct ? 'Save Changes' : 'Publish Product'}
+                {uploadState === 'uploading' ? 'Uploading...' : editingProduct ? 'Save Changes' : 'Publish Product'}
               </button>
             </div>
 
