@@ -12,9 +12,11 @@
 - Unmount-only cleanup (no stale cleanup triggers)
 - Static imports (no dynamic imports in mutation flows)
 - Form error state (no browser alerts)
-- Number validation (no NaN silently passing)
+- Number validation (no NaN silently passing, no negative, no whitespace-only)
 - Duplicate submit protection (early return checks)
 - Centralized cleanup helpers (DRY principle)
+- Defensive cleanup (try/catch in revokeObjectURL)
+- Upload state reset on retry (no stale error UI)
 
 ---
 
@@ -204,8 +206,12 @@ After the state declarations, add:
 
   // Helper to cleanup preview URL safely
   const cleanupPreviewUrl = () => {
-    if (isTemporaryPreviewRef.current && previewUrlRef.current) {
-      URL.revokeObjectURL(previewUrlRef.current)
+    try {
+      if (isTemporaryPreviewRef.current && previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current)
+      }
+    } catch {
+      // silently ignore cleanup failures (browser edge-cases)
     }
   }
 
@@ -257,6 +263,9 @@ Before the `handleOpenAdd` function (around line 65), add:
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.currentTarget.files?.[0]
     if (!file) return
+
+    // Reset any stale upload state before validation (guarantees clean retry)
+    setUploadState('idle')
 
     // Validate file
     const validationError = validateImageFile(file)
@@ -412,9 +421,13 @@ Find the existing `handleSaveProduct` function and replace it completely with:
 
     if (!formName || !formPrice || !formCategoryId) return
 
-    // Validate price safely
+    // Validate price safely (empty/whitespace, NaN, and negative)
+    if (!formPrice.trim()) {
+      setFormError('Price is required')
+      return
+    }
     const priceNum = Number(formPrice)
-    if (Number.isNaN(priceNum)) {
+    if (Number.isNaN(priceNum) || priceNum < 0) {
       setFormError('Invalid price')
       return
     }
@@ -944,12 +957,16 @@ Expected:
 
 - [ ] **Step 3: Test invalid price**
 
-In form, enter non-numeric price like "abc"
+In form, test these cases:
 
-Click "Publish Product"
+a) Enter non-numeric price like "abc"
+b) Enter whitespace-only price "   "
+c) Enter negative price "-100"
 
-Expected:
-- Error message: "Invalid price"
+Click "Publish Product" after each
+
+Expected for each:
+- Error message: "Invalid price" or "Price is required"
 - Form preserved
 - Can correct and retry
 
@@ -1081,9 +1098,11 @@ Production-grade implementation with:
 ✅ Unmount-only cleanup
 ✅ Static imports
 ✅ Form error state (no alerts)
-✅ Number validation
+✅ Number validation (NaN + negative + whitespace-only)
 ✅ Duplicate submit protection
 ✅ Centralized cleanup helpers
+✅ Defensive cleanup (try/catch in revokeObjectURL)
+✅ Upload state reset on retry
 ✅ Comprehensive error recovery
 ✅ Accessibility attributes
 ✅ No regressions
