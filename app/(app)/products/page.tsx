@@ -545,7 +545,7 @@ export default function ProductsPage() {
                   </label>
 
                   {/* Preview Container */}
-                  <div className="border border-[#E8E0D5] bg-[#FAF8F5] aspect-square flex items-center justify-center overflow-hidden">
+                  <div className="w-[100px] h-[100px] border border-[#E8E0D5] bg-[#FAF8F5] flex items-center justify-center overflow-hidden">
                     {imagePreviewUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
