@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   ])
 
   const totalProducts = productsResult.count ?? 0
-  const totalOrders = (ordersResult.data ?? []).length
+  const totalOrders = ordersResult.count ?? 0
   const newEnquiries = enquiriesResult.count ?? 0
   const recentOrders = (ordersResult.data ?? []) as Order[]
 
