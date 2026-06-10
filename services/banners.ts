@@ -16,6 +16,7 @@ export async function getBanners(options: GetBannersOptions = {}) {
   const { data, error, count } = await supabase
     .from('banners')
     .select('*', { count: 'exact' })
+    .is('deleted_at', null)
     .order('sort_order', { ascending: true })
     .range((page - 1) * limit, page * limit - 1)
 
@@ -72,7 +73,7 @@ export async function deleteBanner(id: string) {
   const supabase = createClient()
   const { error } = await supabase
     .from('banners')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() } as never)
     .eq('id', id)
   if (error) throw toAppError(new Error(error.message))
 
