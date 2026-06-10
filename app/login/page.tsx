@@ -1,19 +1,29 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signIn } from "@/services/auth";
 
 const Login = () => {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(""); // Initial state matches screenshot error
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError("Invalid email or password.");
-    } else {
-      // Mock validation / action
-      setError("Invalid email or password.");
+    setError(null);
+    setLoading(true);
+
+    try {
+      await signIn(email, password);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An error occurred during sign in';
+      setError(message);
+      setLoading(false);
     }
   };
 
@@ -71,9 +81,10 @@ const Login = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-gold hover:bg-gold-hover text-white text-[12px] font-bold py-3.5 tracking-[0.18em] transition-colors duration-200 uppercase cursor-pointer border-0 rounded-none"
+            disabled={loading}
+            className="w-full bg-gold hover:bg-gold-hover text-white text-[12px] font-bold py-3.5 tracking-[0.18em] transition-colors duration-200 uppercase cursor-pointer border-0 rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            SIGN IN
+            {loading ? "Signing in…" : "SIGN IN"}
           </button>
         </form>
       </div>

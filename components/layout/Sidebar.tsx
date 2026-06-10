@@ -1,17 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  ShoppingBag, 
-  Layers, 
-  ShoppingCart, 
-  Mail, 
-  Image as ImageIcon, 
-  Settings, 
-  LogOut 
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  Layers,
+  ShoppingCart,
+  Mail,
+  Image as ImageIcon,
+  Settings,
+  LogOut
 } from 'lucide-react';
+import { signOut } from '@/services/auth';
 
 // Navigation items
 const navItems = [
@@ -26,6 +27,13 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleSignOut() {
+    await signOut();
+    router.push('/login');
+    router.refresh();
+  }
 
   return (
     <aside className="fixed inset-y-0 left-0 w-[260px] bg-white border-r border-zinc-100 flex flex-col justify-between py-3 z-50">
@@ -70,8 +78,8 @@ export default function Sidebar() {
 
       {/* Bottom Section: Sign Out */}
       <div>
-        <button 
-          onClick={() => console.log('Signing out...')}
+        <button
+          onClick={handleSignOut}
           className="flex items-center gap-4 px-4 py-3 text-[11px] font-bold tracking-widest text-zinc-500 hover:text-red-600 transition-colors w-full"
         >
           <LogOut className="w-4 h-4 text-zinc-400 hover:text-red-600" />
