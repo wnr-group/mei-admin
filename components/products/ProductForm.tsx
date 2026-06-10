@@ -2,11 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchProducts, addProduct, updateProduct } from '@/lib/mockDb';
-import { Upload, X, ChevronDown, ChevronUp, Loader2, Plus } from 'lucide-react';
+import { useProducts, useCreateProduct, useUpdateProduct } from '@/hooks/use-products';
+import { useCategories } from '@/hooks/use-categories';
+import type { ProductInsert } from '@/types';
+import type { Json } from '@/types/database';
+import type { ColorVariant } from '@/types/color-variant';
+import { ChevronDown, ChevronUp, Loader2, Plus } from 'lucide-react';
 import Link from 'next/link';
+import ColorVariantCard from '@/components/products/ColorVariantCard';
+import TagInput from '@/components/ui/TagInput';
 
-const CATEGORIES = ['Bridal Lehengas', 'Sarees', 'Evening Gowns', 'Couture', 'Suits'];
 const WORK_TYPES = ['Aari', 'Zardozi', 'Mirror', 'Cut', 'Thread', 'Tailoring', 'Kundan'];
 
 interface ProductFormProps {
@@ -15,6 +20,12 @@ interface ProductFormProps {
 
 export default function ProductForm({ editId }: ProductFormProps) {
   const router = useRouter();
+
+  // Hooks
+  const { data: categories } = useCategories();
+  const { data: productsData } = useProducts();
+  const createProduct = useCreateProduct();
+  const updateProductMutation = useUpdateProduct();
 
   // Basic Info state
   const [name, setName] = useState('');
@@ -27,8 +38,8 @@ export default function ProductForm({ editId }: ProductFormProps) {
   const [compareAtPrice, setCompareAtPrice] = useState('0.00');
 
   // Category & Attributes state
-  const [category, setCategory] = useState('');
-  const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>(['Zardozi']); // "Zardozi" default
+  const [category_id, setCategoryId] = useState('');
+  const [work_types, setWorkTypes] = useState<string[]>(['Zardozi']);
 
   // SEO state
   const [seoExpanded, setSeoExpanded] = useState(false);
@@ -36,9 +47,16 @@ export default function ProductForm({ editId }: ProductFormProps) {
   const [metaDescription, setMetaDescription] = useState('');
   const [metaKeywords, setMetaKeywords] = useState('');
 
-  // Media state
-  const [images, setImages] = useState<string[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
+  // Color Variants state (replaces flat images[])
+  const [colorVariants, setColorVariants] = useState<ColorVariant[]>([]);
+
+  // Sizes state
+  const [availableSizes, setAvailableSizes] = useState<string[]>([]);
+  const [customSizeEnabled, setCustomSizeEnabled] = useState(false);
+
+  // Blouse Options state
+  const [blouseOptionsEnabled, setBlouseOptionsEnabled] = useState(false);
+  const [blouseTypes, setBlouseTypes] = useState<string[]>([]);
 
   // Status & Visibility state
   const [published, setPublished] = useState(false);
@@ -50,50 +68,48 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
   // Load existing product details if editing
   useEffect(() => {
-    if (!editId) return;
-
-    async function loadProduct() {
-      try {
-        const data = await fetchProducts();
-        const prod = data.find((p) => p.id === editId);
-        if (prod) {
-          setName(prod.name);
-          setSlug(prod.slug || '');
-          setShortDescription(prod.shortDescription || '');
-          setDescription(prod.description || '');
-          setPrice(prod.price.toString());
-          setCompareAtPrice(prod.compareAtPrice ? prod.compareAtPrice.toString() : '0.00');
-          setCategory(prod.category);
-          setSelectedWorkTypes(prod.workTypes || []);
-          setImages(prod.images || (prod.image ? [prod.image] : []));
-          setPublished(prod.status === 'PUBLISHED');
-          setFeatured(prod.featured || false);
-          setNewArrival(prod.newArrival || false);
-          setMetaTitle(prod.metaTitle || '');
-          setMetaDescription(prod.metaDescription || '');
-          setMetaKeywords(prod.metaKeywords || '');
-        } else {
-          alert('Product not found.');
-          router.push('/products');
-        }
-      } catch (err) {
-        console.error('Failed to load product details:', err);
-      } finally {
-        setLoading(false);
-      }
+    if (!editId || !productsData) return;
+    const prod = productsData.products.find((p) => p.id === editId);
+    if (prod) {
+      setName(prod.name);
+      setSlug(prod.slug || '');
+      setShortDescription(prod.short_description || '');
+      setDescription(prod.description || '');
+      setPrice(prod.price.toString());
+      setCompareAtPrice(prod.compare_at_price ? prod.compare_at_price.toString() : '0.00');
+      setCategoryId(prod.category_id || '');
+      setWorkTypes(prod.work_types || []);
+      setColorVariants((prod.color_variants as unknown as ColorVariant[]) || []);
+      setAvailableSizes(prod.available_sizes || []);
+      setCustomSizeEnabled(prod.custom_size_enabled || false);
+      setBlouseOptionsEnabled(prod.blouse_options_enabled || false);
+      setBlouseTypes(prod.blouse_types || []);
+      setPublished(prod.status === 'PUBLISHED');
+      setFeatured(prod.featured || false);
+      setNewArrival(prod.new_arrival || false);
+      setMetaTitle(prod.meta_title || '');
+      setMetaDescription(prod.meta_description || '');
+      setMetaKeywords(prod.meta_keywords || '');
+      setLoading(false);
+    } else {
+      alert('Product not found.');
+      router.push('/products');
     }
+  }, [editId, productsData, router]);
 
-    loadProduct();
-  }, [editId, router]);
+  // If not editing, don't show loading
+  useEffect(() => {
+    if (!editId) setLoading(false);
+  }, [editId]);
 
   // Auto-generate slug from name
   const generateSlug = (val: string) => {
     return val
       .toLowerCase()
       .trim()
-      .replace(/[^\w\s-]/g, '') // remove non-word characters
-      .replace(/[\s_-]+/g, '-') // replace spaces/underscores with hyphens
-      .replace(/^-+|-+$/g, ''); // remove leading/trailing hyphens
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,60 +120,55 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
   // Toggle work types tag selection
   const handleToggleWorkType = (wt: string) => {
-    if (selectedWorkTypes.includes(wt)) {
-      setSelectedWorkTypes(selectedWorkTypes.filter((item) => item !== wt));
+    if (work_types.includes(wt)) {
+      setWorkTypes(work_types.filter((item) => item !== wt));
     } else {
-      setSelectedWorkTypes([...selectedWorkTypes, wt]);
+      setWorkTypes([...work_types, wt]);
     }
   };
 
-  // Drag-and-drop file handlers
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+  // Color Variant helpers
+  const addColorVariant = () => {
+    const newVariant: ColorVariant = {
+      id: crypto.randomUUID(),
+      colorName: '',
+      colorHex: '#C41E3A',
+      images: [],
+      isDefault: colorVariants.length === 0,
+    };
+    setColorVariants([...colorVariants, newVariant]);
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
+  const updateColorVariant = (index: number, updated: ColorVariant) => {
+    const newVariants = [...colorVariants];
+    newVariants[index] = updated;
+    setColorVariants(newVariants);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files) {
-      const filesArray = Array.from(e.dataTransfer.files);
-      addFiles(filesArray);
+  const removeColorVariant = (index: number) => {
+    const newVariants = colorVariants.filter((_, i) => i !== index);
+    // If removed was default, make first one default
+    if (colorVariants[index].isDefault && newVariants.length > 0) {
+      newVariants[0] = { ...newVariants[0], isDefault: true };
     }
+    setColorVariants(newVariants);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const filesArray = Array.from(e.target.files);
-      addFiles(filesArray);
+  const setDefaultVariant = (index: number) => {
+    const newVariants = colorVariants.map((v, i) => ({
+      ...v,
+      isDefault: i === index,
+    }));
+    setColorVariants(newVariants);
+  };
+
+  // Blouse type toggle
+  const handleToggleBlouseType = (type: string) => {
+    if (blouseTypes.includes(type)) {
+      setBlouseTypes(blouseTypes.filter((t) => t !== type));
+    } else {
+      setBlouseTypes([...blouseTypes, type]);
     }
-  };
-
-  const addFiles = (files: File[]) => {
-    const remainingSlots = 10 - images.length;
-    const filesToProcess = files.slice(0, remainingSlots);
-
-    filesToProcess.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setImages((prev) => [...prev, reader.result as string]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setImages(images.filter((_, idx) => idx !== index));
-  };
-
-  const triggerFileInput = () => {
-    document.getElementById('image-file-input')?.click();
   };
 
   // Submit Handler
@@ -168,7 +179,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
       alert('Please enter a product name.');
       return;
     }
-    if (!category) {
+    if (!category_id) {
       alert('Please select a category.');
       return;
     }
@@ -176,40 +187,33 @@ export default function ProductForm({ editId }: ProductFormProps) {
     setIsSaving(true);
 
     try {
-      const priceNum = parseFloat(price) || 0;
-      const compareAtPriceNum = parseFloat(compareAtPrice) || 0;
-
-      // Provide a nice fallback saree/lehenga image if they didn't upload any
-      const mainImage = images[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop';
-
       const payload = {
         name: name.trim(),
         slug: slug.trim() || generateSlug(name),
-        shortDescription: shortDescription.trim(),
-        description: description.trim(),
-        price: priceNum,
-        compareAtPrice: compareAtPriceNum,
-        category,
-        workTypes: selectedWorkTypes,
-        image: mainImage,
-        images,
-        status: published ? ('PUBLISHED' as const) : ('DRAFT' as const),
+        short_description: shortDescription.trim() || null,
+        description: description.trim() || null,
+        price: parseFloat(price) || 0,
+        compare_at_price: parseFloat(compareAtPrice) || null,
+        category_id: category_id || null,
+        work_types: work_types,
+        color_variants: colorVariants as unknown as Json,
+        available_sizes: availableSizes,
+        custom_size_enabled: customSizeEnabled,
+        blouse_options_enabled: blouseOptionsEnabled,
+        blouse_types: blouseOptionsEnabled ? blouseTypes : [],
+        status: (published ? 'PUBLISHED' : 'DRAFT') as 'PUBLISHED' | 'DRAFT',
         featured,
-        newArrival,
-        metaTitle: metaTitle.trim(),
-        metaDescription: metaDescription.trim(),
-        metaKeywords: metaKeywords.trim(),
+        new_arrival: newArrival,
+        meta_title: metaTitle.trim() || null,
+        meta_description: metaDescription.trim() || null,
+        meta_keywords: metaKeywords.trim() || null,
       };
 
       if (editId) {
-        await updateProduct({
-          id: editId,
-          ...payload
-        });
+        await updateProductMutation.mutateAsync({ id: editId, updates: payload });
       } else {
-        await addProduct(payload);
+        await createProduct.mutateAsync(payload as ProductInsert);
       }
-
       router.push('/products');
     } catch (err) {
       console.error('Failed to save product:', err);
@@ -242,7 +246,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        
+
         {/* Header section with heading */}
         <h1 className="font-serif text-[24px] text-zinc-950 font-normal tracking-wide">
           {editId ? 'Edit Product' : 'Add Product'}
@@ -250,16 +254,16 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
         {/* Main Grid: 2 columns layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          
+
           {/* Left Column (2/3 width) */}
           <div className="lg:col-span-2 space-y-6">
-            
+
             {/* Card 1: BASIC INFO */}
             <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
               <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
                 BASIC INFO
               </h3>
-              
+
               {/* Product Name */}
               <div className="space-y-1 relative">
                 <label className="block text-[9px] font-medium tracking-widest text-zinc-600 uppercase">
@@ -336,7 +340,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
               <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
                 PRICING
               </h3>
-              
+
               <div className="grid grid-cols-2 gap-8">
                 {/* Price */}
                 <div className="space-y-1">
@@ -383,13 +387,13 @@ export default function ProductForm({ editId }: ProductFormProps) {
                 <div className="relative">
                   <select
                     required
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
+                    value={category_id}
+                    onChange={(e) => setCategoryId(e.target.value)}
                     className="w-full border-b border-[#E8E0D5] py-2.5 pr-8 text-[13px] text-zinc-700 bg-transparent focus:outline-hidden focus:border-[#B38B5D] transition-colors cursor-pointer appearance-none"
                   >
                     <option value="" disabled>Select Category</option>
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
+                    {categories?.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
                   </select>
                   <div className="pointer-events-none absolute right-1 bottom-3 flex items-center text-zinc-400">
@@ -405,7 +409,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {WORK_TYPES.map((wt) => {
-                    const isSelected = selectedWorkTypes.includes(wt);
+                    const isSelected = work_types.includes(wt);
                     return (
                       <button
                         type="button"
@@ -441,7 +445,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
                   <ChevronDown className="w-4 h-4 text-zinc-400" />
                 )}
               </button>
-              
+
               {seoExpanded && (
                 <div className="px-8 pb-8 space-y-6 border-t border-[#FAF8F5]">
                   {/* Meta Title */}
@@ -497,7 +501,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
               >
                 Cancel
               </Link>
-              
+
               <button
                 type="submit"
                 disabled={isSaving}
@@ -512,103 +516,118 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
           {/* Right Column (1/3 width) */}
           <div className="space-y-6">
-            
-            {/* Card 5: MEDIA */}
+
+            {/* Card 5: COLOR VARIANTS */}
             <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
-                  MEDIA
+                  COLOR VARIANTS
                 </h3>
                 <span className="text-[9px] text-zinc-400 font-medium font-sans">
-                  {images.length}/10 images
+                  {colorVariants.length} variant{colorVariants.length !== 1 ? 's' : ''}
                 </span>
               </div>
 
-              {/* Upload Drop Zone */}
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={triggerFileInput}
-                className={`border border-dashed p-8 text-center cursor-pointer transition-colors duration-200 flex flex-col items-center justify-center min-h-[160px] bg-[#FAF8F5]/30 ${
-                  isDragging
-                    ? 'border-[#B38B5D] bg-[#FAF8F5]/50'
-                    : 'border-[#E8E0D5] hover:border-[#B38B5D] hover:bg-[#FAF8F5]/10'
-                }`}
-              >
-                <input
-                  type="file"
-                  id="image-file-input"
-                  multiple
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                
-                <Upload className="w-6 h-6 stroke-[1.5] text-zinc-400 mb-2" />
-                <p className="text-[12px] text-zinc-500 font-medium">
-                  Click or drag images here
-                </p>
-              </div>
-
-              {/* Thumbnail Display Grid */}
-              <div className="flex flex-wrap gap-3 pt-2">
-                {images.map((img, idx) => (
-                  <div 
-                    key={idx} 
-                    className="relative border border-[#E8E0D5] bg-[#E0E0E0] w-[60px] h-[90px] flex items-center justify-center overflow-hidden group"
-                  >
-                    <img 
-                      src={img} 
-                      alt={`Preview ${idx + 1}`} 
-                      className="w-full h-full object-cover" 
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                    
-                    {idx === 0 && (
-                      <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wider font-sans">
-                        Thumbnail
-                      </div>
-                    )}
-                    
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveImage(idx);
-                      }}
-                      className="absolute right-0.5 top-0.5 bg-black/60 hover:bg-black text-white rounded-full p-0.5 transition-colors cursor-pointer"
-                    >
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
+              {/* Variant Cards */}
+              <div className="space-y-4">
+                {colorVariants.map((variant, idx) => (
+                  <ColorVariantCard
+                    key={variant.id}
+                    variant={variant}
+                    onChange={(updated) => updateColorVariant(idx, updated)}
+                    onRemove={() => removeColorVariant(idx)}
+                    onSetDefault={() => setDefaultVariant(idx)}
+                  />
                 ))}
-
-                {images.length === 0 && (
-                  /* Initial Empty Placeholder Box matching screenshot exactly */
-                  <div className="border border-zinc-300 bg-[#E0E0E0] w-[60px] h-[90px] flex flex-col p-1.5 text-left text-zinc-500 select-none overflow-hidden">
-                    <span className="text-[9px] font-sans leading-none break-all text-zinc-600 font-medium">
-                      Thumbnail
-                    </span>
-                  </div>
-                )}
-                
-                {/* Gray box with plus icon */}
-                {images.length < 10 && (
-                  <button
-                    type="button"
-                    onClick={triggerFileInput}
-                    className="border border-zinc-300 bg-[#E0E0E0] w-[60px] h-[90px] hover:border-[#B38B5D] transition-colors flex items-center justify-center text-zinc-400 hover:text-zinc-600 cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4 stroke-[2]" />
-                  </button>
-                )}
               </div>
+
+              {/* Add Variant Button */}
+              <button
+                type="button"
+                onClick={addColorVariant}
+                className="w-full border border-dashed border-[#E8E0D5] hover:border-[#B38B5D] py-3 flex items-center justify-center gap-2 text-[11px] font-medium text-zinc-500 hover:text-[#B38B5D] transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Color Variant
+              </button>
             </div>
 
-            {/* Card 6: VISIBILITY & STATUS */}
+            {/* Card 6: SIZES */}
+            <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
+              <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
+                SIZES
+              </h3>
+
+              <div className="space-y-3">
+                <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
+                  AVAILABLE SIZES
+                </label>
+                <TagInput
+                  tags={availableSizes}
+                  onChange={setAvailableSizes}
+                  placeholder="Type size and press Enter (e.g. S, M, L, XL)"
+                />
+              </div>
+
+              {/* Custom Size Checkbox */}
+              <label className="flex items-center gap-3 cursor-pointer group select-none">
+                <input
+                  type="checkbox"
+                  checked={customSizeEnabled}
+                  onChange={(e) => setCustomSizeEnabled(e.target.checked)}
+                  className="w-4 h-4 border border-[#E8E0D5] text-[#B38B5D] focus:ring-[#B38B5D] rounded-none cursor-pointer accent-black"
+                />
+                <span className="text-[12px] font-medium text-zinc-700 group-hover:text-zinc-950 transition-colors select-none">
+                  Enable Custom Size Requests
+                </span>
+              </label>
+            </div>
+
+            {/* Card 7: BLOUSE OPTIONS */}
+            <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
+              <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
+                BLOUSE OPTIONS
+              </h3>
+
+              {/* Enable Blouse Options */}
+              <label className="flex items-center gap-3 cursor-pointer group select-none">
+                <input
+                  type="checkbox"
+                  checked={blouseOptionsEnabled}
+                  onChange={(e) => setBlouseOptionsEnabled(e.target.checked)}
+                  className="w-4 h-4 border border-[#E8E0D5] text-[#B38B5D] focus:ring-[#B38B5D] rounded-none cursor-pointer accent-black"
+                />
+                <span className="text-[12px] font-medium text-zinc-700 group-hover:text-zinc-950 transition-colors select-none">
+                  Enable Blouse Options
+                </span>
+              </label>
+
+              {/* Blouse Type Checkboxes */}
+              {blouseOptionsEnabled && (
+                <div className="space-y-3 pl-1">
+                  <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
+                    BLOUSE TYPES
+                  </label>
+                  <div className="space-y-2">
+                    {['Stitched', 'Unstitched'].map((type) => (
+                      <label key={type} className="flex items-center gap-3 cursor-pointer group select-none">
+                        <input
+                          type="checkbox"
+                          checked={blouseTypes.includes(type)}
+                          onChange={() => handleToggleBlouseType(type)}
+                          className="w-4 h-4 border border-[#E8E0D5] text-[#B38B5D] focus:ring-[#B38B5D] rounded-none cursor-pointer accent-black"
+                        />
+                        <span className="text-[12px] font-medium text-zinc-700 group-hover:text-zinc-950 transition-colors select-none">
+                          {type}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Card 8: VISIBILITY & STATUS */}
             <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
               <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
                 VISIBILITY & STATUS
