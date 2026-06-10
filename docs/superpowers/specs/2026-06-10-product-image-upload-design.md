@@ -132,8 +132,22 @@ Add production-grade image upload capability to the product create/edit form in 
 // Image upload state
 const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
 const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
-const [isUploadingImage, setIsUploadingImage] = useState(false)
+const [isTemporaryPreview, setIsTemporaryPreview] = useState(false)  // Track if preview is blob URL
+const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
 const [uploadError, setUploadError] = useState<string | null>(null)
+
+// Safety: prevent state updates on unmounted component
+const isMountedRef = useRef(true)
+
+useEffect(() => {
+  return () => {
+    isMountedRef.current = false
+    // Cleanup blob URL on unmount
+    if (isTemporaryPreview && imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl)
+    }
+  }
+}, [])
 ```
 
 ### State Lifecycle
@@ -142,15 +156,17 @@ const [uploadError, setUploadError] = useState<string | null>(null)
 ```typescript
 setSelectedImageFile(null)
 setImagePreviewUrl(null)
-setIsUploadingImage(false)
+setIsTemporaryPreview(false)
+setUploadState('idle')
 setUploadError(null)
 ```
 
 **On drawer open (edit mode)**:
 ```typescript
 setSelectedImageFile(null)
-setImagePreviewUrl(null)  // Don't override formImageUrl
-setIsUploadingImage(false)
+setImagePreviewUrl(product.image_url || null)
+setIsTemporaryPreview(false)  // Existing image is persisted, not temporary
+setUploadState('idle')
 setUploadError(null)
 ```
 
@@ -158,29 +174,50 @@ setUploadError(null)
 ```typescript
 const file = event.target.files?.[0]
 if (file) {
-  validateImageFile(file)  // Throws AppError if invalid
+  // Validate before processing
+  const validationError = validateImageFile(file)
+  if (validationError) {
+    setUploadError(validationError)
+    return
+  }
+  
+  // Cleanup previous temporary preview if exists
+  if (isTemporaryPreview && imagePreviewUrl) {
+    URL.revokeObjectURL(imagePreviewUrl)
+  }
+  
+  // Create new preview
+  const preview = URL.createObjectURL(file)
   setSelectedImageFile(file)
-  setImagePreviewUrl(URL.createObjectURL(file))
+  setImagePreviewUrl(preview)
+  setIsTemporaryPreview(true)  // ← Mark as temporary blob URL
   setUploadError(null)
+  setUploadState('idle')
 }
 ```
 
 **On image removal** (optional "change" button):
 ```typescript
-if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+if (isTemporaryPreview && imagePreviewUrl) {
+  URL.revokeObjectURL(imagePreviewUrl)
+}
 setSelectedImageFile(null)
-setImagePreviewUrl(null)
+setImagePreviewUrl(product?.image_url || null)  // Restore original
+setIsTemporaryPreview(false)
+setUploadError(null)
 ```
 
 **On drawer close**:
 ```typescript
-// Revoke if not saved/uploaded
-if (imagePreviewUrl && !formImageUrl?.includes(imagePreviewUrl)) {
+// Cleanup only temporary blob URLs
+if (isTemporaryPreview && imagePreviewUrl) {
   URL.revokeObjectURL(imagePreviewUrl)
 }
 setSelectedImageFile(null)
 setImagePreviewUrl(null)
+setIsTemporaryPreview(false)
 setUploadError(null)
+setUploadState('idle')
 ```
 
 ---
@@ -198,23 +235,41 @@ Label: "Product Image"
 
 Preview Area:
 ├─ If imagePreviewUrl exists → show thumbnail
-├─ Else if formImageUrl exists (edit mode) → show existing image
-└─ Else → show placeholder (camera icon + "No image")
+│  ├─ alt={formName || 'Product preview'}
+│  ├─ onError fallback to placeholder
+│  └─ Clickable to change image
+├─ Else → show placeholder (camera icon + "No image")
 
 File Input:
 ├─ Type: file
-├─ Accept: image/*
+├─ Accept: image/jpeg,image/png,image/webp,image/gif
+├─ aria-label: "Select product image"
 ├─ Button text: "Upload Image" or "Change Image" (if image exists)
 ├─ Hidden input with onChange handler
+├─ Disabled during uploadState === 'uploading'
+
+Change/Remove Buttons:
+├─ Only show if image exists
+├─ "Change Image" → triggers file input
+├─ "Remove" → clears preview, revokes blob URL
+├─ Disabled during uploadState === 'uploading'
 
 Loading State:
-├─ During isUploadingImage: show spinner + "Uploading image..."
-└─ Disable file input
+├─ During uploadState === 'uploading': show spinner + "Uploading image..."
+└─ Disable file input and buttons
 
 Error State:
-├─ Display uploadError message if present
-├─ Non-blocking inline message
-└─ Allow retry by selecting new file
+├─ Display uploadError message if present (non-blocking inline)
+├─ Provide retry button or option to select different file
+├─ Error clears on successful retry or new file selection
+└─ Allow admin to retry without reopening drawer
+
+Accessibility:
+├─ aria-label on buttons
+├─ aria-describedby for error messages
+├─ Keyboard navigation support
+├─ Focus visible states
+└─ Proper semantic HTML
 ```
 
 ### Styling (Preserve Existing Patterns)
@@ -282,24 +337,32 @@ Error message (if upload failed, recoverable)
 ### Save Button Disabled When
 
 ```
-- isUploadingImage === true
+- uploadState === 'uploading'
 - createProductMutation.isPending === true
 - updateProductMutation.isPending === true
 ```
 
-### File Input Disabled When
+### File Input & Change/Remove Buttons Disabled When
 
 ```
-- isUploadingImage === true
+- uploadState === 'uploading'
 - createProductMutation.isPending === true
 - updateProductMutation.isPending === true
 ```
 
-### Drawer Close Prevention
+### Loading Messages
 
-- Discourage close during upload (can be soft: "Changes may be lost")
-- But allow close if user insists (don't trap UI)
-- On close: revoke object URLs properly
+```
+- During mutation: "Saving updates..."
+- During upload: "Uploading image..."
+```
+
+### Drawer Close Handling
+
+- Allow close even during upload (soft warning acceptable)
+- On close during upload: object URLs properly revoked in cleanup
+- Use isMountedRef to prevent state updates after unmount
+- No UI traps or forced locks
 
 ---
 
@@ -325,39 +388,65 @@ const handleSaveProduct = async (e: React.FormEvent) => {
       image_url: null  // ← Important: no image URL yet
     })
     
+    if (!isMountedRef.current) return
+    
     // Step 2: Upload image if selected
     if (selectedImageFile) {
-      setIsUploadingImage(true)
+      setUploadState('uploading')
       try {
         const publicUrl = await uploadProductImage(selectedImageFile, createdProduct.id)
+        
+        if (!isMountedRef.current) return
         
         // Step 3: Update product with image URL
         await updateProductMutation.mutateAsync({
           id: createdProduct.id,
           updates: { image_url: publicUrl }
         })
+        
+        if (!isMountedRef.current) return
+        setUploadState('success')
       } catch (uploadErr) {
+        if (!isMountedRef.current) return
+        
         // Product created, but upload failed (recoverable)
-        setUploadError('Image upload failed. You can retry from the edit screen.')
-        setIsUploadingImage(false)
-        // Don't close drawer, let admin retry
+        const errorMsg = uploadErr instanceof Error ? uploadErr.message : 'Image upload failed'
+        setUploadError(`${errorMsg}. You can retry from the edit screen.`)
+        setUploadState('error')
+        // Keep drawer open, allow retry
         return
+      } finally {
+        if (isMountedRef.current) {
+          // Cleanup temporary blob URL only if not already cleaned
+          if (isTemporaryPreview && imagePreviewUrl) {
+            URL.revokeObjectURL(imagePreviewUrl)
+          }
+        }
+      }
+    } else {
+      // No image selected, just cleanup
+      if (isTemporaryPreview && imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl)
       }
     }
     
-    // Step 4: Cleanup
-    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
-    setSelectedImageFile(null)
-    setImagePreviewUrl(null)
-    setUploadError(null)
-    setIsUploadingImage(false)
-    
-    // Step 5: Close drawer
-    setIsDrawerOpen(false)
+    // Step 4: Clear state and close drawer (only if successful)
+    if (isMountedRef.current) {
+      setSelectedImageFile(null)
+      setImagePreviewUrl(null)
+      setIsTemporaryPreview(false)
+      setUploadError(null)
+      setUploadState('idle')
+      setIsDrawerOpen(false)
+    }
     
   } catch (err) {
-    // Create failed (product never created)
-    alert('Failed to create product')
+    if (!isMountedRef.current) return
+    
+    // Create failed (product never created, don't upload)
+    const errorMsg = err instanceof Error ? err.message : 'Failed to create product'
+    alert(errorMsg)
+    setUploadState('idle')
   }
 }
 ```
@@ -371,57 +460,128 @@ const handleSaveProduct = async (e: React.FormEvent) => {
   if (!editingProduct) return
   
   try {
-    // Step 1: Update product with current form values (excluding new image)
+    // Step 1: Update product with current form values
+    const updates: ProductUpdate = {
+      name: formName,
+      category_id: formCategoryId,
+      price: parseInt(formPrice, 10),
+      status: formStatus,
+      work_types: formWorkTypes
+    }
+    
+    // Don't include image_url if we're uploading new image
+    // (will update separately after upload)
+    if (!selectedImageFile) {
+      updates.image_url = formImageUrl
+    }
+    
     await updateProductMutation.mutateAsync({
       id: editingProduct.id,
-      updates: {
-        name: formName,
-        category_id: formCategoryId,
-        price: parseInt(formPrice, 10),
-        status: formStatus,
-        work_types: formWorkTypes,
-        // Don't include image_url unless we're replacing it
-        ...(selectedImageFile ? {} : { image_url: formImageUrl })
-      }
+      updates
     })
+    
+    if (!isMountedRef.current) return
     
     // Step 2: Upload new image if selected
     if (selectedImageFile) {
-      setIsUploadingImage(true)
+      setUploadState('uploading')
       try {
         const publicUrl = await uploadProductImage(selectedImageFile, editingProduct.id)
         
-        // Step 3: Update image_url
-        await updateProductMutation.mutateAsync({
-          id: editingProduct.id,
-          updates: { image_url: publicUrl }
-        })
+        if (!isMountedRef.current) return
+        
+        // Step 3: Update image_url (separate mutation call for image-only update)
+        // Using direct service call to avoid mutation state collision
+        const { updateProduct: updateProductDirectly } = await import('@/services/products')
+        await updateProductDirectly(editingProduct.id, { image_url: publicUrl })
+        
+        if (!isMountedRef.current) return
+        setUploadState('success')
       } catch (uploadErr) {
-        // Update succeeded, upload failed (recoverable)
-        setUploadError('Image upload failed. You can retry from the edit screen.')
-        setIsUploadingImage(false)
+        if (!isMountedRef.current) return
+        
+        // Product updated, but image upload failed (recoverable)
+        const errorMsg = uploadErr instanceof Error ? uploadErr.message : 'Image upload failed'
+        setUploadError(`${errorMsg}. You can retry from the edit screen.`)
+        setUploadState('error')
         return
+      } finally {
+        // Cleanup only temporary blob URLs
+        if (isMountedRef.current && isTemporaryPreview && imagePreviewUrl) {
+          URL.revokeObjectURL(imagePreviewUrl)
+        }
+      }
+    } else {
+      // No new image, just cleanup
+      if (isTemporaryPreview && imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl)
       }
     }
     
-    // Step 4: Cleanup
-    if (imagePreviewUrl && !formImageUrl?.includes(imagePreviewUrl)) {
-      URL.revokeObjectURL(imagePreviewUrl)
+    // Step 4: Clear state and close drawer (only if successful)
+    if (isMountedRef.current) {
+      setSelectedImageFile(null)
+      setImagePreviewUrl(null)
+      setIsTemporaryPreview(false)
+      setUploadError(null)
+      setUploadState('idle')
+      setIsDrawerOpen(false)
     }
-    setSelectedImageFile(null)
-    setImagePreviewUrl(null)
-    setUploadError(null)
-    setIsUploadingImage(false)
-    
-    // Step 5: Close drawer
-    setIsDrawerOpen(false)
     
   } catch (err) {
-    // Update failed, state rolled back
-    alert('Failed to save product')
+    if (!isMountedRef.current) return
+    
+    // Update failed, don't upload image
+    const errorMsg = err instanceof Error ? err.message : 'Failed to save product'
+    alert(errorMsg)
+    setUploadState('idle')
   }
 }
 ```
+
+---
+
+## Image Validation Consolidation
+
+**Current state**: `validateImageFile()` exists in `services/storage.ts`
+
+**Required improvement**: Centralize to prevent divergence
+
+**Create** `lib/validators/image.ts`:
+
+```typescript
+export interface ImageValidationError {
+  code: 'INVALID_TYPE' | 'TOO_LARGE'
+  message: string
+}
+
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const MAX_SIZE_BYTES = 5 * 1024 * 1024 // 5MB
+
+export function validateImageFile(file: File): ImageValidationError | null {
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return {
+      code: 'INVALID_TYPE',
+      message: `File type not allowed. Use: ${ALLOWED_TYPES.join(', ')}`
+    }
+  }
+  
+  if (file.size > MAX_SIZE_BYTES) {
+    return {
+      code: 'TOO_LARGE',
+      message: 'File too large. Maximum size is 5MB.'
+    }
+  }
+  
+  return null
+}
+```
+
+**Update** `services/storage.ts` to import and use this validator instead of duplicating.
+
+**Update** form component to import and use this validator.
+
+This ensures consistency across all layers.
 
 ---
 
@@ -508,23 +668,150 @@ const handleSaveProduct = async (e: React.FormEvent) => {
 
 ## Notes for Implementation
 
-**Memory Safety**:
-- Always call `URL.revokeObjectURL()` for preview URLs that aren't saved
-- Call on: unmount, image replace, successful save, drawer close
+### Memory Safety — CRITICAL
 
-**Race Conditions**:
+**Blob URL Management**:
+- Never revoke persisted Supabase URLs (only revoke blob URLs)
+- Use `isTemporaryPreview` flag to track which URLs are temporary
+- Revoke on:
+  - Component unmount
+  - New file selected (revoke old blob first)
+  - Successful product save
+  - Drawer close
+  - Image removal
+
+**Bad Pattern** (DON'T):
+```typescript
+if (imagePreviewUrl && !formImageUrl?.includes(imagePreviewUrl)) {
+  URL.revokeObjectURL(imagePreviewUrl)
+}
+```
+Reason: `includes()` is unreliable, may revoke persisted URLs
+
+**Good Pattern** (DO):
+```typescript
+if (isTemporaryPreview && imagePreviewUrl) {
+  URL.revokeObjectURL(imagePreviewUrl)
+}
+```
+
+### Async Safety
+
+**Mounted Check**:
+- Use `isMountedRef` to track component mount state
+- Check `isMountedRef.current` before state updates after async operations
+- Prevents: "Warning: Can't perform a React state update on an unmounted component"
+- Prevents: Memory leaks, stale state updates
+
+**Example**:
+```typescript
+await someAsyncOperation()
+if (!isMountedRef.current) return
+setError(null)  // Safe to set state
+```
+
+**Finally Blocks**:
+- Use `finally` for cleanup that must run regardless of success/error
+- Prevents: Stuck loading states if exception occurs in any branch
+- Example: `setUploadState('uploading')` in try, always reset in finally
+
+### Race Conditions
+
+**Upload Prevention**:
 - Upload deferred until save (not on select) prevents double uploads
 - Save button disabled during upload prevents multiple submits
+- Using separate mutation for image-only update avoids mutation state collision
 
-**Atomicity Safeguards**:
-- Product creation is separate from image upload
-- If upload fails, product still exists (acceptable, recoverable)
-- No automatic rollbacks (too risky)
-- Admin can retry from edit screen
+**State Mutations**:
+- Don't use same TanStack mutation twice for unrelated operations
+- Use direct service calls for secondary updates
+- Prevents: optimistic update conflicts, stale cache invalidations
 
-**No Image Cleanup**:
-- Old images in storage when replaced: intentionally left alone
+### Error Isolation
+
+**Product Creation Failures**:
+- If create fails: don't upload image
+- Image upload never attempted on failed product
+
+**Image Upload Failures**:
+- If upload fails after create: product still exists (acceptable)
+- Show recoverable error message
+- Allow retry from edit screen without creating new product
+
+**Product Update Failures**:
+- If update fails: don't upload new image
+- Previous image remains unchanged in DB
+
+**Image URL Update Failures**:
+- If image URL update fails after successful upload:
+  - Image exists in storage
+  - Product missing image_url in DB
+  - Show message to retry from edit screen
+  - No automatic cleanup
+
+### Atomicity Safeguards
+
+**NOT a transactional system**:
+- Accept that intermediate states can occur (product without image)
+- These are recoverable and safe
+- Simpler than attempting transactions
+- No rollback logic
+
+**Example safe sequence**:
+1. Create product → succeeds ✓
+2. Upload image → succeeds ✓
+3. Update image URL → fails ✗
+
+Result: Product exists, image exists in storage, but image_url null in DB
+Recovery: Admin retries from edit screen, update succeeds on retry
+
+### UI Stability
+
+**No Form Reset Until Success**:
+- Keep form populated during error states
+- Admin can retry without re-entering data
+- Clear form only after full success
+
+**Graceful Degradation**:
+- If image upload fails: product still created, usable without image
+- Not ideal, but safe and recoverable
+- Better than losing entire product creation
+
+### Image Rendering Safety
+
+**Broken Image Handling**:
+```tsx
+<img 
+  src={imageUrl}
+  alt={formName || 'Product preview'}
+  onError={(e) => {
+    e.currentTarget.src = '/placeholder-product.png'
+  }}
+/>
+```
+
+Prevents: Broken image icons in UI
+
+### No Image Cleanup
+
+- Old images when replaced: intentionally left in storage
 - Safer than automatic deletion
+- Prevents accidental data loss from race conditions
 - Can implement cleanup jobs later if needed
-- Prevents accidental data loss
+- Manual cleanup possible if needed
+
+### Extensibility
+
+**Upload State Machine**:
+```typescript
+type UploadState = 'idle' | 'uploading' | 'success' | 'error'
+```
+More extensible than boolean flags
+Easier to add: progress bars, retry states, analytics later
+
+**Centralized Validators**:
+- File validation in `lib/validators/image.ts`
+- Reused by UI layer and storage service
+- Prevents divergence over time
+- Single source of truth for validation rules
 
