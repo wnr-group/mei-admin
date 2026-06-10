@@ -346,7 +346,7 @@ export default function ProductsPage() {
         >
           <Plus className="w-3.5 h-3.5 stroke-[3]" />
           ADD PRODUCT
-        </Link>
+        </button>
       </div>
 
       {/* 2. Product Listing Table Container */}
@@ -502,7 +502,9 @@ export default function ProductsPage() {
 
       </div>
 
-
+      {isDrawerOpen && (
+        <div className="fixed inset-0 z-40 flex justify-end">
+          <div className="absolute inset-0 bg-black/20" onClick={() => setIsDrawerOpen(false)} />
           <div className="relative w-full max-w-[480px] bg-white h-full shadow-2xl flex flex-col justify-between py-10 px-8 animate-slide-in border-l border-[#E8E0D5]">
             
             <div>
