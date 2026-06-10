@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useSettings, useUpdateSetting } from '@/hooks/use-settings'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
@@ -11,13 +11,14 @@ export default function SettingsPage() {
   const { data: settings = [], isLoading, error, refetch } = useSettings()
   const updateSettingMutation = useUpdateSetting()
 
-  const [formValues, setFormValues] = useState<Record<string, unknown>>(() => {
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({})
+
+  useEffect(() => {
+    if (settings.length === 0) return
     const values: Record<string, unknown> = {}
-    settings.forEach((setting) => {
-      values[setting.key] = setting.value
-    })
-    return values
-  })
+    settings.forEach((setting) => { values[setting.key] = setting.value })
+    setFormValues(values)
+  }, [settings])
 
   if (isLoading) return <TableSkeleton rows={6} />
   if (error) return <ErrorState message={error.message} onRetry={refetch} />
