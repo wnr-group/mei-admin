@@ -180,7 +180,7 @@ export default function AddCategoryPage() {
               className="w-full border-b border-[#E8E0D5] py-2 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
             />
             <p className="text-[10px] text-zinc-400 mt-1 italic font-light">
-              Shown on the homepage category card, e.g. "Bridal Classics"
+              Shown on the homepage category card, e.g. &quot;Bridal Classics&quot;
             </p>
           </div>
 

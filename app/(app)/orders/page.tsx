@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { fetchOrders, Order } from '@/lib/mockDb';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -9,7 +9,6 @@ type TabType = 'ALL' | 'PENDING' | 'SHIPPED';
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('ALL');
   const [mounted, setMounted] = useState(false);
 
@@ -18,21 +17,21 @@ export default function OrdersPage() {
     async function loadData() {
       const data = await fetchOrders();
       setOrders(data);
-      setFilteredOrders(data);
       setMounted(true);
     }
     loadData();
   }, []);
 
   // Filter orders whenever active tab changes
-  useEffect(() => {
+  const filteredOrders = useMemo(() => {
     if (activeTab === 'ALL') {
-      setFilteredOrders(orders);
+      return orders;
     } else if (activeTab === 'PENDING') {
-      setFilteredOrders(orders.filter((order) => order.status === 'PENDING'));
+      return orders.filter((order) => order.status === 'PENDING');
     } else if (activeTab === 'SHIPPED') {
-      setFilteredOrders(orders.filter((order) => order.status === 'SHIPPED'));
+      return orders.filter((order) => order.status === 'SHIPPED');
     }
+    return orders;
   }, [activeTab, orders]);
 
   // Tab counts

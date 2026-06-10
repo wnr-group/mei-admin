@@ -95,6 +95,22 @@ export interface StoreSettings {
   instagramUrl: string;
 }
 
+export interface Banner {
+  id: string;
+  name: string;
+  title: string;
+  subtitle?: string;
+  type: 'HERO' | 'PROMO' | 'CATEGORY_HEADER';
+  status: 'ACTIVE' | 'INACTIVE';
+  startDate?: string;
+  endDate?: string;
+  image?: string;
+  link?: string;
+  linkText?: string;
+  sortOrder?: number;
+}
+
+
 // Initial mock dataset with real saree and lehenga image URLs from Unsplash
 const INITIAL_PRODUCTS: Product[] = [
   { 
@@ -417,7 +433,12 @@ function getRawProducts(): Product[] {
     localStorage.setItem(PRODUCTS_KEY, JSON.stringify(INITIAL_PRODUCTS));
     return INITIAL_PRODUCTS;
   }
-  return JSON.parse(data);
+  try {
+    return JSON.parse(data);
+  } catch {
+    localStorage.setItem(PRODUCTS_KEY, JSON.stringify(INITIAL_PRODUCTS));
+    return INITIAL_PRODUCTS;
+  }
 }
 
 // Helper to save raw data to local storage
@@ -485,7 +506,12 @@ function getRawOrders(): Order[] {
     localStorage.setItem(ORDERS_KEY, JSON.stringify(INITIAL_ORDERS));
     return INITIAL_ORDERS;
   }
-  return JSON.parse(data);
+  try {
+    return JSON.parse(data);
+  } catch {
+    localStorage.setItem(ORDERS_KEY, JSON.stringify(INITIAL_ORDERS));
+    return INITIAL_ORDERS;
+  }
 }
 
 function saveRawOrders(orders: Order[]): void {
@@ -532,7 +558,12 @@ function getRawCategories(): Category[] {
     localStorage.setItem(CATEGORIES_KEY, JSON.stringify(INITIAL_CATEGORIES));
     return INITIAL_CATEGORIES;
   }
-  return JSON.parse(data);
+  try {
+    return JSON.parse(data);
+  } catch {
+    localStorage.setItem(CATEGORIES_KEY, JSON.stringify(INITIAL_CATEGORIES));
+    return INITIAL_CATEGORIES;
+  }
 }
 
 function saveRawCategories(categories: Category[]): void {
@@ -646,7 +677,12 @@ function getRawEnquiries(): Enquiry[] {
     localStorage.setItem(ENQUIRIES_KEY, JSON.stringify(INITIAL_ENQUIRIES));
     return INITIAL_ENQUIRIES;
   }
-  return JSON.parse(data);
+  try {
+    return JSON.parse(data);
+  } catch {
+    localStorage.setItem(ENQUIRIES_KEY, JSON.stringify(INITIAL_ENQUIRIES));
+    return INITIAL_ENQUIRIES;
+  }
 }
 
 function saveRawEnquiries(enquiries: Enquiry[]): void {
@@ -721,7 +757,12 @@ function getRawSettings(): StoreSettings {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(INITIAL_SETTINGS));
     return INITIAL_SETTINGS;
   }
-  return JSON.parse(data);
+  try {
+    return JSON.parse(data);
+  } catch {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(INITIAL_SETTINGS));
+    return INITIAL_SETTINGS;
+  }
 }
 
 function saveRawSettings(settings: StoreSettings): void {
@@ -738,6 +779,110 @@ export async function saveSettings(settings: StoreSettings): Promise<StoreSettin
   await new Promise((resolve) => setTimeout(resolve, 150));
   saveRawSettings(settings);
   return settings;
+}
+
+// Banners Mock Database Implementation
+const BANNERS_KEY = 'mei_banners_db';
+
+const INITIAL_BANNERS: Banner[] = [
+  {
+    id: 'banner-1',
+    name: 'Summer Bridal Collection Banner',
+    title: 'SUMMER COUTURE COLLECTION 2024',
+    subtitle: 'Discover the new elegance',
+    type: 'HERO',
+    status: 'ACTIVE',
+    startDate: '2024-05-01T09:00',
+    endDate: '2024-08-30T18:00',
+    image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=600&auto=format&fit=crop',
+    link: '/categories/designer-wear',
+    linkText: 'Explore Collection',
+    sortOrder: 1
+  },
+  {
+    id: 'banner-2',
+    name: 'Heritage Craftsmanship Banner',
+    title: 'THE ART OF ZARDOSI FOCUS',
+    subtitle: 'The Art of Zardosi details',
+    type: 'PROMO',
+    status: 'INACTIVE',
+    startDate: '2024-09-15T09:00',
+    endDate: '2024-11-30T18:00',
+    image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=600&auto=format&fit=crop',
+    link: '/products?work=ZARDOZI',
+    linkText: 'View Collection',
+    sortOrder: 2
+  },
+  {
+    id: 'banner-3',
+    name: 'White Bridal Lehenga Promotion',
+    title: 'MINIMALIST BRIDAL EDIT',
+    subtitle: 'Minimalist styles for modern brides',
+    type: 'CATEGORY_HEADER',
+    status: 'ACTIVE',
+    startDate: '',
+    endDate: '',
+    image: 'https://images.unsplash.com/photo-1610030469668-93535c17b6b3?q=80&w=600&auto=format&fit=crop',
+    link: '/categories/customized-costumes',
+    linkText: 'Explore',
+    sortOrder: 3
+  }
+];
+
+function getRawBanners(): Banner[] {
+  if (typeof window === 'undefined') return INITIAL_BANNERS;
+  const data = localStorage.getItem(BANNERS_KEY);
+  if (!data) {
+    localStorage.setItem(BANNERS_KEY, JSON.stringify(INITIAL_BANNERS));
+    return INITIAL_BANNERS;
+  }
+  try {
+    return JSON.parse(data);
+  } catch {
+    localStorage.setItem(BANNERS_KEY, JSON.stringify(INITIAL_BANNERS));
+    return INITIAL_BANNERS;
+  }
+}
+
+function saveRawBanners(banners: Banner[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(BANNERS_KEY, JSON.stringify(banners));
+}
+
+export async function fetchBanners(): Promise<Banner[]> {
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  return getRawBanners();
+}
+
+export async function addBanner(banner: Omit<Banner, 'id'>): Promise<Banner> {
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  const banners = getRawBanners();
+  const newBanner: Banner = {
+    ...banner,
+    id: `banner-${Date.now()}`
+  };
+  banners.push(newBanner);
+  saveRawBanners(banners);
+  return newBanner;
+}
+
+export async function updateBanner(updatedBanner: Banner): Promise<Banner> {
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  const banners = getRawBanners();
+  const index = banners.findIndex((b) => b.id === updatedBanner.id);
+  if (index !== -1) {
+    banners[index] = updatedBanner;
+    saveRawBanners(banners);
+  }
+  return updatedBanner;
+}
+
+export async function deleteBanner(id: string): Promise<boolean> {
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  const banners = getRawBanners();
+  const filtered = banners.filter((b) => b.id !== id);
+  saveRawBanners(filtered);
+  return true;
 }
 
 

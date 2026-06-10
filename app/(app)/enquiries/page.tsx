@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { fetchEnquiries, Enquiry } from '@/lib/mockDb';
 import { Search } from 'lucide-react';
 import Link from 'next/link';
@@ -9,7 +9,6 @@ type TabType = 'ALL' | 'NEW' | 'CONTACTED' | 'QUOTED' | 'CONVERTED' | 'CLOSED';
 
 export default function EnquiriesPage() {
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
-  const [filteredEnquiries, setFilteredEnquiries] = useState<Enquiry[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [mounted, setMounted] = useState(false);
@@ -23,14 +22,13 @@ export default function EnquiriesPage() {
     async function loadData() {
       const data = await fetchEnquiries();
       setEnquiries(data);
-      setFilteredEnquiries(data);
       setMounted(true);
     }
     loadData();
   }, []);
 
   // Filter & Search Logic
-  useEffect(() => {
+  const filteredEnquiries = useMemo(() => {
     let result = enquiries;
 
     // Filter by tab
@@ -49,8 +47,7 @@ export default function EnquiriesPage() {
       );
     }
 
-    setFilteredEnquiries(result);
-    setCurrentPage(1); // Reset to first page on filter change
+    return result;
   }, [activeTab, searchQuery, enquiries]);
 
   // Tab counts
@@ -143,7 +140,10 @@ export default function EnquiriesPage() {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Search enquiries..."
               className="w-full md:w-[220px] pl-9 pr-4 py-2 border border-[#E8E0D5] bg-white text-[12px] font-sans font-medium text-zinc-800 focus:outline-hidden focus:border-[#B38B5D]"
             />
@@ -163,7 +163,7 @@ export default function EnquiriesPage() {
       {/* 2. Filter Tabs */}
       <div className="flex gap-8 border-b border-[#E8E0D5] select-none flex-wrap">
         <button
-          onClick={() => setActiveTab('ALL')}
+          onClick={() => { setActiveTab('ALL'); setCurrentPage(1); }}
           className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] ${
             activeTab === 'ALL'
               ? 'text-zinc-900 border-[#B38B5D]'
@@ -173,7 +173,7 @@ export default function EnquiriesPage() {
           ALL
         </button>
         <button
-          onClick={() => setActiveTab('NEW')}
+          onClick={() => { setActiveTab('NEW'); setCurrentPage(1); }}
           className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] flex items-center gap-2 ${
             activeTab === 'NEW'
               ? 'text-zinc-900 border-[#B38B5D]'
@@ -186,7 +186,7 @@ export default function EnquiriesPage() {
           </span>
         </button>
         <button
-          onClick={() => setActiveTab('CONTACTED')}
+          onClick={() => { setActiveTab('CONTACTED'); setCurrentPage(1); }}
           className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] ${
             activeTab === 'CONTACTED'
               ? 'text-zinc-900 border-[#B38B5D]'
@@ -196,7 +196,7 @@ export default function EnquiriesPage() {
           CONTACTED
         </button>
         <button
-          onClick={() => setActiveTab('QUOTED')}
+          onClick={() => { setActiveTab('QUOTED'); setCurrentPage(1); }}
           className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] ${
             activeTab === 'QUOTED'
               ? 'text-zinc-900 border-[#B38B5D]'
@@ -206,7 +206,7 @@ export default function EnquiriesPage() {
           QUOTED
         </button>
         <button
-          onClick={() => setActiveTab('CONVERTED')}
+          onClick={() => { setActiveTab('CONVERTED'); setCurrentPage(1); }}
           className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] ${
             activeTab === 'CONVERTED'
               ? 'text-zinc-900 border-[#B38B5D]'
@@ -216,7 +216,7 @@ export default function EnquiriesPage() {
           CONVERTED
         </button>
         <button
-          onClick={() => setActiveTab('CLOSED')}
+          onClick={() => { setActiveTab('CLOSED'); setCurrentPage(1); }}
           className={`pb-3 text-[11px] font-inter tracking-widest uppercase cursor-pointer transition-all duration-200 border-b-2 -mb-[1px] ${
             activeTab === 'CLOSED'
               ? 'text-zinc-900 border-[#B38B5D]'
