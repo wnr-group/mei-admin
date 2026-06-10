@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AppError } from '@/lib/errors'
+import { validateImageFile } from '@/lib/validators/image'
 
 const mockUpload = vi.fn()
 const mockGetPublicUrl = vi.fn()
@@ -13,7 +14,7 @@ vi.mock('@/lib/supabase/client', () => ({
   }),
 }))
 
-const { validateImageFile, uploadProductImage } = await import('@/services/storage')
+const { uploadProductImage } = await import('@/services/storage')
 
 describe('Storage Service', () => {
   beforeEach(() => {
@@ -25,57 +26,49 @@ describe('Storage Service', () => {
   })
 
   describe('validateImageFile', () => {
-    it('should throw VALIDATION_ERROR for unsupported file type', () => {
+    it('should return error for unsupported file type', () => {
       const file = new File(['test'], 'test.pdf', { type: 'application/pdf' })
+      const result = validateImageFile(file)
 
-      expect(() => validateImageFile(file)).toThrow(AppError)
-      try {
-        validateImageFile(file)
-      } catch (err) {
-        expect(err).toBeInstanceOf(AppError)
-        expect((err as AppError).code).toBe('VALIDATION_ERROR')
-        expect((err as AppError).message).toContain('File type not allowed')
-      }
+      expect(result).not.toBeNull()
+      expect(result?.code).toBe('INVALID_TYPE')
+      expect(result?.message).toContain('Invalid file type')
     })
 
-    it('should throw VALIDATION_ERROR for file exceeding size limit', () => {
+    it('should return error for file exceeding size limit', () => {
       const largeBuffer = new Uint8Array(6 * 1024 * 1024) // 6MB
       const file = new File([largeBuffer], 'large.jpg', { type: 'image/jpeg' })
+      const result = validateImageFile(file)
 
-      expect(() => validateImageFile(file)).toThrow(AppError)
-      try {
-        validateImageFile(file)
-      } catch (err) {
-        expect(err).toBeInstanceOf(AppError)
-        expect((err as AppError).code).toBe('VALIDATION_ERROR')
-        expect((err as AppError).message).toContain('File too large')
-      }
+      expect(result).not.toBeNull()
+      expect(result?.code).toBe('TOO_LARGE')
+      expect(result?.message).toContain('exceeds')
     })
 
-    it('should accept valid JPEG files', () => {
+    it('should return null for valid JPEG files', () => {
       const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-      expect(() => validateImageFile(file)).not.toThrow()
+      expect(validateImageFile(file)).toBeNull()
     })
 
-    it('should accept valid PNG files', () => {
+    it('should return null for valid PNG files', () => {
       const file = new File(['test'], 'test.png', { type: 'image/png' })
-      expect(() => validateImageFile(file)).not.toThrow()
+      expect(validateImageFile(file)).toBeNull()
     })
 
-    it('should accept valid WebP files', () => {
+    it('should return null for valid WebP files', () => {
       const file = new File(['test'], 'test.webp', { type: 'image/webp' })
-      expect(() => validateImageFile(file)).not.toThrow()
+      expect(validateImageFile(file)).toBeNull()
     })
 
-    it('should accept valid GIF files', () => {
+    it('should return null for valid GIF files', () => {
       const file = new File(['test'], 'test.gif', { type: 'image/gif' })
-      expect(() => validateImageFile(file)).not.toThrow()
+      expect(validateImageFile(file)).toBeNull()
     })
 
-    it('should accept files at exactly 5MB limit', () => {
+    it('should return null for files at exactly 5MB limit', () => {
       const buffer = new Uint8Array(5 * 1024 * 1024) // exactly 5MB
       const file = new File([buffer], 'test.jpg', { type: 'image/jpeg' })
-      expect(() => validateImageFile(file)).not.toThrow()
+      expect(validateImageFile(file)).toBeNull()
     })
   })
 
