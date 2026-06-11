@@ -15,14 +15,14 @@ export type Database = {
         Update: { role?: 'admin' | 'super_admin'; full_name?: string | null }
       }
       categories: {
-        Row: { id: string; name: string; slug: string; description: string | null; sort_order: number; created_at: string; deleted_at: string | null }
-        Insert: { id?: string; name: string; slug: string; description?: string | null; sort_order?: number }
-        Update: { name?: string; slug?: string; description?: string | null; sort_order?: number; deleted_at?: string | null }
+        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; sort_order: number; is_active: boolean; created_at: string; deleted_at: string | null }
+        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; sort_order?: number; is_active?: boolean }
+        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; sort_order?: number; is_active?: boolean; deleted_at?: string | null }
       }
       products: {
-        Row: { id: string; name: string; category_id: string | null; price: number; work_types: string[]; status: 'PUBLISHED' | 'DRAFT'; description: string | null; image_url: string | null; created_at: string; updated_at: string; deleted_at: string | null }
-        Insert: { id?: string; name: string; category_id?: string | null; price: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null }
-        Update: { name?: string; category_id?: string | null; price?: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null; deleted_at?: string | null }
+        Row: { id: string; name: string; slug: string | null; short_description: string | null; category_id: string | null; price: number; work_types: string[]; status: 'PUBLISHED' | 'DRAFT'; description: string | null; image_url: string | null; created_at: string; updated_at: string; deleted_at: string | null }
+        Insert: { id?: string; name: string; slug?: string | null; short_description?: string | null; category_id?: string | null; price: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null }
+        Update: { name?: string; slug?: string | null; short_description?: string | null; category_id?: string | null; price?: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null; deleted_at?: string | null }
       }
       customers: {
         Row: { id: string; name: string; email: string | null; phone: string | null; city: string | null; created_at: string }
@@ -45,9 +45,9 @@ export type Database = {
         Update: { status?: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply?: string | null; replied_at?: string | null; replied_by?: string | null }
       }
       banners: {
-        Row: { id: string; title: string; image_url: string; link_url: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string }
+        Row: { id: string; title: string; image_url: string; link_url: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string; deleted_at: string | null }
         Insert: { id?: string; title: string; image_url: string; link_url?: string | null; is_active?: boolean; sort_order?: number }
-        Update: { title?: string; image_url?: string; link_url?: string | null; is_active?: boolean; sort_order?: number }
+        Update: { title?: string; image_url?: string; link_url?: string | null; is_active?: boolean; sort_order?: number; deleted_at?: string | null }
       }
       settings: {
         Row: { key: string; value: unknown; description: string | null; updated_at: string; updated_by: string | null }
