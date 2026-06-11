@@ -83,6 +83,22 @@ export async function updateProduct(id: string, updates: ProductUpdate) {
   return data as Product
 }
 
+export async function getProductById(id: string): Promise<Product | null> {
+  const supabase = createClient()
+  const response = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single()
+  const { data, error } = response as { data: Product | null; error: { message: string } | null }
+  if (error) {
+    if (error.message.toLowerCase().includes('no rows')) return null
+    throw toAppError(new Error(error.message))
+  }
+  return data
+}
+
 export async function deleteProduct(id: string) {
   const supabase = createClient()
   const { error } = await supabase

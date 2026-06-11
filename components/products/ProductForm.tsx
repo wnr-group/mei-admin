@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchProducts, addProduct, updateProduct } from '@/lib/mockDb';
+import { createProduct, updateProduct, getProductById } from '@/services/products';
+import { uploadProductImage } from '@/services/storage';
+import { getCategories } from '@/services/categories';
 import { Upload, X, ChevronDown, ChevronUp, Loader2, Plus } from 'lucide-react';
 import Link from 'next/link';
 
@@ -38,6 +40,9 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
   // Media state
   const [images, setImages] = useState<string[]>([]);
+  // Parallel array of original File objects for upload (index-aligned with images[])
+  // data: preview strings are kept for <img> display; Files are used for actual upload.
+  const [imageFiles, setImageFiles] = useState<(File | null)[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
   // Status & Visibility state
@@ -54,24 +59,38 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
     async function loadProduct() {
       try {
-        const data = await fetchProducts();
-        const prod = data.find((p) => p.id === editId);
+        const prod = await getProductById(editId!);
         if (prod) {
           setName(prod.name);
-          setSlug(prod.slug || '');
-          setShortDescription(prod.shortDescription || '');
-          setDescription(prod.description || '');
+          setDescription(prod.description ?? '');
           setPrice(prod.price.toString());
-          setCompareAtPrice(prod.compareAtPrice ? prod.compareAtPrice.toString() : '0.00');
-          setCategory(prod.category);
-          setSelectedWorkTypes(prod.workTypes || []);
-          setImages(prod.images || (prod.image ? [prod.image] : []));
           setPublished(prod.status === 'PUBLISHED');
-          setFeatured(prod.featured || false);
-          setNewArrival(prod.newArrival || false);
-          setMetaTitle(prod.metaTitle || '');
-          setMetaDescription(prod.metaDescription || '');
-          setMetaKeywords(prod.metaKeywords || '');
+          setImages(prod.image_url ? [prod.image_url] : []);
+          setImageFiles(prod.image_url ? [null] : []);
+
+          // Populate slug and short_description from DB
+          setSlug(prod.slug ?? '');
+          setShortDescription(prod.short_description ?? '');
+
+          // Normalize DB-uppercase work types (e.g. 'AARI') → display-case ('Aari')
+          // so the UI badge buttons reflect the saved selection.
+          const normalizedWorkTypes = (prod.work_types ?? []).map(
+            (wt) => WORK_TYPES.find((w) => w.toUpperCase() === wt) ?? wt
+          );
+          setSelectedWorkTypes(normalizedWorkTypes);
+
+          // Resolve category_id → name for the existing dropdown
+          const { categories } = await getCategories();
+          const cat = categories.find((c) => c.id === prod.category_id);
+          setCategory(cat?.name ?? '');
+
+          // Fields not stored in DB — clear to defaults
+          setCompareAtPrice('0.00');
+          setFeatured(false);
+          setNewArrival(false);
+          setMetaTitle('');
+          setMetaDescription('');
+          setMetaKeywords('');
         } else {
           alert('Product not found.');
           router.push('/products');
@@ -142,10 +161,13 @@ export default function ProductForm({ editId }: ProductFormProps) {
     const filesToProcess = files.slice(0, remainingSlots);
 
     filesToProcess.forEach((file) => {
+      // Keep the original File for upload; generate a data URL only for preview rendering.
+      // Using fetch(data:) on preview strings is blocked by CSP connect-src.
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === 'string') {
           setImages((prev) => [...prev, reader.result as string]);
+          setImageFiles((prev) => [...prev, file]);
         }
       };
       reader.readAsDataURL(file);
@@ -154,6 +176,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
   const handleRemoveImage = (index: number) => {
     setImages(images.filter((_, idx) => idx !== index));
+    setImageFiles(imageFiles.filter((_, idx) => idx !== index));
   };
 
   const triggerFileInput = () => {
@@ -176,38 +199,68 @@ export default function ProductForm({ editId }: ProductFormProps) {
     setIsSaving(true);
 
     try {
+      // Resolve category name → UUID using existing service
+      const { categories } = await getCategories();
+      const matchedCat = categories.find((c) => c.name === category);
+      if (!matchedCat) {
+        alert('Category not found. Please refresh and try again.');
+        setIsSaving(false);
+        return;
+      }
+
       const priceNum = parseFloat(price) || 0;
-      const compareAtPriceNum = parseFloat(compareAtPrice) || 0;
-
-      // Provide a nice fallback saree/lehenga image if they didn't upload any
-      const mainImage = images[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop';
-
-      const payload = {
-        name: name.trim(),
-        slug: slug.trim() || generateSlug(name),
-        shortDescription: shortDescription.trim(),
-        description: description.trim(),
-        price: priceNum,
-        compareAtPrice: compareAtPriceNum,
-        category,
-        workTypes: selectedWorkTypes,
-        image: mainImage,
-        images,
-        status: published ? ('PUBLISHED' as const) : ('DRAFT' as const),
-        featured,
-        newArrival,
-        metaTitle: metaTitle.trim(),
-        metaDescription: metaDescription.trim(),
-        metaKeywords: metaKeywords.trim(),
-      };
+      const workTypesArr = selectedWorkTypes.map((wt) => wt.toUpperCase());
+      const descriptionVal = description.trim() || null;
 
       if (editId) {
-        await updateProduct({
-          id: editId,
-          ...payload
+        // ── EDIT FLOW ──────────────────────────────────────────────
+        const existingProduct = await getProductById(editId);
+        let finalImageUrl: string | null = existingProduct?.image_url ?? null;
+
+        if (images[0]?.startsWith('data:') && imageFiles[0] instanceof File) {
+          // New image selected — use the original File directly (no fetch(data:) needed).
+          finalImageUrl = await uploadProductImage(imageFiles[0], editId);
+        } else if (images[0]?.startsWith('http')) {
+          finalImageUrl = images[0];
+        } else if (images.length === 0) {
+          finalImageUrl = null;
+        }
+
+        await updateProduct(editId, {
+          name: name.trim(),
+          slug: slug.trim() || null,
+          short_description: shortDescription.trim() || null,
+          category_id: matchedCat.id,
+          price: priceNum,
+          status: published ? 'PUBLISHED' : 'DRAFT',
+          work_types: workTypesArr,
+          description: descriptionVal,
+          image_url: finalImageUrl,
         });
       } else {
-        await addProduct(payload);
+        // ── CREATE FLOW ────────────────────────────────────────────
+        const newProduct = await createProduct({
+          name: name.trim(),
+          slug: slug.trim() || null,
+          short_description: shortDescription.trim() || null,
+          category_id: matchedCat.id,
+          price: priceNum,
+          status: published ? 'PUBLISHED' : 'DRAFT',
+          work_types: workTypesArr,
+          description: descriptionVal,
+          image_url: null,
+        });
+
+        if (images[0]) {
+          let imageUrl: string;
+          if (images[0].startsWith('data:') && imageFiles[0] instanceof File) {
+            // Use the original File directly — avoids fetch(data:) which CSP blocks.
+            imageUrl = await uploadProductImage(imageFiles[0], newProduct.id);
+          } else {
+            imageUrl = images[0];
+          }
+          await updateProduct(newProduct.id, { image_url: imageUrl });
+        }
       }
 
       router.push('/products');

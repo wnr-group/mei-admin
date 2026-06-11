@@ -15,9 +15,9 @@ export type Database = {
         Update: { role?: 'admin' | 'super_admin'; full_name?: string | null }
       }
       categories: {
-        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; sort_order: number; is_active: boolean; created_at: string; deleted_at: string | null }
-        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; sort_order?: number; is_active?: boolean }
-        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; sort_order?: number; is_active?: boolean; deleted_at?: string | null }
+        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string; deleted_at: string | null }
+        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number }
+        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; deleted_at?: string | null }
       }
       products: {
         Row: { id: string; name: string; slug: string | null; short_description: string | null; category_id: string | null; price: number; work_types: string[]; status: 'PUBLISHED' | 'DRAFT'; description: string | null; image_url: string | null; created_at: string; updated_at: string; deleted_at: string | null }
