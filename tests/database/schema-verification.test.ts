@@ -24,6 +24,8 @@ describe('Schema Verification', () => {
         .select('*')
         .limit(0);
 
+      // PGRST116 = relation not found (acceptable if table doesn't exist)
+      // Any other error is a real schema problem
       if (error && error.code !== 'PGRST116') {
         throw new Error(`Table ${table} check failed: ${error.message}`);
       }
@@ -31,48 +33,66 @@ describe('Schema Verification', () => {
   });
 
   test('product_variants unique index prevents duplicates', async () => {
-    const { data: product } = await supabase
-      .from('products')
-      .select('id')
-      .limit(1)
-      .single();
+    let testColor: any = null;
+    let testVariant1: any = null;
 
-    const { data: color1, error: colorErr } = await supabase
-      .from('product_colors')
-      .insert({
-        product_id: product.id,
-        label: 'Test Color 1',
-        sort_order: 0
-      })
-      .select()
-      .single();
+    try {
+      const { data: product, error: productErr } = await supabase
+        .from('products')
+        .select('id')
+        .limit(1)
+        .single();
 
-    const { data: v1, error: err1 } = await supabase
-      .from('product_variants')
-      .insert({
-        product_id: product.id,
-        color_id: color1.id,
-        customization_type: 'STANDARD_SIZE',
-        size_label: 'Test'
-      })
-      .select()
-      .single();
+      expect(productErr).toBeNull();
+      expect(product).toBeDefined();
 
-    const { data: v2, error: err2 } = await supabase
-      .from('product_variants')
-      .insert({
-        product_id: product.id,
-        color_id: color1.id,
-        customization_type: 'STANDARD_SIZE',
-        size_label: 'Test'
-      });
+      const { data: color1, error: colorErr } = await supabase
+        .from('product_colors')
+        .insert({
+          product_id: product!.id,
+          label: 'Test Color 1',
+          sort_order: 0
+        })
+        .select()
+        .single();
 
-    expect(err2).toBeDefined();
-    expect(err2?.code).toBe('23505'); // unique violation
+      expect(colorErr).toBeNull();
+      testColor = color1;
 
-    // Cleanup
-    await supabase.from('product_variants').delete().eq('id', v1.id);
-    await supabase.from('product_colors').delete().eq('id', color1.id);
+      const { data: v1, error: err1 } = await supabase
+        .from('product_variants')
+        .insert({
+          product_id: product!.id,
+          color_id: color1!.id,
+          customization_type: 'STANDARD_SIZE',
+          size_label: 'Test'
+        })
+        .select()
+        .single();
+
+      expect(err1).toBeNull();
+      testVariant1 = v1;
+
+      const { data: v2, error: err2 } = await supabase
+        .from('product_variants')
+        .insert({
+          product_id: product!.id,
+          color_id: color1!.id,
+          customization_type: 'STANDARD_SIZE',
+          size_label: 'Test'
+        });
+
+      expect(err2).toBeDefined();
+      expect(err2?.code).toBe('23505'); // unique violation
+    } finally {
+      // Guaranteed cleanup even if test fails
+      if (testVariant1) {
+        await supabase.from('product_variants').delete().eq('id', testVariant1.id);
+      }
+      if (testColor) {
+        await supabase.from('product_colors').delete().eq('id', testColor.id);
+      }
+    }
   });
 
   test('generate_variant_sku produces correct format', async () => {
@@ -83,6 +103,7 @@ describe('Schema Verification', () => {
       p_type: 'STANDARD_SIZE'
     });
 
+    expect(error).toBeNull();
     expect(data).toBe('NOOR-IVO-38-ST');
   });
 
@@ -99,56 +120,79 @@ describe('Schema Verification', () => {
   });
 
   test('Soft-deleted variant + new same combo allowed', async () => {
-    const { data: product } = await supabase
-      .from('products')
-      .select('id')
-      .limit(1)
-      .single();
+    let testColor: any = null;
+    let testVariant1: any = null;
+    let testVariant2: any = null;
 
-    const { data: color } = await supabase
-      .from('product_colors')
-      .insert({
-        product_id: product.id,
-        label: 'Soft Delete Test',
-        sort_order: 0
-      })
-      .select()
-      .single();
+    try {
+      const { data: product, error: productErr } = await supabase
+        .from('products')
+        .select('id')
+        .limit(1)
+        .single();
 
-    const { data: v1 } = await supabase
-      .from('product_variants')
-      .insert({
-        product_id: product.id,
-        color_id: color.id,
-        customization_type: 'UNSTITCHED',
-        size_label: 'Test'
-      })
-      .select()
-      .single();
+      expect(productErr).toBeNull();
+      expect(product).toBeDefined();
 
-    // Soft delete
-    await supabase
-      .from('product_variants')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', v1.id);
+      const { data: color, error: colorErr } = await supabase
+        .from('product_colors')
+        .insert({
+          product_id: product!.id,
+          label: 'Soft Delete Test',
+          sort_order: 0
+        })
+        .select()
+        .single();
 
-    // Insert same combo again
-    const { data: v2, error: err } = await supabase
-      .from('product_variants')
-      .insert({
-        product_id: product.id,
-        color_id: color.id,
-        customization_type: 'UNSTITCHED',
-        size_label: 'Test'
-      })
-      .select()
-      .single();
+      expect(colorErr).toBeNull();
+      testColor = color;
 
-    expect(err).toBeNull();
-    expect(v2).toBeDefined();
+      const { data: v1, error: varErr1 } = await supabase
+        .from('product_variants')
+        .insert({
+          product_id: product!.id,
+          color_id: color!.id,
+          customization_type: 'UNSTITCHED',
+          size_label: 'Test'
+        })
+        .select()
+        .single();
 
-    // Cleanup
-    await supabase.from('product_variants').delete().eq('id', v2.id);
-    await supabase.from('product_colors').delete().eq('id', color.id);
+      expect(varErr1).toBeNull();
+      testVariant1 = v1;
+
+      // Soft delete
+      await supabase
+        .from('product_variants')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', v1!.id);
+
+      // Insert same combo again
+      const { data: v2, error: err } = await supabase
+        .from('product_variants')
+        .insert({
+          product_id: product!.id,
+          color_id: color!.id,
+          customization_type: 'UNSTITCHED',
+          size_label: 'Test'
+        })
+        .select()
+        .single();
+
+      expect(err).toBeNull();
+      expect(v2).toBeDefined();
+      testVariant2 = v2;
+    } finally {
+      // Guaranteed cleanup even if test fails
+      if (testVariant2) {
+        await supabase.from('product_variants').delete().eq('id', testVariant2.id);
+      }
+      if (testVariant1) {
+        await supabase.from('product_variants').delete().eq('id', testVariant1.id);
+      }
+      if (testColor) {
+        await supabase.from('product_colors').delete().eq('id', testColor.id);
+      }
+    }
   });
 });
