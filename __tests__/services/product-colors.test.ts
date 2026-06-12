@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockFrom = vi.fn()
-vi.mock('@/lib/supabase/client', () => ({
+vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({ from: mockFrom }),
 }))
 

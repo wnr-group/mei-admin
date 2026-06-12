@@ -1,10 +1,37 @@
-import { createClient } from '@/lib/supabase/client'
-import { toAppError } from '@/lib/errors'
-import type { ProductColor, ProductColorInsert } from '@/types'
+import { createClient } from '@supabase/supabase-js'
 
-export async function getProductColors(productId: string) {
-  const supabase = createClient()
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
+export interface ProductColor {
+  id: string
+  product_id: string
+  label: string
+  hex_code?: string
+  swatch_image_url?: string
+  sort_order: number
+  created_at: string
+  deleted_at?: string
+}
+
+export interface ProductColorInsert {
+  product_id: string
+  label: string
+  hex_code?: string
+  swatch_image_url?: string
+  sort_order?: number
+}
+
+export interface ProductColorUpdate {
+  label?: string
+  hex_code?: string
+  swatch_image_url?: string
+  sort_order?: number
+}
+
+export async function getProductColors(productId: string): Promise<ProductColor[]> {
   const { data, error } = await supabase
     .from('product_colors')
     .select('*')
@@ -12,13 +39,11 @@ export async function getProductColors(productId: string) {
     .is('deleted_at', null)
     .order('sort_order')
 
-  if (error) throw toAppError(new Error(error.message))
+  if (error) throw error
   return (data || []) as ProductColor[]
 }
 
-export async function createColor(input: ProductColorInsert) {
-  const supabase = createClient()
-
+export async function createColor(input: ProductColorInsert): Promise<ProductColor> {
   const { data, error } = await supabase
     .from('product_colors')
     .insert({
@@ -28,13 +53,11 @@ export async function createColor(input: ProductColorInsert) {
     .select()
     .single()
 
-  if (error) throw toAppError(new Error(error.message))
+  if (error) throw error
   return data as ProductColor
 }
 
-export async function updateColor(id: string, input: Partial<ProductColor>) {
-  const supabase = createClient()
-
+export async function updateColor(id: string, input: ProductColorUpdate): Promise<ProductColor> {
   const { data, error } = await supabase
     .from('product_colors')
     .update(input)
@@ -42,17 +65,15 @@ export async function updateColor(id: string, input: Partial<ProductColor>) {
     .select()
     .single()
 
-  if (error) throw toAppError(new Error(error.message))
+  if (error) throw error
   return data as ProductColor
 }
 
-export async function deleteColor(id: string) {
-  const supabase = createClient()
-
+export async function deleteColor(id: string): Promise<void> {
   const { error } = await supabase
     .from('product_colors')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
 
-  if (error) throw toAppError(new Error(error.message))
+  if (error) throw error
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getProductColors, createColor, updateColor, deleteColor } from '@/services/product-colors'
+import { getProductColors, createColor, updateColor, deleteColor, type ProductColorInsert, type ProductColorUpdate } from '@/services/product-colors'
 
 const queryKeys = {
   colors: (productId: string) => ['products', productId, 'colors'] as const,
@@ -28,8 +28,9 @@ export function useCreateColor(productId: string) {
 export function useUpdateColor(productId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: Parameters<typeof updateColor>[1] }) =>
-      updateColor(id, input),
+    mutationFn: ({ id, input }: { id: string; input: Parameters<typeof updateColor>[1] }) => {
+      return updateColor(id, input)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.colors(productId) })
     },
