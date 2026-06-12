@@ -15,4 +15,6 @@ CREATE TABLE IF NOT EXISTS order_item_measurements (
 );
 
 ALTER TABLE order_item_measurements ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "order_item_measurements_admin_all" ON order_item_measurements FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+DO $$ BEGIN
+  CREATE POLICY "order_item_measurements_admin_all" ON order_item_measurements FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

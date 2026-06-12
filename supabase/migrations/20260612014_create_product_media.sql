@@ -15,14 +15,18 @@ CREATE TABLE IF NOT EXISTS product_media (
   deleted_at     TIMESTAMPTZ
 );
 
-CREATE UNIQUE INDEX idx_pm_primary_product
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pm_primary_product
   ON product_media (product_id)
   WHERE is_primary = true AND color_id IS NULL AND deleted_at IS NULL;
 
-CREATE UNIQUE INDEX idx_pm_primary_color
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pm_primary_color
   ON product_media (product_id, color_id)
   WHERE is_primary = true AND color_id IS NOT NULL AND deleted_at IS NULL;
 
 ALTER TABLE product_media ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "product_media_anon_select" ON product_media FOR SELECT USING (deleted_at IS NULL);
-CREATE POLICY "product_media_admin_all" ON product_media FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+DO $$ BEGIN
+  CREATE POLICY "product_media_anon_select" ON product_media FOR SELECT USING (deleted_at IS NULL);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "product_media_admin_all" ON product_media FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

@@ -1,4 +1,4 @@
-CREATE TABLE product_colors (
+CREATE TABLE IF NOT EXISTS product_colors (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id       UUID NOT NULL REFERENCES products(id),
   label            TEXT NOT NULL,
@@ -10,5 +10,9 @@ CREATE TABLE product_colors (
 );
 
 ALTER TABLE product_colors ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "product_colors_anon_select" ON product_colors FOR SELECT USING (deleted_at IS NULL);
-CREATE POLICY "product_colors_admin_all" ON product_colors FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+DO $$ BEGIN
+  CREATE POLICY "product_colors_anon_select" ON product_colors FOR SELECT USING (deleted_at IS NULL);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "product_colors_admin_all" ON product_colors FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

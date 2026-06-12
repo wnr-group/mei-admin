@@ -12,7 +12,14 @@ SELECT
   false,
   true
 FROM products p WHERE p.deleted_at IS NULL
-ON CONFLICT (product_id, COALESCE(color_id::text, 'NO_COLOR'), COALESCE(size_entry_id::text, 'NO_SIZE'), customization_type) DO NOTHING;
+  AND NOT EXISTS (
+    SELECT 1 FROM product_variants pv
+    WHERE pv.product_id = p.id
+      AND pv.color_id IS NULL
+      AND pv.size_entry_id IS NULL
+      AND pv.customization_type = 'STANDARD_SIZE'
+      AND pv.deleted_at IS NULL
+  );
 
 UPDATE products SET has_variants = true
 WHERE deleted_at IS NULL

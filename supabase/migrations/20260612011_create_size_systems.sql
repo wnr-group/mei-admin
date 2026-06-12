@@ -1,4 +1,4 @@
-CREATE TABLE size_systems (
+CREATE TABLE IF NOT EXISTS size_systems (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL UNIQUE,
   description TEXT,
@@ -7,7 +7,7 @@ CREATE TABLE size_systems (
   deleted_at  TIMESTAMPTZ
 );
 
-CREATE TABLE size_system_entries (
+CREATE TABLE IF NOT EXISTS size_system_entries (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   system_id  UUID NOT NULL REFERENCES size_systems(id),
   label      TEXT NOT NULL,
@@ -23,8 +23,16 @@ CREATE TABLE size_system_entries (
 ALTER TABLE size_systems ENABLE ROW LEVEL SECURITY;
 ALTER TABLE size_system_entries ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "size_systems_anon_select" ON size_systems FOR SELECT USING (true);
-CREATE POLICY "size_systems_admin_all" ON size_systems FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+DO $$ BEGIN
+  CREATE POLICY "size_systems_anon_select" ON size_systems FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "size_systems_admin_all" ON size_systems FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "size_system_entries_anon_select" ON size_system_entries FOR SELECT USING (true);
-CREATE POLICY "size_system_entries_admin_all" ON size_system_entries FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+DO $$ BEGIN
+  CREATE POLICY "size_system_entries_anon_select" ON size_system_entries FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "size_system_entries_admin_all" ON size_system_entries FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

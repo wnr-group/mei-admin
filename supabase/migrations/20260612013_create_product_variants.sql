@@ -1,17 +1,20 @@
 ALTER TABLE products
-  ADD COLUMN product_code                  TEXT,
-  ADD COLUMN has_variants                  BOOLEAN NOT NULL DEFAULT false,
-  ADD COLUMN size_system_id                UUID REFERENCES size_systems(id),
-  ADD COLUMN supported_customization_types customization_type[] NOT NULL DEFAULT '{}';
+  ADD COLUMN IF NOT EXISTS product_code                  TEXT,
+  ADD COLUMN IF NOT EXISTS has_variants                  BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS size_system_id                UUID REFERENCES size_systems(id),
+  ADD COLUMN IF NOT EXISTS supported_customization_types customization_type[] NOT NULL DEFAULT '{}';
 
 UPDATE products SET product_code = 'MEI-' || UPPER(LEFT(REGEXP_REPLACE(name, '\s+', '', 'g'), 6))
   || '-' || UPPER(SUBSTRING(id::TEXT, 1, 4))
   WHERE product_code IS NULL;
 
-ALTER TABLE products ADD CONSTRAINT products_product_code_key UNIQUE (product_code);
+DO $$ BEGIN
+  ALTER TABLE products ADD CONSTRAINT products_product_code_key UNIQUE (product_code);
+EXCEPTION WHEN duplicate_table THEN NULL;
+         WHEN duplicate_object THEN NULL; END $$;
 ALTER TABLE products ALTER COLUMN product_code SET NOT NULL;
 
-CREATE TABLE product_variants (
+CREATE TABLE IF NOT EXISTS product_variants (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id         UUID NOT NULL REFERENCES products(id),
   color_id           UUID REFERENCES product_colors(id),
@@ -33,11 +36,13 @@ CREATE TABLE product_variants (
   deleted_at         TIMESTAMPTZ
 );
 
-CREATE TRIGGER set_product_variants_updated_at
-  BEFORE UPDATE ON product_variants
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+DO $$ BEGIN
+  CREATE TRIGGER set_product_variants_updated_at
+    BEFORE UPDATE ON product_variants
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE UNIQUE INDEX idx_pv_unique_combination
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pv_unique_combination
   ON product_variants (
     product_id,
     COALESCE(color_id::TEXT, 'NO_COLOR'),
@@ -47,5 +52,9 @@ CREATE UNIQUE INDEX idx_pv_unique_combination
   WHERE deleted_at IS NULL;
 
 ALTER TABLE product_variants ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "product_variants_anon_select" ON product_variants FOR SELECT USING (deleted_at IS NULL AND is_available = true);
-CREATE POLICY "product_variants_admin_all" ON product_variants FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+DO $$ BEGIN
+  CREATE POLICY "product_variants_anon_select" ON product_variants FOR SELECT USING (deleted_at IS NULL AND is_available = true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "product_variants_admin_all" ON product_variants FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

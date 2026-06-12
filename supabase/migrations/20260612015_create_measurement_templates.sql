@@ -26,5 +26,9 @@ CREATE TABLE IF NOT EXISTS measurement_template_fields (
 ALTER TABLE measurement_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE measurement_template_fields ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "measurement_templates_admin_all" ON measurement_templates FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
-CREATE POLICY "measurement_template_fields_admin_all" ON measurement_template_fields FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+DO $$ BEGIN
+  CREATE POLICY "measurement_templates_admin_all" ON measurement_templates FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "measurement_template_fields_admin_all" ON measurement_template_fields FOR ALL USING (auth.jwt() ->> 'role' = 'authenticated' AND EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'admin'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
