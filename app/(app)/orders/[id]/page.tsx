@@ -1,47 +1,31 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
-import { fetchOrderById, updateOrderStatus, Order } from '@/lib/mockDb';
-import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import React, { use } from 'react'
+import { useOrder, useUpdateOrderStatus } from '@/hooks/use-orders'
+import { useRealtimeOrders } from '@/hooks/use-realtime-orders'
+import { ErrorState } from '@/components/ui/error-state'
+import type { OrderStatus } from '@/types'
+import Link from 'next/link'
+import { Loader2 } from 'lucide-react'
 
 export default function OrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter();
-  const { id } = use(params);
+  const { id } = use(params)
 
-  const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const { data: order, isLoading, error, refetch } = useOrder(id)
+  const updateStatusMutation = useUpdateOrderStatus()
 
-  // Load order details on mount
-  useEffect(() => {
-    async function loadOrder() {
-      const data = await fetchOrderById(id);
-      if (data) {
-        setOrder(data);
-      }
-      setLoading(false);
-    }
-    loadOrder();
-  }, [id]);
+  // Enable real-time updates for details view too
+  useRealtimeOrders()
 
   // Handle dropdown order status update
-  const handleStatusChange = async (newStatus: Order['status']) => {
-    if (!order) return;
-    setUpdatingStatus(true);
+  const handleStatusChange = async (newStatus: OrderStatus) => {
     try {
-      const updated = await updateOrderStatus(order.id, newStatus);
-      if (updated) {
-        setOrder(updated);
-      }
+      await updateStatusMutation.mutateAsync({ id, status: newStatus })
     } catch (err) {
-      console.error('Failed to update status:', err);
-      alert('Error updating order status. Please try again.');
-    } finally {
-      setUpdatingStatus(false);
+      console.error('Failed to update status:', err)
+      alert('Error updating order status. Please try again.')
     }
-  };
+  }
 
   // Indian Rupee currency format (e.g. ₹3,45,000)
   const formatTotal = (total: number) => {
@@ -51,22 +35,36 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
       maximumFractionDigits: 0,
     })
       .format(total)
-      .replace('INR', '₹');
-  };
+      .replace('INR', '₹')
+  }
 
-  const getStatusDotColor = (status: Order['status']) => {
+  const getStatusDotColor = (status: OrderStatus) => {
     switch (status) {
-      case 'PENDING': return 'bg-[#B5893D]';
-      case 'CONFIRMED': return 'bg-[#00A896]';
-      case 'PROCESSING': return 'bg-[#8E2DE2]';
-      case 'SHIPPED': return 'bg-[#E07A5F]';
-      case 'DELIVERED': return 'bg-[#4CAF50]';
-      case 'CANCELLED': return 'bg-[#D32F2F]';
-      default: return 'bg-zinc-400';
+      case 'PENDING': return 'bg-[#B5893D]'
+      case 'CONFIRMED': return 'bg-[#00A896]'
+      case 'PROCESSING': return 'bg-[#8E2DE2]'
+      case 'SHIPPED': return 'bg-[#E07A5F]'
+      case 'DELIVERED': return 'bg-[#4CAF50]'
+      case 'CANCELLED': return 'bg-[#D32F2F]'
+      default: return 'bg-zinc-400'
     }
-  };
+  }
 
-  if (loading) {
+  const formatDate = (dateStr: string) => {
+    try {
+      const dateObj = new Date(dateStr)
+      if (isNaN(dateObj.getTime())) return dateStr
+      return dateObj.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    } catch {
+      return dateStr
+    }
+  }
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="animate-pulse flex flex-col items-center gap-2">
@@ -74,7 +72,11 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
           <span className="text-xs text-zinc-400">Loading Order Details...</span>
         </div>
       </div>
-    );
+    )
+  }
+
+  if (error) {
+    return <ErrorState message={error.message} onRetry={refetch} />
   }
 
   if (!order) {
@@ -89,30 +91,52 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
           Back to Orders
         </Link>
       </div>
-    );
+    )
   }
 
-  // Fallbacks logic for generic display across any generated orders
-  const finalPhone = order.customerPhone || '+91 98765 43210';
-  const finalAddress = order.shippingAddress || {
-    name: order.customerName,
+  // Fallbacks logic for customer details
+  const customerName = order.customers?.name ?? 'Guest Customer'
+  const customerEmail = order.customers?.email ?? 'No email provided'
+  const customerPhone = order.customers?.phone ?? 'No Phone provided'
+  const customerCity = order.customers?.city ?? 'New City provided'
+
+  // Shipping Address block
+  const shippingAddress = {
+    name: customerName,
     line1: '123 Heritage Lane',
     line2: 'Apt 4B',
-    cityStateZip: 'New Delhi, Delhi — 110001',
-  };
-  const finalItems = order.items && order.items.length > 0 ? order.items : [
+    cityStateZip: `${customerCity}, India`,
+  }
+
+  // Items
+  const items = order.order_items && order.order_items.length > 0 ? order.order_items.map((item) => ({
+    name: item.product_name,
+    quantity: item.quantity,
+    price: Number(item.unit_price) * item.quantity,
+    image: item.products?.image_url || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop'
+  })) : [
     {
       name: 'The Noor Lehenga',
       quantity: 1,
       price: order.total,
       image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop',
     },
-  ];
-  const finalPaymentMethod = order.paymentMethod || 'Razorpay';
-  const finalGatewayOrderId = order.gatewayOrderId || 'pay_P1a2b3c4d5e6';
+  ]
+
+  // Payment defaults since these aren't columns in the orders table
+  const paymentMethod = 'Razorpay'
+  const gatewayOrderId = 'pay_' + order.id.slice(0, 12).replace(/-/g, '')
+  const paymentStatus = order.status === 'CANCELLED' ? 'FAILED' : 'PAID'
 
   return (
     <div className="max-w-[800px] mx-auto pt-6 pb-16 font-inter animate-fade-in px-4">
+      {/* Loading overlay for mutations */}
+      {updateStatusMutation.isPending && (
+        <div className="fixed inset-0 bg-white/50 z-50 flex items-center justify-center">
+          <div className="text-zinc-500 font-medium text-xs">Updating order status...</div>
+        </div>
+      )}
+
       {/* Back to Orders Link */}
       <div className="mb-6">
         <Link
@@ -127,10 +151,10 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8">
         <div>
           <h1 className="font-cormorant lining-nums text-[32px] text-zinc-950 font-normal tracking-wide leading-none mb-2">
-            {order.id}
+            {order.order_number}
           </h1>
           <p className="text-[12px] text-zinc-700 font-inter font-medium">
-            {order.date}
+            {formatDate(order.created_at)}
           </p>
         </div>
 
@@ -139,8 +163,8 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
           <div className="relative">
             <select
               value={order.status}
-              onChange={(e) => handleStatusChange(e.target.value as Order['status'])}
-              disabled={updatingStatus}
+              onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
+              disabled={updateStatusMutation.isPending}
               className="border border-[#E8E0D5] bg-white pl-4 pr-10 py-2.5 text-[12px] font-medium text-zinc-700 focus:outline-hidden focus:border-[#B38B5D] cursor-pointer appearance-none font-sans min-w-[140px] uppercase tracking-wider rounded-none"
             >
               <option value="PENDING">Pending</option>
@@ -151,7 +175,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
               <option value="CANCELLED">Cancelled</option>
             </select>
             <div className="absolute right-3.5 top-3.5 pointer-events-none text-zinc-400 text-[8px] font-sans">
-              {updatingStatus ? <Loader2 className="w-3 h-3 animate-spin text-zinc-400" /> : '▼'}
+              {updateStatusMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin text-zinc-400" /> : '▼'}
             </div>
           </div>
 
@@ -170,9 +194,9 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             CUSTOMER
           </h3>
           <div className="space-y-1">
-            <div className="text-[13px] font-medium text-zinc-800">{order.customerName}</div>
-            <div className="text-[12px] text-zinc-700 font-inter font-medium">{order.customerEmail}</div>
-            <div className="text-[12px] text-zinc-700 font-inter font-medium">{finalPhone}</div>
+            <div className="text-[13px] font-medium text-zinc-800">{customerName}</div>
+            <div className="text-[12px] text-zinc-700 font-inter font-medium">{customerEmail}</div>
+            <div className="text-[12px] text-zinc-700 font-inter font-medium">{customerPhone}</div>
           </div>
         </div>
 
@@ -182,10 +206,10 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             SHIPPING ADDRESS
           </h3>
           <div className="space-y-1 text-[12px] text-zinc-700 font-inter leading-relaxed">
-            <div className="font-medium text-zinc-800 text-[13px]">{finalAddress.name}</div>
-            <div>{finalAddress.line1}</div>
-            <div>{finalAddress.line2}</div>
-            <div>{finalAddress.cityStateZip}</div>
+            <div className="font-medium text-zinc-800 text-[13px]">{shippingAddress.name}</div>
+            <div>{shippingAddress.line1}</div>
+            <div>{shippingAddress.line2}</div>
+            <div>{shippingAddress.cityStateZip}</div>
           </div>
         </div>
       </div>
@@ -196,7 +220,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
           ITEMS
         </h3>
         <div className="divide-y divide-[#E8E0D5] -mx-8 border-b border-[#E8E0D5]">
-          {finalItems.map((item, idx) => (
+          {items.map((item, idx) => (
             <div key={idx} className="px-8 py-5 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-[50px] h-[50px] border border-[#E8E0D5] overflow-hidden bg-zinc-100 flex-shrink-0">
@@ -247,22 +271,22 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-[12px] text-zinc-800 font-sans font-inter">
             <span>Payment Method:</span>
-            <span className="font-inter">{finalPaymentMethod}</span>
+            <span className="font-inter">{paymentMethod}</span>
             <span className="text-zinc-300 mx-2">|</span>
             <span>Payment Status:</span>
             <span className="inline-block border border-[#A5D6A7] bg-[#E8F5E9] text-[#2E7D32] px-2.5 py-0.5 text-[9px] font-bold tracking-wider rounded-none uppercase">
-              {order.paymentStatus}
+              {paymentStatus}
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-[12px] text-zinc-800 font-inter">
             <span>Razorpay Order ID:</span>
             <span className="border border-[#E8E0D5] bg-[#FAF8F5] px-2.5 py-1 text-[11px] text-zinc-500 font-mono">
-              {finalGatewayOrderId}
+              {gatewayOrderId}
             </span>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
