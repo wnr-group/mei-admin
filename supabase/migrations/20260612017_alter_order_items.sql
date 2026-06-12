@@ -1,9 +1,9 @@
 ALTER TABLE order_items
-  ADD COLUMN variant_id       UUID REFERENCES product_variants(id) ON DELETE SET NULL,
-  ADD COLUMN product_snapshot JSONB,
-  ADD COLUMN variant_snapshot JSONB;
+  ADD COLUMN IF NOT EXISTS variant_id       UUID REFERENCES product_variants(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS product_snapshot JSONB,
+  ADD COLUMN IF NOT EXISTS variant_snapshot JSONB;
 
-CREATE TABLE order_item_measurements (
+CREATE TABLE IF NOT EXISTS order_item_measurements (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_item_id UUID NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
   field_key     measurement_field_key NOT NULL,

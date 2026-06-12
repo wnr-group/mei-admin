@@ -1,4 +1,4 @@
-CREATE TABLE measurement_templates (
+CREATE TABLE IF NOT EXISTS measurement_templates (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name               TEXT NOT NULL,
   category_id        UUID REFERENCES categories(id),
@@ -12,7 +12,7 @@ CREATE TABLE measurement_templates (
   deleted_at         TIMESTAMPTZ
 );
 
-CREATE TABLE measurement_template_fields (
+CREATE TABLE IF NOT EXISTS measurement_template_fields (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   template_id UUID NOT NULL REFERENCES measurement_templates(id),
   field_key   measurement_field_key NOT NULL,

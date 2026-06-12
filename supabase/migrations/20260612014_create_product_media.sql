@@ -1,4 +1,4 @@
-CREATE TABLE product_media (
+CREATE TABLE IF NOT EXISTS product_media (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id     UUID NOT NULL REFERENCES products(id),
   color_id       UUID REFERENCES product_colors(id),

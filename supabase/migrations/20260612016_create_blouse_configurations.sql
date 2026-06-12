@@ -1,4 +1,4 @@
-CREATE TABLE blouse_configurations (
+CREATE TABLE IF NOT EXISTS blouse_configurations (
   id                             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id                     UUID NOT NULL REFERENCES products(id),
   customization_type             customization_type,
