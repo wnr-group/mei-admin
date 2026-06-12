@@ -12,13 +12,20 @@ export default function SettingsPage() {
   const updateSettingMutation = useUpdateSetting()
 
   const [formValues, setFormValues] = useState<Record<string, unknown>>({})
+  const [lastSyncedSettings, setLastSyncedSettings] = useState<typeof settings>([])
 
-  useEffect(() => {
-    if (settings.length === 0) return
+  // Safely sync state when settings are loaded or refetched without breaking render rules
+  if (settings !== lastSyncedSettings && settings.length > 0) {
     const values: Record<string, unknown> = {}
-    settings.forEach((setting) => { values[setting.key] = setting.value })
+    settings.forEach((setting) => {
+      values[setting.key] = setting.value
+    })
     setFormValues(values)
-  }, [settings])
+    setLastSyncedSettings(settings) // Storing this in regular state for comparison is completely safe during render
+  }
+  
+
+
 
   if (isLoading) return <TableSkeleton rows={6} />
   if (error) return <ErrorState message={error.message} onRetry={refetch} />
