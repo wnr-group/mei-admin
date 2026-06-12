@@ -4,7 +4,8 @@ SELECT
   COALESCE(
     (SELECT pm.url FROM product_media pm
      WHERE pm.product_id = p.id AND pm.is_primary = true
-       AND pm.color_id IS NULL AND pm.deleted_at IS NULL LIMIT 1),
+       AND pm.color_id IS NULL AND pm.deleted_at IS NULL
+   ORDER BY pm.created_at DESC LIMIT 1),
     p.image_url
   ) AS primary_image_url,
   COALESCE(
@@ -20,5 +21,6 @@ SELECT
   pc.*,
   (SELECT pm.url FROM product_media pm
    WHERE pm.product_id = pc.product_id AND pm.color_id = pc.id
-     AND pm.is_primary = true AND pm.deleted_at IS NULL LIMIT 1) AS primary_image_url
+     AND pm.is_primary = true AND pm.deleted_at IS NULL
+   ORDER BY pm.created_at DESC LIMIT 1) AS primary_image_url
 FROM product_colors pc WHERE pc.deleted_at IS NULL;
