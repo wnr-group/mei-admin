@@ -4,8 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import {
   getSizeSystems,
   getSizeSystemEntries,
-  type SizeSystem,
-  type SizeSystemEntry,
 } from '@/lib/services/size-systems';
 
 export const queryKeys = {
