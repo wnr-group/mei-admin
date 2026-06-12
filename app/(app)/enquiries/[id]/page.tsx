@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, use } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState } from 'react'
+import { use } from 'react'
 import { useEnquiry, useUpdateEnquiryStatus, useUpdateEnquiryAdminNotes } from '@/hooks/use-enquiries'
 import Link from 'next/link'
 import { Mail, Phone, Loader2 } from 'lucide-react'
@@ -9,7 +9,6 @@ import { ErrorState } from '@/components/ui/error-state'
 import type { EnquiryStatus } from '@/types'
 
 export default function EnquiryDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
   const { id } = use(params)
 
   const { data: enquiry, isLoading, error, refetch } = useEnquiry(id)
@@ -17,13 +16,14 @@ export default function EnquiryDetailsPage({ params }: { params: Promise<{ id: s
   const saveNotesMutation = useUpdateEnquiryAdminNotes()
 
   const [notes, setNotes] = useState('')
+  // Track the last ID synchronized to safely handle state resetting without useEffect cascading warnings
+  const [prevEnquiryId, setPrevEnquiryId] = useState<string | null>(null)
 
-  // Keep internal notes textarea in sync when DB details are fetched
-  useEffect(() => {
-    if (enquiry) {
-      setNotes(enquiry.admin_reply || '')
-    }
-  }, [enquiry])
+  // If the enquiry has loaded and it's a new or changed record, sync the state directly during render
+  if (enquiry && enquiry.id !== prevEnquiryId) {
+    setNotes(enquiry.admin_reply || '')
+    setPrevEnquiryId(enquiry.id)
+  }
 
   // Handle status update
   const handleStatusChange = async (newStatus: EnquiryStatus) => {
@@ -86,13 +86,6 @@ export default function EnquiryDetailsPage({ params }: { params: Promise<{ id: s
       </div>
     )
   }
-
-// DATABASE INTEGRATION NOTE:
-// Currently, the enquiries table does not link to a product record.
-// If you add a "product_id" column referencing the "products" table,
-// you can update getEnquiryById to join products: e.g., select('*, products(name, price, image_url)')
-// Then you can replace this match helper with direct: name = enquiry.products.name
-
 
   // Dynamic heuristics to derive Product and details from the message
   const getProductDetails = (msg: string) => {
@@ -223,7 +216,7 @@ export default function EnquiryDetailsPage({ params }: { params: Promise<{ id: s
             className="bg-[#25D366] hover:bg-[#20ba5a] text-white text-[12px] font-bold px-4 py-2.5 flex items-center gap-2.5 transition-colors cursor-pointer select-none font-sans rounded-none"
           >
             <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.665.989 3.3 1.489 5.361 1.49 5.373 0 9.743-4.307 9.745-9.643.001-2.585-1.01-5.016-2.85-6.859-1.84-1.84-4.284-2.85-6.867-2.852-5.379 0-9.752 4.307-9.754 9.64-.001 2.128.56 4.198 1.628 5.945l-1.066 3.89 3.996-1.037z" />
+              <path d="M.057 24 l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.665.989 3.3 1.489 5.361 1.49 5.373 0 9.743-4.307 9.745-9.643.001-2.585-1.01-5.016-2.85-6.859-1.84-1.84-4.284-2.85-6.867-2.852-5.379 0-9.752 4.307-9.754 9.64-.001 2.128.56 4.198 1.628 5.945l-1.066 3.89 3.996-1.037z" />
             </svg>
             Message on WhatsApp
           </a>

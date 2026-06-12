@@ -13,13 +13,6 @@ export default function SettingsPage() {
 
   const [formValues, setFormValues] = useState<Record<string, unknown>>({})
 
-  useEffect(() => {
-    if (settings.length === 0) return
-    const values: Record<string, unknown> = {}
-    settings.forEach((setting) => { values[setting.key] = setting.value })
-    setFormValues(values)
-  }, [settings])
-
   if (isLoading) return <TableSkeleton rows={6} />
   if (error) return <ErrorState message={error.message} onRetry={refetch} />
   if (settings.length === 0) return <EmptyState message="No settings configured." />
@@ -29,7 +22,7 @@ export default function SettingsPage() {
   }
 
   const handleSave = async (setting: Setting) => {
-    const newValue = formValues[setting.key]
+    const newValue = formValues[setting.key] !== undefined ? formValues[setting.key] : setting.value
     if (newValue === setting.value) return
 
     try {
@@ -76,7 +69,7 @@ export default function SettingsPage() {
             </thead>
             <tbody className="divide-y divide-[#E8E0D5]">
               {settings.map((setting) => {
-                const currentValue = formValues[setting.key]
+                const currentValue = formValues[setting.key] !== undefined ? formValues[setting.key] : setting.value
 
                 return (
                   <tr key={setting.key} className="hover:bg-[#FAF8F5]/40 transition-colors">
@@ -125,11 +118,7 @@ export default function SettingsPage() {
           <button
             onClick={() => {
               // Reset form values to original
-              const values: Record<string, unknown> = {}
-              settings.forEach((setting) => {
-                values[setting.key] = setting.value
-              })
-              setFormValues(values)
+              setFormValues({})
             }}
             className="border border-zinc-200 hover:bg-zinc-50 text-[10px] font-bold tracking-widest text-zinc-500 py-2 px-4 transition-colors uppercase rounded-none"
           >
@@ -138,7 +127,7 @@ export default function SettingsPage() {
           <button
             onClick={() => {
               // Save all dirty fields
-              const dirtySettings = settings.filter((s) => formValues[s.key] !== s.value)
+              const dirtySettings = settings.filter((s) => formValues[s.key] !== undefined && formValues[s.key] !== s.value)
               dirtySettings.forEach((setting) => {
                 handleSave(setting)
               })
