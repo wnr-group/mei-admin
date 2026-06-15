@@ -204,6 +204,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
       const normalize = (value: string) => value.trim().toLowerCase();
 
+      // TODO: Remove debug logs after category matching fix verification
       console.log('Selected category:', category);
       console.log(
         'Available categories:',
