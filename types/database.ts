@@ -39,9 +39,14 @@ export type Database = {
         Insert: { id?: string; order_id: string; product_id?: string | null; product_name: string; quantity?: number; unit_price: number }
         Update: { quantity?: number; unit_price?: number }
       }
+      product_media: {
+        Row: { id: string; product_id: string; color_id: string | null; variant_id: string | null; url: string; alt_text: string | null; is_primary: boolean; media_type: 'IMAGE' | 'VIDEO'; thumbnail_url: string | null; video_provider: string | null; sort_order: number; created_by: string | null; created_at: string; deleted_at: string | null }
+        Insert: { id?: string; product_id: string; color_id?: string | null; variant_id?: string | null; url: string; alt_text?: string | null; is_primary?: boolean; media_type?: 'IMAGE' | 'VIDEO'; thumbnail_url?: string | null; video_provider?: string | null; sort_order?: number; created_by?: string | null }
+        Update: { url?: string; alt_text?: string | null; is_primary?: boolean; media_type?: 'IMAGE' | 'VIDEO'; thumbnail_url?: string | null; sort_order?: number; deleted_at?: string | null }
+      }
       enquiries: {
-        Row: { id: string; name: string; email: string; phone: string | null; message: string; status: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply: string | null; replied_at: string | null; replied_by: string | null; created_at: string }
-        Insert: { id?: string; name: string; email: string; phone?: string | null; message: string; status?: 'NEW' | 'REPLIED' | 'CLOSED' }
+        Row: { id: string; name: string; email: string; phone: string | null; occasion: string | null; budget: string | null; message: string; status: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply: string | null; replied_at: string | null; replied_by: string | null; created_at: string }
+        Insert: { id?: string; name: string; email: string; phone?: string | null; occasion?: string | null; budget?: string | null; message: string; status?: 'NEW' | 'REPLIED' | 'CLOSED' }
         Update: { status?: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply?: string | null; replied_at?: string | null; replied_by?: string | null }
       }
       banners: {
@@ -65,6 +70,7 @@ export type Database = {
       order_status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
       product_status: 'PUBLISHED' | 'DRAFT'
       enquiry_status: 'NEW' | 'REPLIED' | 'CLOSED'
+      media_type: 'IMAGE' | 'VIDEO'
     }
   }
 }
