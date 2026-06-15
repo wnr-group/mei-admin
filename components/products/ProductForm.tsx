@@ -7,8 +7,8 @@ import { uploadProductImage } from '@/services/storage';
 import { getCategories } from '@/services/categories';
 import { Upload, X, ChevronDown, ChevronUp, Loader2, Plus } from 'lucide-react';
 import Link from 'next/link';
+import type { Category } from '@/types';
 
-const CATEGORIES = ['Bridal Lehengas', 'Sarees', 'Evening Gowns', 'Couture', 'Suits'];
 const WORK_TYPES = ['Aari', 'Zardozi', 'Mirror', 'Cut', 'Thread', 'Tailoring', 'Kundan'];
 
 interface ProductFormProps {
@@ -30,6 +30,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
   // Category & Attributes state
   const [category, setCategory] = useState('');
+  const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>(['Zardozi']); // "Zardozi" default
 
   // SEO state
@@ -79,10 +80,8 @@ export default function ProductForm({ editId }: ProductFormProps) {
           );
           setSelectedWorkTypes(normalizedWorkTypes);
 
-          // Resolve category_id → name for the existing dropdown
-          const { categories } = await getCategories();
-          const cat = categories.find((c) => c.id === prod.category_id);
-          setCategory(cat?.name ?? '');
+          // Set category ID directly
+          setCategory(prod.category_id ?? '');
 
           // Fields not stored in DB — clear to defaults
           setCompareAtPrice('0.00');
@@ -104,6 +103,20 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
     loadProduct();
   }, [editId, router]);
+
+  // Load categories on mount
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const { categories } = await getCategories();
+        setDbCategories(categories);
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+      }
+    }
+
+    loadCategories();
+  }, []);
 
   // Auto-generate slug from name
   const generateSlug = (val: string) => {
@@ -199,30 +212,6 @@ export default function ProductForm({ editId }: ProductFormProps) {
     setIsSaving(true);
 
     try {
-      // Resolve category name → UUID using existing service
-      const { categories } = await getCategories();
-
-      const normalize = (value: string) => value.trim().toLowerCase();
-
-      // TODO: Remove debug logs after category matching fix verification
-      console.log('Selected category:', category);
-      console.log(
-        'Available categories:',
-        categories.map((c) => ({
-          id: c.id,
-          name: c.name,
-        }))
-      );
-
-      const matchedCat = categories.find(
-        (c) => normalize(c.name) === normalize(category)
-      );
-      if (!matchedCat) {
-        alert('Category not found. Please refresh and try again.');
-        setIsSaving(false);
-        return;
-      }
-
       const priceNum = parseFloat(price) || 0;
       const workTypesArr = selectedWorkTypes.map((wt) => wt.toUpperCase());
       const descriptionVal = description.trim() || null;
@@ -245,7 +234,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
           name: name.trim(),
           slug: slug.trim() || null,
           short_description: shortDescription.trim() || null,
-          category_id: matchedCat.id,
+          category_id: category,
           price: priceNum,
           status: published ? 'PUBLISHED' : 'DRAFT',
           work_types: workTypesArr,
@@ -258,7 +247,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
           name: name.trim(),
           slug: slug.trim() || null,
           short_description: shortDescription.trim() || null,
-          category_id: matchedCat.id,
+          category_id: category,
           price: priceNum,
           status: published ? 'PUBLISHED' : 'DRAFT',
           work_types: workTypesArr,
@@ -456,8 +445,8 @@ export default function ProductForm({ editId }: ProductFormProps) {
                     className="w-full border-b border-[#E8E0D5] py-2.5 pr-8 text-[13px] text-zinc-700 bg-transparent focus:outline-hidden focus:border-[#B38B5D] transition-colors cursor-pointer appearance-none"
                   >
                     <option value="" disabled>Select Category</option>
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
+                    {dbCategories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
                   </select>
                   <div className="pointer-events-none absolute right-1 bottom-3 flex items-center text-zinc-400">
