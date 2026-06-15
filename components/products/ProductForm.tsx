@@ -201,7 +201,21 @@ export default function ProductForm({ editId }: ProductFormProps) {
     try {
       // Resolve category name → UUID using existing service
       const { categories } = await getCategories();
-      const matchedCat = categories.find((c) => c.name === category);
+
+      const normalize = (value: string) => value.trim().toLowerCase();
+
+      console.log('Selected category:', category);
+      console.log(
+        'Available categories:',
+        categories.map((c) => ({
+          id: c.id,
+          name: c.name,
+        }))
+      );
+
+      const matchedCat = categories.find(
+        (c) => normalize(c.name) === normalize(category)
+      );
       if (!matchedCat) {
         alert('Category not found. Please refresh and try again.');
         setIsSaving(false);
