@@ -41,11 +41,17 @@ export async function getProducts(options: GetProductsOptions = {}) {
 export async function createProduct(product: ProductInsert) {
   const supabase = createClient()
 
+  // Auto-generate unique product_code if not provided
+  const productWithCode = {
+    ...product,
+    product_code: product.product_code || `MEI-${product.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 6)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+  }
+
   // No slug provided — simple insert, no disambiguation needed
-  if (!product.slug) {
+  if (!productWithCode.slug) {
     const response = await supabase
       .from('products')
-      .insert([product] as never)
+      .insert([productWithCode] as never)
       .select()
       .single()
     const { data, error } = response as { data: Product | null; error: { message: string } | null }
@@ -55,7 +61,7 @@ export async function createProduct(product: ProductInsert) {
     return data as Product
   }
 
-  const baseSlug = product.slug
+  const baseSlug = productWithCode.slug
   for (let attempt = 1; attempt <= 20; attempt++) {
     const candidateSlug = attempt === 1 ? baseSlug : `${baseSlug}-${attempt}`
 
@@ -65,7 +71,7 @@ export async function createProduct(product: ProductInsert) {
 
     const response = await supabase
       .from('products')
-      .insert([{ ...product, slug: candidateSlug }] as never)
+      .insert([{ ...productWithCode, slug: candidateSlug }] as never)
       .select()
       .single()
     const { data, error } = response as { data: Product | null; error: { message: string; code?: string } | null }

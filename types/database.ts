@@ -20,9 +20,9 @@ export type Database = {
         Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; deleted_at?: string | null }
       }
       products: {
-        Row: { id: string; name: string; slug: string | null; short_description: string | null; category_id: string | null; price: number; work_types: string[]; status: 'PUBLISHED' | 'DRAFT'; description: string | null; image_url: string | null; created_at: string; updated_at: string; deleted_at: string | null }
-        Insert: { id?: string; name: string; slug?: string | null; short_description?: string | null; category_id?: string | null; price: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null }
-        Update: { name?: string; slug?: string | null; short_description?: string | null; category_id?: string | null; price?: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null; deleted_at?: string | null }
+        Row: { id: string; name: string; slug: string | null; short_description: string | null; category_id: string | null; price: number; work_types: string[]; status: 'PUBLISHED' | 'DRAFT'; description: string | null; image_url: string | null; created_at: string; updated_at: string; deleted_at: string | null; product_code: string; has_variants: boolean; size_system_id: string | null; supported_customization_types: string[] }
+        Insert: { id?: string; name: string; slug?: string | null; short_description?: string | null; category_id?: string | null; price: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null; product_code?: string; has_variants?: boolean; size_system_id?: string | null; supported_customization_types?: string[] }
+        Update: { name?: string; slug?: string | null; short_description?: string | null; category_id?: string | null; price?: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null; deleted_at?: string | null; product_code?: string; has_variants?: boolean; size_system_id?: string | null; supported_customization_types?: string[] }
       }
       customers: {
         Row: { id: string; name: string; email: string | null; phone: string | null; city: string | null; created_at: string }
