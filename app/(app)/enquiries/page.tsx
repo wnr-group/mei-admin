@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { X } from 'lucide-react'
-import { useEnquiries, useReplyToEnquiry, useCloseEnquiry } from '@/hooks/use-enquiries'
+import { useEnquiries, useReplyToEnquiry, useCloseEnquiry, useDeleteEnquiry } from '@/hooks/use-enquiries'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -16,6 +16,7 @@ export default function EnquiriesPage() {
   const { data, isLoading, error, refetch } = useEnquiries({ page, limit: 6, status: selectedStatus ?? undefined })
   const replyMutation = useReplyToEnquiry()
   const closeMutation = useCloseEnquiry()
+  const deleteEnquiryMutation = useDeleteEnquiry()
 
   const enquiries = data?.enquiries ?? []
   const total = data?.total ?? 0
@@ -53,15 +54,27 @@ export default function EnquiriesPage() {
     }
   }
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete enquiry from ${name}? This cannot be undone.`)) return
+    try {
+      await deleteEnquiryMutation.mutateAsync(id)
+      if (selectedEnquiry?.id === id) setSelectedEnquiry(null)
+    } catch {
+      alert('Failed to delete enquiry')
+    }
+  }
+
   if (enquiries.length === 0) return <EmptyState message="No enquiries yet." />
 
   return (
     <div className="space-y-6 px-8 pt-10 font-inter relative animate-fade-in">
 
       {/* Loading overlay for mutations */}
-      {(replyMutation.isPending || closeMutation.isPending) && (
+      {(replyMutation.isPending || closeMutation.isPending || deleteEnquiryMutation.isPending) && (
         <div className="fixed inset-0 bg-white/50 z-50 flex items-center justify-center">
-          <div className="text-zinc-500 font-medium text-xs">Processing...</div>
+          <div className="text-zinc-500 font-medium text-xs">
+            {deleteEnquiryMutation.isPending ? 'Deleting enquiry...' : 'Processing...'}
+          </div>
         </div>
       )}
 
@@ -163,6 +176,17 @@ export default function EnquiriesPage() {
                       className="text-[#B38B5D] hover:text-[#A37B4D] uppercase transition-colors"
                     >
                       {enquiry.status === 'NEW' ? 'REPLY' : 'VIEW'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(enquiry.id, enquiry.name)}
+                      disabled={deleteEnquiryMutation.isPending}
+                      className={`uppercase transition-colors ${
+                        deleteEnquiryMutation.isPending
+                          ? 'text-zinc-300 cursor-not-allowed'
+                          : 'text-red-400 hover:text-red-600'
+                      }`}
+                    >
+                      DELETE
                     </button>
                   </td>
                 </tr>
