@@ -3,7 +3,7 @@
 # ============================================================================
 # Node.js & Package Managers
 # ============================================================================
-/node_modules
+/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -19,8 +19,8 @@ yarn.lock
 # ============================================================================
 /.next/
 /out/
-/build
-/dist
+/build/
+/dist/
 *.tsbuildinfo
 next-env.d.ts
 *.egg-info
@@ -28,17 +28,77 @@ next-env.d.ts
 __pycache__/
 
 # ============================================================================
-# Testing
+# Testing & Coverage
 # ============================================================================
-/coverage
-.nyc_output
+/coverage/
+.nyc_output/
 *.lcov
+.vitest-cache/
 
 # ============================================================================
-# IDE & Editor Files
+# Local Run Logs & Test Reports (Never commit these)
+# ============================================================================
+/build-output.txt
+/final-lint.txt
+/lint-before.txt
+/lint-full.txt
+/lint-output.txt
+/test-output.log
+/tests-before.txt
+npm-debug.log*
+npm-error.log*
+yarn-debug.log*
+yarn-error.log*
+yarn-install-state.gz
+.pnpm-debug.log*
+lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+pids/
+*.seed
+*.pid.lock
+logs/
+*.log
+
+# ============================================================================
+# Environment Variables & Secrets (Never commit sensitive data)
+# ============================================================================
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.vault
+.envrc
+.dirlocals
+!.env.example
+!.env.*.example
+*.key
+*.pem
+*.crt
+*.cer
+.aws/
+.netrc
+.ssh/
+credentials.json
+secrets.json
+
+# ============================================================================
+# Supabase CLI Local Configuration
+# ============================================================================
+supabase/.temp/
+supabase/.branches/
+
+# ============================================================================
+# IDE, Editors & Development Tools
 # ============================================================================
 .vscode/
 .idea/
+.claude/
+.cursor/
+.windsurf/
+.vscode-test/
+.vscode-remote/
 *.swp
 *.swo
 *~
@@ -52,6 +112,7 @@ __pycache__/
 .history/
 .jsfiddle
 .cache/
+.mongo/
 
 # ============================================================================
 # OS-Specific Files
@@ -74,90 +135,16 @@ Thumbs.db
 [Dd]esktop.ini
 
 # ============================================================================
-# Environment Variables (Never commit sensitive data)
-# ============================================================================
-.env
-.env.local
-.env.*.local
-.env.development.local
-.env.test.local
-.env.production.local
-!.env.example
-!.env.*.example
-
-# ============================================================================
-# Logging & Debugging
-# ============================================================================
-npm-debug.log*
-npm-error.log*
-yarn-debug.log*
-yarn-error.log*
-yarn-install-state.gz
-.pnpm-debug.log*
-lerna-debug.log*
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-pids/
-*.seed
-*.pid.lock
-logs/
-*.log
-
-# ============================================================================
-# Temporary & Cache Files
-# ============================================================================
-.cache
-.eslintcache
-.stylelintcache
-.browserify-cache
-tmp/
-temp/
-*.tmp
-*.bak
-*.swp
-
-# ============================================================================
-# Security & Credentials (Never commit these)
-# ============================================================================
-*.key
-*.pem
-*.crt
-*.cer
-.aws/
-.netrc
-.ssh/
-credentials.json
-secrets.json
-
-# ============================================================================
-# IDE & Development Tools
-# ============================================================================
-.claude/
-.cursor/
-.windsurf/
-.vscode-test/
-.vscode-remote/
-
-# ============================================================================
-# Deployment & Hosting
-# ============================================================================
-.vercel
-.netlify
-.firebase/
-dist/
-build/
-.serverless/
-
-# ============================================================================
-# Database
+# Database & Storage
 # ============================================================================
 *.sqlite
 *.sqlite3
 *.db
-.mongo/
 
 # ============================================================================
-# OS Specific
+# Deployment & Hosting
 # ============================================================================
-.env.vault
-.envrc
-.dirlocals
+.vercel/
+.netlify/
+.firebase/
+.serverless/
