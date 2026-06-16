@@ -22,7 +22,7 @@ export async function proxy(request: NextRequest) {
     if (error || !data.user) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
-  } catch (err) {
+  } catch {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
