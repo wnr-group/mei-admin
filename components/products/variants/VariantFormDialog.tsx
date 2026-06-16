@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useCreateVariant, useUpdateVariant } from '@/hooks/use-product-variants'
 import { useProductColors } from '@/hooks/use-product-colors'
 import type { ProductVariant, ProductVariantInsert, CustomizationType } from '@/services/product-variants'
@@ -33,7 +33,17 @@ export default function VariantFormDialog({ productId, open, onClose, initialVar
   const [trackInventory, setTrackInventory] = useState(false)
   const [isAvailable, setIsAvailable] = useState(true)
 
-  useEffect(() => {
+  const prevOpenRef = useRef(open)
+  const prevVariantRef = useRef(initialVariant)
+
+  // Derived state during render: detect prop changes and call setState synchronously
+  // React batches these state updates into a single re-render
+  // eslint-disable-next-line react-hooks/refs
+  if (prevOpenRef.current !== open || prevVariantRef.current !== initialVariant) {
+    // eslint-disable-next-line react-hooks/refs
+    prevOpenRef.current = open
+    // eslint-disable-next-line react-hooks/refs
+    prevVariantRef.current = initialVariant
     if (open && initialVariant) {
       setColorId(initialVariant.color_id ?? '')
       setSizeLabel(initialVariant.size_label ?? '')
@@ -46,7 +56,7 @@ export default function VariantFormDialog({ productId, open, onClose, initialVar
       setColorId(''); setSizeLabel(''); setCustType('STANDARD_SIZE')
       setPriceOverride(''); setStockQty('0'); setTrackInventory(false); setIsAvailable(true)
     }
-  }, [open, initialVariant])
+  }
 
   if (!open) return null
 
