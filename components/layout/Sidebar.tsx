@@ -10,7 +10,8 @@ import {
   Mail,
   Image as ImageIcon,
   Settings,
-  LogOut
+  LogOut,
+  ScrollText,
 } from 'lucide-react';
 import { signOut } from '@/services/auth';
 
@@ -23,6 +24,7 @@ const navItems = [
   { href: '/enquiries', label: 'ENQUIRIES', icon: Mail },
   { href: '/banners', label: 'BANNERS', icon: ImageIcon },
   { href: '/settings', label: 'SETTINGS', icon: Settings },
+  { href: '/audit', label: 'AUDIT LOG', icon: ScrollText },
 ];
 
 export default function Sidebar() {
