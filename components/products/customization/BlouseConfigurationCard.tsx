@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useBlouseConfig, useUpsertBlouseConfig } from '@/lib/hooks/useBlouseConfig'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
@@ -21,13 +21,17 @@ export default function BlouseConfigurationCard({ productId, customizationType }
   const [stitchingOptions, setStitchingOptions] = useState<string[]>(['STITCHED', 'UNSTITCHED'])
   const [templateId, setTemplateId] = useState<string | undefined>()
 
-  useEffect(() => {
+  const prevConfigRef = useRef(config)
+  // eslint-disable-next-line react-hooks/refs -- derived state pattern: compare ref to detect prop changes
+  if (config !== prevConfigRef.current) {
+    // eslint-disable-next-line react-hooks/refs -- derived state pattern: update ref to track changes
+    prevConfigRef.current = config
     if (config) {
       setIncludesBlouse(config.includes_blouse)
       setStitchingOptions(config.stitching_options ?? ['STITCHED', 'UNSTITCHED'])
       setTemplateId(config.blouse_measurement_template_id ?? undefined)
     }
-  }, [config])
+  }
 
   async function handleSave() {
     await upsert.mutateAsync({
