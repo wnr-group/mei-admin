@@ -25,7 +25,7 @@ export default function ColorFormDialog({ productId, open, onClose, initialColor
 
   // Derived state during render: detect prop changes and call setState synchronously
   // React batches these state updates into a single re-render
-  // eslint-disable-next-line react-hooks/rules-of-hooks, react-hooks/refs
+  // eslint-disable-next-line react-hooks/refs
   if (prevOpenRef.current !== open || prevColorRef.current !== initialColor) {
     // eslint-disable-next-line react-hooks/refs
     prevOpenRef.current = open
