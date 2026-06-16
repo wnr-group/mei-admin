@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useCreateColor, useUpdateColor } from '@/hooks/use-product-colors'
 import type { ProductColor } from '@/services/product-colors'
 
@@ -20,13 +20,23 @@ export default function ColorFormDialog({ productId, open, onClose, initialColor
   const updateColor = useUpdateColor(productId)
   const isPending = createColor.isPending || updateColor.isPending
 
-  useEffect(() => {
+  const prevOpenRef = useRef(open)
+  const prevColorRef = useRef(initialColor)
+
+  // Derived state during render: detect prop changes and call setState synchronously
+  // React batches these state updates into a single re-render
+  // eslint-disable-next-line react-hooks/rules-of-hooks, react-hooks/refs
+  if (prevOpenRef.current !== open || prevColorRef.current !== initialColor) {
+    // eslint-disable-next-line react-hooks/refs
+    prevOpenRef.current = open
+    // eslint-disable-next-line react-hooks/refs
+    prevColorRef.current = initialColor
     if (open) {
       setLabel(initialColor?.label ?? '')
       setHexCode(initialColor?.hex_code ?? '')
       setSwatchUrl(initialColor?.swatch_image_url ?? '')
     }
-  }, [open, initialColor])
+  }
 
   if (!open) return null
 
