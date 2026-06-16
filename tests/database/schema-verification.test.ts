@@ -33,8 +33,8 @@ describe('Schema Verification', () => {
   });
 
   test('product_variants unique index prevents duplicates', async () => {
-    let testColor: any = null;
-    let testVariant1: any = null;
+    let testColor: { id: string } | null = null;
+    let testVariant1: { id: string } | null = null;
 
     try {
       const { data: product, error: productErr } = await supabase
@@ -120,9 +120,9 @@ describe('Schema Verification', () => {
   });
 
   test('Soft-deleted variant + new same combo allowed', async () => {
-    let testColor: any = null;
-    let testVariant1: any = null;
-    let testVariant2: any = null;
+    let testColor: { id: string } | null = null;
+    let testVariant1: { id: string } | null = null;
+    let testVariant2: { id: string } | null = null;
 
     try {
       const { data: product, error: productErr } = await supabase
