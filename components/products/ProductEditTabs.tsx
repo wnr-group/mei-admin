@@ -7,7 +7,7 @@ import MediaGalleryTab from './tabs/MediaGalleryTab';
 import CustomizationTab from './tabs/CustomizationTab';
 import MeasurementsTab from './tabs/MeasurementsTab';
 
-export default function ProductEditTabs({ productId, product }: { productId: string; product: any }) {
+export default function ProductEditTabs({ productId, product }: { productId: string; product: unknown }) {
   return (
     <>
       <TabsContent value="basic">

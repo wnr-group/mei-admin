@@ -40,7 +40,7 @@ async function run() {
     return
   }
 
-  const categories: any = await catRes.json()
+  const categories = await catRes.json() as Array<{ id: string }>
   console.log('Categories found:', categories?.length)
   if (!categories || categories.length === 0) {
     console.log('No categories found!')
