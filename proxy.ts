@@ -17,9 +17,12 @@ export async function proxy(request: NextRequest) {
 
   try {
     const supabase = createProxyClient(request, response)
-    const { data, error } = await supabase.auth.getUser()
+    const result = await supabase.auth.getUser()
 
-    if (error || !data.user) {
+    const error = result.error
+    const user = result.data?.user
+
+    if (error || !user) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
   } catch {
