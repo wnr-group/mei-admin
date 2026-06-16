@@ -6,8 +6,10 @@ import { createElement } from 'react';
 
 const createWrapper = () => {
   const queryClient = new QueryClient();
-  return ({ children }: { children: ReactNode }) =>
+  const Wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
+  Wrapper.displayName = 'Wrapper';
+  return Wrapper;
 };
 
 describe('useSizeSystems Hook', () => {
