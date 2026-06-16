@@ -30,9 +30,9 @@ export type Database = {
         Update: { name?: string; email?: string | null; phone?: string | null; city?: string | null }
       }
       orders: {
-        Row: { id: string; order_number: string; customer_id: string | null; status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes: string | null; created_at: string; updated_at: string }
+        Row: { id: string; order_number: string; customer_id: string | null; status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes: string | null; created_at: string; updated_at: string; deleted_at: string | null }
         Insert: { id?: string; order_number?: string; customer_id?: string | null; status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes?: string | null }
-        Update: { status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total?: number; notes?: string | null }
+        Update: { status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total?: number; notes?: string | null; deleted_at?: string | null }
       }
       order_items: {
         Row: { id: string; order_id: string; product_id: string | null; product_name: string; quantity: number; unit_price: number; created_at: string }
@@ -45,9 +45,9 @@ export type Database = {
         Update: { url?: string; alt_text?: string | null; is_primary?: boolean; media_type?: 'IMAGE' | 'VIDEO'; thumbnail_url?: string | null; sort_order?: number; deleted_at?: string | null }
       }
       enquiries: {
-        Row: { id: string; name: string; email: string; phone: string | null; occasion: string | null; budget: string | null; message: string; status: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply: string | null; replied_at: string | null; replied_by: string | null; created_at: string }
+        Row: { id: string; name: string; email: string; phone: string | null; occasion: string | null; budget: string | null; message: string; status: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply: string | null; replied_at: string | null; replied_by: string | null; created_at: string; deleted_at: string | null }
         Insert: { id?: string; name: string; email: string; phone?: string | null; occasion?: string | null; budget?: string | null; message: string; status?: 'NEW' | 'REPLIED' | 'CLOSED' }
-        Update: { status?: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply?: string | null; replied_at?: string | null; replied_by?: string | null }
+        Update: { status?: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply?: string | null; replied_at?: string | null; replied_by?: string | null; deleted_at?: string | null }
       }
       banners: {
         Row: { id: string; title: string; image_url: string; link_url: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string; deleted_at: string | null }
