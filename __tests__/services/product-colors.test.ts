@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 
 const mockFrom = vi.fn()
 vi.mock('@supabase/supabase-js', () => ({
@@ -108,7 +108,7 @@ describe('createColor', () => {
       label: 'Test Color'
     })
     expect(chain.insert).toHaveBeenCalled()
-    const insertCall = (chain.insert as any).mock.calls[0][0]
+    const insertCall = (chain.insert as Mock).mock.calls[0][0]
     expect(insertCall.sort_order).toBe(0)
   })
 

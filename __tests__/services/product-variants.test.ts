@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 
 const mockFrom = vi.fn()
 vi.mock('@supabase/supabase-js', () => ({
@@ -135,7 +135,7 @@ describe('createVariant', () => {
       customization_type: 'SEMI_STITCHED'
     })
     expect(chain.insert).toHaveBeenCalled()
-    const insertCall = (chain.insert as any).mock.calls[0][0]
+    const insertCall = (chain.insert as Mock).mock.calls[0][0]
     expect(insertCall.stock_quantity).toBe(0)
   })
 
@@ -158,7 +158,7 @@ describe('createVariant', () => {
       product_id: 'prod-1',
       customization_type: 'SEMI_STITCHED'
     })
-    const insertCall = (chain.insert as any).mock.calls[0][0]
+    const insertCall = (chain.insert as Mock).mock.calls[0][0]
     expect(insertCall.track_inventory).toBe(false)
   })
 
@@ -181,7 +181,7 @@ describe('createVariant', () => {
       product_id: 'prod-1',
       customization_type: 'SEMI_STITCHED'
     })
-    const insertCall = (chain.insert as any).mock.calls[0][0]
+    const insertCall = (chain.insert as Mock).mock.calls[0][0]
     expect(insertCall.allow_backorder).toBe(true)
   })
 
@@ -204,7 +204,7 @@ describe('createVariant', () => {
       product_id: 'prod-1',
       customization_type: 'SEMI_STITCHED'
     })
-    const insertCall = (chain.insert as any).mock.calls[0][0]
+    const insertCall = (chain.insert as Mock).mock.calls[0][0]
     expect(insertCall.low_stock_threshold).toBe(5)
   })
 
@@ -227,7 +227,7 @@ describe('createVariant', () => {
       product_id: 'prod-1',
       customization_type: 'SEMI_STITCHED'
     })
-    const insertCall = (chain.insert as any).mock.calls[0][0]
+    const insertCall = (chain.insert as Mock).mock.calls[0][0]
     expect(insertCall.is_available).toBe(true)
   })
 
@@ -250,7 +250,7 @@ describe('createVariant', () => {
       product_id: 'prod-1',
       customization_type: 'SEMI_STITCHED'
     })
-    const insertCall = (chain.insert as any).mock.calls[0][0]
+    const insertCall = (chain.insert as Mock).mock.calls[0][0]
     expect(insertCall.sort_order).toBe(0)
   })
 
@@ -330,9 +330,9 @@ describe('getEffectivePrice', () => {
         data: { price_override: null, product_id: 'prod-1' },
         error: null
       }),
-      then: (onFulfilled?: any) => Promise.resolve({ data: { price_override: null, product_id: 'prod-1' }, error: null }).then(onFulfilled),
-      catch: (onRejected?: any) => Promise.resolve({ data: { price_override: null, product_id: 'prod-1' }, error: null }).catch(onRejected),
-      finally: (onFinally?: any) => Promise.resolve({ data: { price_override: null, product_id: 'prod-1' }, error: null }).finally(onFinally),
+      then: (onFulfilled?: ((value: unknown) => unknown) | null) => Promise.resolve({ data: { price_override: null, product_id: 'prod-1' }, error: null }).then(onFulfilled),
+      catch: (onRejected?: ((reason: unknown) => unknown) | null) => Promise.resolve({ data: { price_override: null, product_id: 'prod-1' }, error: null }).catch(onRejected),
+      finally: (onFinally?: (() => void) | null) => Promise.resolve({ data: { price_override: null, product_id: 'prod-1' }, error: null }).finally(onFinally),
     })
 
     // Second call for product price
@@ -343,9 +343,9 @@ describe('getEffectivePrice', () => {
         data: { price: 10000 },
         error: null
       }),
-      then: (onFulfilled?: any) => Promise.resolve({ data: { price: 10000 }, error: null }).then(onFulfilled),
-      catch: (onRejected?: any) => Promise.resolve({ data: { price: 10000 }, error: null }).catch(onRejected),
-      finally: (onFinally?: any) => Promise.resolve({ data: { price: 10000 }, error: null }).finally(onFinally),
+      then: (onFulfilled?: ((value: unknown) => unknown) | null) => Promise.resolve({ data: { price: 10000 }, error: null }).then(onFulfilled),
+      catch: (onRejected?: ((reason: unknown) => unknown) | null) => Promise.resolve({ data: { price: 10000 }, error: null }).catch(onRejected),
+      finally: (onFinally?: (() => void) | null) => Promise.resolve({ data: { price: 10000 }, error: null }).finally(onFinally),
     })
 
     const price = await getEffectivePrice('var-1')
