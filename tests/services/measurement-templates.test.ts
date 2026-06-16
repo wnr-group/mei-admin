@@ -11,6 +11,36 @@ const generateId = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,
 
 describe('Measurement Templates Service', () => {
   let templateId: string;
+  let realProductId: string;
+  let realCategoryId: string;
+
+  beforeAll(async () => {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    await supabase.auth.signInWithPassword({
+      email: 'admin@mei.com',
+      password: 'MeiAdmin@123',
+    });
+
+    const { data: products } = await supabase
+      .from('products')
+      .select('id')
+      .limit(1);
+    if (products && products.length > 0) {
+      realProductId = products[0].id;
+    }
+
+    const { data: categories } = await supabase
+      .from('categories')
+      .select('id')
+      .limit(1);
+    if (categories && categories.length > 0) {
+      realCategoryId = categories[0].id;
+    }
+  });
 
   test('getTemplates returns all active templates', async () => {
     try {
@@ -100,18 +130,16 @@ describe('Measurement Templates Service', () => {
 
   test('createTemplate with all optional fields', async () => {
     try {
-      const catId = generateId();
-      const prodId = generateId();
       const newTemplate = await createTemplate({
         name: 'Full Test Template',
-        categoryId: catId,
-        productId: prodId,
+        categoryId: realCategoryId,
+        productId: realProductId,
         customizationType: 'CUSTOM_TAILORED',
       });
 
       expect(newTemplate).toBeDefined();
-      expect(newTemplate.category_id).toBe(catId);
-      expect(newTemplate.product_id).toBe(prodId);
+      expect(newTemplate.category_id).toBe(realCategoryId);
+      expect(newTemplate.product_id).toBe(realProductId);
       expect(newTemplate.customization_type).toBe('CUSTOM_TAILORED');
     } catch (error: unknown) {
       if ((error as Error)?.message?.includes('permission')) {

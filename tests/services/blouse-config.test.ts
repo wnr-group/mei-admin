@@ -10,7 +10,39 @@ const generateId = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,
 });
 
 describe('Blouse Config Service', () => {
-  const testProductId = generateId();
+  let testProductId: string;
+
+  beforeAll(async () => {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    await supabase.auth.signInWithPassword({
+      email: 'admin@mei.com',
+      password: 'MeiAdmin@123',
+    });
+
+    const { data: products } = await supabase
+      .from('products')
+      .select('id')
+      .limit(1);
+
+    if (products && products.length > 0) {
+      testProductId = products[0].id;
+    }
+  });
+
+  beforeEach(async () => {
+    if (testProductId) {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      await supabase.from('blouse_configurations').delete().eq('product_id', testProductId);
+    }
+  });
 
   test('getBlouseConfig returns null for non-existent product', async () => {
     try {
@@ -74,24 +106,22 @@ describe('Blouse Config Service', () => {
   });
 
   test('upsertBlouseConfig updates existing config', async () => {
-    const testId = generateId();
-
     try {
       // Create initial config
       await upsertBlouseConfig({
-        product_id: testId,
+        product_id: testProductId,
         includes_blouse: true,
         stitching_options: ['STITCHED'],
       });
 
       // Update with new options
       const updated = await upsertBlouseConfig({
-        product_id: testId,
+        product_id: testProductId,
         includes_blouse: false,
         stitching_options: ['UNSTITCHED', 'SEMI_STITCHED'],
       });
 
-      expect(updated.product_id).toBe(testId);
+      expect(updated.product_id).toBe(testProductId);
       expect(updated.includes_blouse).toBe(false);
       expect(updated.stitching_options).toEqual(['UNSTITCHED', 'SEMI_STITCHED']);
     } catch (error: unknown) {
@@ -105,10 +135,9 @@ describe('Blouse Config Service', () => {
   });
 
   test('upsertBlouseConfig with customization type', async () => {
-    const testId = generateId();
     try {
       const config = await upsertBlouseConfig({
-        product_id: testId,
+        product_id: testProductId,
         customization_type: 'CUSTOM_TAILORED',
         includes_blouse: true,
       });
@@ -125,18 +154,16 @@ describe('Blouse Config Service', () => {
   });
 
   test('getBlouseConfig filters by customization type', async () => {
-    const testId = generateId();
-
     try {
       // Create with specific customization type
       await upsertBlouseConfig({
-        product_id: testId,
+        product_id: testProductId,
         customization_type: 'STANDARD_SIZE',
         includes_blouse: true,
       });
 
       // Retrieve with matching customization type
-      const config = await getBlouseConfig(testId, 'STANDARD_SIZE');
+      const config = await getBlouseConfig(testProductId, 'STANDARD_SIZE');
       expect(config).toBeDefined();
       expect(config?.customization_type).toBe('STANDARD_SIZE');
     } catch (error: unknown) {

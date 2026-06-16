@@ -96,13 +96,11 @@ describe('useProductMedia Hook', () => {
 
     await waitFor(
       () => {
-        expect(uploadResult.current.isPending).toBe(false);
+        expect(uploadResult.current.isSuccess || uploadResult.current.isError).toBe(
+          true
+        );
       },
       { timeout: 10000 }
-    );
-
-    expect(uploadResult.current.isSuccess || uploadResult.current.isError).toBe(
-      true
     );
   });
 

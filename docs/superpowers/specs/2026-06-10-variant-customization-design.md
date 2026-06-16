@@ -3,7 +3,6 @@
 **Date:** 2026-06-10  
 **Status:** Approved — ready for implementation planning  
 **Branch:** feature/supabase-backend-integration  
-
 ---
 
 ## 1. Problem Statement

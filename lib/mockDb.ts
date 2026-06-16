@@ -1,3 +1,4 @@
+
 // Type definitions for our data structures
 export interface Product {
   id: string;

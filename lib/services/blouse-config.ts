@@ -42,16 +42,32 @@ export async function upsertBlouseConfig(input: {
   includes_blouse?: boolean;
   stitching_options?: string[];
 }): Promise<BlouseConfiguration> {
-  const { data, error } = await supabase
-    .from('blouse_configurations')
-    .upsert({
-      product_id: input.product_id,
-      customization_type: input.customization_type,
-      includes_blouse: input.includes_blouse ?? true,
-      stitching_options: input.stitching_options ?? ['STITCHED', 'UNSTITCHED'],
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  const existing = await getBlouseConfig(input.product_id, input.customization_type);
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from('blouse_configurations')
+      .update({
+        includes_blouse: input.includes_blouse ?? existing.includes_blouse,
+        stitching_options: input.stitching_options ?? existing.stitching_options,
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } else {
+    const { data, error } = await supabase
+      .from('blouse_configurations')
+      .insert({
+        product_id: input.product_id,
+        customization_type: input.customization_type,
+        includes_blouse: input.includes_blouse ?? true,
+        stitching_options: input.stitching_options ?? ['STITCHED', 'UNSTITCHED'],
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
 }

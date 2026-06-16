@@ -11,12 +11,19 @@ describe('Product Media Service', () => {
 
   beforeAll(async () => {
     // Get first product to test with
-    const { data: products } = await (
-      await import('@supabase/supabase-js')
-    ).createClient(
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    );
+
+    // Sign in as admin to have write permissions for database tests
+    await supabase.auth.signInWithPassword({
+      email: 'admin@mei.com',
+      password: 'MeiAdmin@123',
+    });
+
+    const { data: products } = await supabase
       .from('products')
       .select('id')
       .limit(1);

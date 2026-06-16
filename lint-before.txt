@@ -1,0 +1,180 @@
+
+> mei-admin@0.1.0 lint
+> eslint
+
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\__tests__\components\products\colors\ColorFormDialog.test.tsx
+  2:36  warning  'beforeEach' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\__tests__\hooks\useProductColors.test.ts
+  17:10  error  Component definition is missing display name  react/display-name
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\__tests__\hooks\useProductVariants.test.ts
+  18:10  error  Component definition is missing display name  react/display-name
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\__tests__\services\product-colors.test.ts
+  111:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\__tests__\services\product-variants.test.ts
+  138:41  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  161:41  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  184:41  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  207:41  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  230:41  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  253:41  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  316:11  warning  'firstCall' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  333:28  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  334:28  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  335:29  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  346:28  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  347:28  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  348:29  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\app\(app)\banners\page.tsx
+  60:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\app\(app)\categories\add\page.tsx
+  318:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\app\(app)\enquiries\[id]\page.tsx
+   10:9   warning  'router' is assigned a value but never used                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  225:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  297:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\app\(app)\orders\[id]\page.tsx
+   10:9   warning  'router' is assigned a value but never used                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  203:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\app\(app)\products\[id]\edit\page.tsx
+  5:16  warning  'TabsContent' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\app\(app)\products\page.tsx
+  29:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\check-db.ts
+  43:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\components\banners\BannerForm.tsx
+  249:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\components\products\ProductEditTabs.tsx
+  10:95  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\components\products\ProductForm.tsx
+  618:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\components\products\colors\ColorFormDialog.tsx
+  25:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\components\products\colors\ColorFormDialog.tsx:25:7
+  23 |   useEffect(() => {
+  24 |     if (open) {
+> 25 |       setLabel(initialColor?.label ?? '')
+     |       ^^^^^^^^ Avoid calling setState() directly within an effect
+  26 |       setHexCode(initialColor?.hex_code ?? '')
+  27 |       setSwatchUrl(initialColor?.swatch_image_url ?? '')
+  28 |     }  react-hooks/set-state-in-effect
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\components\products\customization\BlouseConfigurationCard.tsx
+  26:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\components\products\customization\BlouseConfigurationCard.tsx:26:7
+  24 |   useEffect(() => {
+  25 |     if (config) {
+> 26 |       setIncludesBlouse(config.includes_blouse)
+     |       ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  27 |       setStitchingOptions(config.stitching_options ?? ['STITCHED', 'UNSTITCHED'])
+  28 |       setTemplateId(config.blouse_measurement_template_id ?? undefined)
+  29 |     }  react-hooks/set-state-in-effect
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\components\products\tabs\BasicInfoTab.tsx
+  3:40  warning  'productId' is defined but never used     @typescript-eslint/no-unused-vars
+  3:51  warning  'product' is defined but never used       @typescript-eslint/no-unused-vars
+  3:92  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\components\products\variants\VariantFormDialog.tsx
+  38:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\components\products\variants\VariantFormDialog.tsx:38:7
+  36 |   useEffect(() => {
+  37 |     if (open && initialVariant) {
+> 38 |       setColorId(initialVariant.color_id ?? '')
+     |       ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  39 |       setSizeLabel(initialVariant.size_label ?? '')
+  40 |       setCustType(initialVariant.customization_type)
+  41 |       setPriceOverride(initialVariant.price_override?.toString() ?? '')  react-hooks/set-state-in-effect
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\hooks\use-product-colors.ts
+  4:72  warning  'ProductColorInsert' is defined but never used  @typescript-eslint/no-unused-vars
+  4:97  warning  'ProductColorUpdate' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\hooks\use-product-variants.ts
+  4:80   warning  'ProductVariantInsert' is defined but never used  @typescript-eslint/no-unused-vars
+  4:107  warning  'ProductVariantUpdate' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\hooks\use-reorder-media.ts
+  21:52  warning  'colorId' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\lib\hooks\useMeasurementTemplates.ts
+  7:8  warning  'CustomizationType' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\tests\database\schema-verification.test.ts
+   22:15  warning  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   36:20  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   37:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   76:21  warning  'v2' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  123:20  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  124:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  125:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\tests\hooks\useBlouseConfig.test.ts
+   1:22  warning  'waitFor' is defined but never used           @typescript-eslint/no-unused-vars
+  12:10  error    Component definition is missing display name  react/display-name
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\tests\hooks\useMeasurementTemplates.test.ts
+   1:22  warning  'waitFor' is defined but never used           @typescript-eslint/no-unused-vars
+  12:10  error    Component definition is missing display name  react/display-name
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\tests\hooks\useProductMedia.test.ts
+  13:10  error    Component definition is missing display name      react/display-name
+  76:21  warning  'mediaResult' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\tests\hooks\useSizeSystems.test.ts
+  9:10  error  Component definition is missing display name  react/display-name
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\tests\services\blouse-config.test.ts
+   19:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   43:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   66:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   97:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  117:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  142:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Eshwar Paygude\WNR\mei-admin\tests\services\measurement-templates.test.ts
+   13:7   warning  'templateId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   28:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   53:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   72:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   91:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  116:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+✖ 68 problems (41 errors, 27 warnings)
+
