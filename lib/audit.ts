@@ -12,6 +12,16 @@ type ResourceType =
   | 'setting'
   | 'profile'
 
+export const RESOURCE_TYPES = [
+  'product',
+  'category',
+  'order',
+  'enquiry',
+  'banner',
+  'setting',
+  'profile',
+] as const
+
 interface AuditParams {
   action: AuditAction
   resourceType: ResourceType
@@ -49,6 +59,6 @@ export async function logAuditEvent(params: AuditParams) {
 
     await supabase.from('audit_logs').insert([insertData] as never)
   } catch {
-    // Silently fail audit logging to avoid breaking the main operation
+    // Silently fail — audit logging must never break the main operation
   }
 }
