@@ -25,8 +25,8 @@ describe('Measurement Templates Service', () => {
         expect(templates[0]).toHaveProperty('is_active');
         expect(templates[0].is_active).toBe(true);
       }
-    } catch (error: any) {
-      if (error?.message?.includes('permission')) {
+    } catch (error: unknown) {
+      if ((error as Error)?.message?.includes('permission')) {
         console.warn('Skipping test: RLS permissions required');
         expect(true).toBe(true);
       } else {
@@ -50,8 +50,8 @@ describe('Measurement Templates Service', () => {
       expect(newTemplate.is_active).toBe(true);
 
       templateId = newTemplate.id;
-    } catch (error: any) {
-      if (error?.message?.includes('permission')) {
+    } catch (error: unknown) {
+      if ((error as Error)?.message?.includes('permission')) {
         console.warn('Skipping test: RLS permissions required');
         expect(true).toBe(true);
       } else {
@@ -69,8 +69,8 @@ describe('Measurement Templates Service', () => {
       if (templates.length > 0) {
         expect(templates.every((t) => t.category_id === categoryId)).toBe(true);
       }
-    } catch (error: any) {
-      if (error?.message?.includes('permission')) {
+    } catch (error: unknown) {
+      if ((error as Error)?.message?.includes('permission')) {
         console.warn('Skipping test: RLS permissions required');
         expect(true).toBe(true);
       } else {
@@ -88,8 +88,8 @@ describe('Measurement Templates Service', () => {
       if (templates.length > 0) {
         expect(templates.every((t) => t.product_id === productId)).toBe(true);
       }
-    } catch (error: any) {
-      if (error?.message?.includes('permission')) {
+    } catch (error: unknown) {
+      if ((error as Error)?.message?.includes('permission')) {
         console.warn('Skipping test: RLS permissions required');
         expect(true).toBe(true);
       } else {
@@ -113,8 +113,8 @@ describe('Measurement Templates Service', () => {
       expect(newTemplate.category_id).toBe(catId);
       expect(newTemplate.product_id).toBe(prodId);
       expect(newTemplate.customization_type).toBe('CUSTOM_TAILORED');
-    } catch (error: any) {
-      if (error?.message?.includes('permission')) {
+    } catch (error: unknown) {
+      if ((error as Error)?.message?.includes('permission')) {
         console.warn('Skipping test: RLS permissions required');
         expect(true).toBe(true);
       } else {

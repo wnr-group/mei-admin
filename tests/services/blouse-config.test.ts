@@ -16,9 +16,9 @@ describe('Blouse Config Service', () => {
     try {
       const config = await getBlouseConfig(generateId());
       expect(config).toBeNull();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // RLS or auth errors are expected in test environment without authenticated client
-      if (error?.message?.includes('permission')) {
+      if ((error as Error)?.message?.includes('permission')) {
         console.warn('Skipping test: RLS permissions required');
         expect(true).toBe(true);
       } else {
@@ -40,8 +40,8 @@ describe('Blouse Config Service', () => {
       expect(config.product_id).toBe(testProductId);
       expect(config.includes_blouse).toBe(true);
       expect(config.stitching_options).toEqual(['STITCHED', 'UNSTITCHED']);
-    } catch (error: any) {
-      if (error?.message?.includes('permission')) {
+    } catch (error: unknown) {
+      if ((error as Error)?.message?.includes('permission')) {
         console.warn('Skipping test: RLS permissions required');
         expect(true).toBe(true);
       } else {
@@ -63,8 +63,8 @@ describe('Blouse Config Service', () => {
       expect(config).toBeDefined();
       expect(config?.product_id).toBe(testProductId);
       expect(config?.includes_blouse).toBe(true);
-    } catch (error: any) {
-      if (error?.message?.includes('permission')) {
+    } catch (error: unknown) {
+      if ((error as Error)?.message?.includes('permission')) {
         console.warn('Skipping test: RLS permissions required');
         expect(true).toBe(true);
       } else {
@@ -94,8 +94,8 @@ describe('Blouse Config Service', () => {
       expect(updated.product_id).toBe(testId);
       expect(updated.includes_blouse).toBe(false);
       expect(updated.stitching_options).toEqual(['UNSTITCHED', 'SEMI_STITCHED']);
-    } catch (error: any) {
-      if (error?.message?.includes('permission')) {
+    } catch (error: unknown) {
+      if ((error as Error)?.message?.includes('permission')) {
         console.warn('Skipping test: RLS permissions required');
         expect(true).toBe(true);
       } else {
@@ -114,8 +114,8 @@ describe('Blouse Config Service', () => {
       });
 
       expect(config.customization_type).toBe('CUSTOM_TAILORED');
-    } catch (error: any) {
-      if (error?.message?.includes('permission')) {
+    } catch (error: unknown) {
+      if ((error as Error)?.message?.includes('permission')) {
         console.warn('Skipping test: RLS permissions required');
         expect(true).toBe(true);
       } else {
@@ -139,8 +139,8 @@ describe('Blouse Config Service', () => {
       const config = await getBlouseConfig(testId, 'STANDARD_SIZE');
       expect(config).toBeDefined();
       expect(config?.customization_type).toBe('STANDARD_SIZE');
-    } catch (error: any) {
-      if (error?.message?.includes('permission')) {
+    } catch (error: unknown) {
+      if ((error as Error)?.message?.includes('permission')) {
         console.warn('Skipping test: RLS permissions required');
         expect(true).toBe(true);
       } else {
