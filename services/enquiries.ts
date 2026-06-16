@@ -17,6 +17,7 @@ export async function getEnquiries(options: GetEnquiriesOptions = {}) {
   let query = supabase
     .from('enquiries')
     .select('*', { count: 'exact' })
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1)
 
@@ -41,12 +42,12 @@ export async function replyToEnquiry(id: string, adminReply: string) {
       replied_by: (await supabase.auth.getUser()).data.user?.id ?? null
     } as never)
     .eq('id', id)
+    .is('deleted_at', null)
     .select()
     .single()
   const { data, error } = response as { data: Enquiry | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
 
-  // Add logging
   await logAuditEvent({
     action: 'UPDATE',
     resourceType: 'enquiry',
@@ -63,12 +64,12 @@ export async function closeEnquiry(id: string) {
     .from('enquiries')
     .update({ status: 'CLOSED' } as never)
     .eq('id', id)
+    .is('deleted_at', null)
     .select()
     .single()
   const { data, error } = response as { data: Enquiry | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
 
-  // Add logging
   await logAuditEvent({
     action: 'UPDATE',
     resourceType: 'enquiry',
@@ -77,4 +78,20 @@ export async function closeEnquiry(id: string) {
   })
 
   return data as Enquiry
+}
+
+export async function deleteEnquiry(id: string) {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('enquiries')
+    .update({ deleted_at: new Date().toISOString() } as never)
+    .eq('id', id)
+  if (error) throw toAppError(new Error(error.message))
+
+  // Only reached on success — failure path throws above
+  await logAuditEvent({
+    action: 'DELETE',
+    resourceType: 'enquiry',
+    resourceId: id,
+  })
 }
