@@ -14,6 +14,11 @@ export async function getEnquiries(options: GetEnquiriesOptions = {}) {
   const supabase = createClient()
   const { page = 1, limit = 20, status } = options
 
+  // Diagnostics
+  const user = await supabase.auth.getUser()
+  console.log('[AdminEnquiries] Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+  console.log('[AdminEnquiries] Authenticated user:', user.data.user?.id, user.data.user?.email)
+
   let query = supabase
     .from('enquiries')
     .select('*', { count: 'exact' })
@@ -26,6 +31,7 @@ export async function getEnquiries(options: GetEnquiriesOptions = {}) {
   }
 
   const { data, error, count } = await query
+  console.log('[AdminEnquiries] raw response', JSON.stringify({ data, error, count }, null, 2))
 
   if (error) throw toAppError(new Error(error.message))
   return { enquiries: (data as Enquiry[] | null) ?? [], total: count ?? 0 }
