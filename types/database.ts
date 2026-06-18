@@ -45,8 +45,8 @@ export type Database = {
         Update: { url?: string; alt_text?: string | null; is_primary?: boolean; media_type?: 'IMAGE' | 'VIDEO'; thumbnail_url?: string | null; sort_order?: number; deleted_at?: string | null }
       }
       enquiries: {
-        Row: { id: string; name: string; email: string; phone: string | null; occasion: string | null; budget: string | null; message: string; status: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply: string | null; replied_at: string | null; replied_by: string | null; created_at: string; deleted_at: string | null }
-        Insert: { id?: string; name: string; email: string; phone?: string | null; occasion?: string | null; budget?: string | null; message: string; status?: 'NEW' | 'REPLIED' | 'CLOSED' }
+        Row: { id: string; name: string; email: string; phone: string | null; occasion: string | null; budget: string | null; measurements: Json | null; reference_images: Json | null; message: string; status: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply: string | null; replied_at: string | null; replied_by: string | null; created_at: string; deleted_at: string | null }
+        Insert: { id?: string; name: string; email: string; phone?: string | null; occasion?: string | null; budget?: string | null; measurements?: Json | null; reference_images?: Json | null; message: string; status?: 'NEW' | 'REPLIED' | 'CLOSED' }
         Update: { status?: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply?: string | null; replied_at?: string | null; replied_by?: string | null; deleted_at?: string | null }
       }
       banners: {

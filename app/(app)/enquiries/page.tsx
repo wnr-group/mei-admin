@@ -257,7 +257,7 @@ export default function EnquiriesPage() {
             className="absolute inset-0 bg-black/35 backdrop-blur-xs transition-opacity duration-300"
           />
 
-          <div className="relative w-full max-w-[480px] bg-white h-full shadow-2xl flex flex-col justify-between py-10 px-8 animate-slide-in border-l border-[#E8E0D5]">
+          <div className="relative w-full max-w-[480px] bg-white h-full shadow-2xl flex flex-col overflow-y-auto py-10 px-8 animate-slide-in border-l border-[#E8E0D5]">
 
             <div>
               <div className="flex items-center justify-between border-b border-[#E8E0D5] pb-5">
@@ -294,6 +294,65 @@ export default function EnquiriesPage() {
                   <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">Message</p>
                   <p className="text-[13px] text-zinc-800 mt-1">{selectedEnquiry.message}</p>
                 </div>
+
+                {selectedEnquiry.occasion && (
+                  <div>
+                    <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">Occasion</p>
+                    <p className="text-[13px] text-zinc-800 mt-1">{selectedEnquiry.occasion}</p>
+                  </div>
+                )}
+
+                {selectedEnquiry.budget && (
+                  <div>
+                    <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">Budget Range</p>
+                    <p className="text-[13px] text-zinc-800 mt-1">{selectedEnquiry.budget}</p>
+                  </div>
+                )}
+
+                {selectedEnquiry.measurements != null &&
+                  typeof selectedEnquiry.measurements === 'object' &&
+                  !Array.isArray(selectedEnquiry.measurements) && (
+                  <div>
+                    <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">Measurements</p>
+                    <div className="mt-2 grid grid-cols-2 gap-x-8 gap-y-1.5">
+                      {(['bust', 'waist', 'hip', 'shoulder', 'length', 'sleeve'] as const).map((key) => {
+                        const val = (selectedEnquiry.measurements as Record<string, unknown>)[key]
+                        if (val == null) return null
+                        return (
+                          <div key={key} className="flex justify-between text-[12px]">
+                            <span className="capitalize text-zinc-400">{key}</span>
+                            <span className="text-zinc-800">{String(val)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {Array.isArray(selectedEnquiry.reference_images) &&
+                  (selectedEnquiry.reference_images as string[]).length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">Reference Images</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(selectedEnquiry.reference_images as string[]).map((url, i) => (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-[72px] h-[72px] border border-[#E8E0D5] overflow-hidden bg-zinc-100 flex-shrink-0 hover:border-[#B38B5D] transition-colors"
+                        >
+                          <img
+                            src={url}
+                            alt={`Reference ${i + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Reply Form */}
                 {selectedEnquiry.status !== 'CLOSED' && (
