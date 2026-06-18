@@ -11,7 +11,7 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-package-lock.json
+# package-lock.json is intentionally committed for reproducible installs
 yarn.lock
 
 # ============================================================================
@@ -23,9 +23,6 @@ yarn.lock
 /dist/
 *.tsbuildinfo
 next-env.d.ts
-*.egg-info
-*.pyc
-__pycache__/
 
 # ============================================================================
 # Testing & Coverage
@@ -36,7 +33,54 @@ __pycache__/
 .vitest-cache/
 
 # ============================================================================
-# Local Run Logs & Test Reports (Never commit these)
+# Environment Variables & Secrets — never commit sensitive data
+# ============================================================================
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.vault
+.env.keys
+.envrc
+.dirlocals
+!.env.example
+!.env.*.example
+*.key
+*.pem
+*.crt
+*.cer
+.aws/
+.netrc
+.ssh/
+credentials.json
+secrets.json
+
+# ============================================================================
+# Supabase CLI Local State
+# ============================================================================
+supabase/.temp/
+supabase/.branches/
+supabase/.env
+supabase/snippets/
+
+# ============================================================================
+# Sentry
+# ============================================================================
+.sentryclirc
+sentry.properties
+
+# ============================================================================
+# Debug & Investigation Scripts — one-off files that must not be committed
+# ============================================================================
+/check-db.ts
+/verify_schema.sql
+/dev.log
+/dev-server.log
+
+# ============================================================================
+# Local Run Logs & Test Artifacts — never commit these
 # ============================================================================
 /build-output.txt
 /final-lint.txt
@@ -58,36 +102,6 @@ pids/
 *.pid.lock
 logs/
 *.log
-
-# ============================================================================
-# Environment Variables & Secrets (Never commit sensitive data)
-# ============================================================================
-.env
-.env.local
-.env.*.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.vault
-.envrc
-.dirlocals
-!.env.example
-!.env.*.example
-*.key
-*.pem
-*.crt
-*.cer
-.aws/
-.netrc
-.ssh/
-credentials.json
-secrets.json
-
-# ============================================================================
-# Supabase CLI Local Configuration
-# ============================================================================
-supabase/.temp/
-supabase/.branches/
 
 # ============================================================================
 # IDE, Editors & Development Tools
@@ -135,7 +149,7 @@ Thumbs.db
 [Dd]esktop.ini
 
 # ============================================================================
-# Database & Storage
+# Database & Local Storage
 # ============================================================================
 *.sqlite
 *.sqlite3
