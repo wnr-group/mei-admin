@@ -99,8 +99,8 @@ export default function ProductsPage() {
                       <td className="px-6 py-3 text-[12px] font-medium text-zinc-900 font-sans">{formattedPrice.replace('INR', '₹')}</td>
                       <td className="px-6 py-3">
                         <div className="flex flex-wrap gap-1">
-                          {(product.work_types ?? []).map((wt) => (
-                            <span key={wt} className="border-2 border-gray-600 bg-white text-[7.5px] font-bold tracking-wider text-zinc-500 px-2 py-0.5">
+                          {(product.work_types ?? []).map((wt, i) => (
+                            <span key={`${i}-${wt}`} className="border-2 border-gray-600 bg-white text-[7.5px] font-bold tracking-wider text-zinc-500 px-2 py-0.5">
                               {wt}
                             </span>
                           ))}

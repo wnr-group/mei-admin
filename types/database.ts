@@ -15,14 +15,14 @@ export type Database = {
         Update: { role?: 'admin' | 'super_admin'; full_name?: string | null }
       }
       categories: {
-        Row: { id: string; name: string; slug: string; description: string | null; sort_order: number; created_at: string; deleted_at: string | null }
-        Insert: { id?: string; name: string; slug: string; description?: string | null; sort_order?: number }
-        Update: { name?: string; slug?: string; description?: string | null; sort_order?: number; deleted_at?: string | null }
+        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string; deleted_at: string | null }
+        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number }
+        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; deleted_at?: string | null }
       }
       products: {
-        Row: { id: string; name: string; category_id: string | null; price: number; work_types: string[]; status: 'PUBLISHED' | 'DRAFT'; description: string | null; image_url: string | null; created_at: string; updated_at: string; deleted_at: string | null }
-        Insert: { id?: string; name: string; category_id?: string | null; price: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null }
-        Update: { name?: string; category_id?: string | null; price?: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null; deleted_at?: string | null }
+        Row: { id: string; name: string; slug: string | null; short_description: string | null; category_id: string | null; price: number; work_types: string[]; status: 'PUBLISHED' | 'DRAFT'; description: string | null; image_url: string | null; created_at: string; updated_at: string; deleted_at: string | null; product_code: string; has_variants: boolean; size_system_id: string | null; supported_customization_types: string[] }
+        Insert: { id?: string; name: string; slug?: string | null; short_description?: string | null; category_id?: string | null; price: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null; product_code?: string; has_variants?: boolean; size_system_id?: string | null; supported_customization_types?: string[] }
+        Update: { name?: string; slug?: string | null; short_description?: string | null; category_id?: string | null; price?: number; work_types?: string[]; status?: 'PUBLISHED' | 'DRAFT'; description?: string | null; image_url?: string | null; deleted_at?: string | null; product_code?: string; has_variants?: boolean; size_system_id?: string | null; supported_customization_types?: string[] }
       }
       customers: {
         Row: { id: string; name: string; email: string | null; phone: string | null; city: string | null; created_at: string }
@@ -30,24 +30,29 @@ export type Database = {
         Update: { name?: string; email?: string | null; phone?: string | null; city?: string | null }
       }
       orders: {
-        Row: { id: string; order_number: string; customer_id: string | null; status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes: string | null; created_at: string; updated_at: string }
+        Row: { id: string; order_number: string; customer_id: string | null; status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes: string | null; created_at: string; updated_at: string; deleted_at: string | null }
         Insert: { id?: string; order_number?: string; customer_id?: string | null; status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes?: string | null }
-        Update: { status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total?: number; notes?: string | null }
+        Update: { status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total?: number; notes?: string | null; deleted_at?: string | null }
       }
       order_items: {
         Row: { id: string; order_id: string; product_id: string | null; product_name: string; quantity: number; unit_price: number; created_at: string }
         Insert: { id?: string; order_id: string; product_id?: string | null; product_name: string; quantity?: number; unit_price: number }
         Update: { quantity?: number; unit_price?: number }
       }
+      product_media: {
+        Row: { id: string; product_id: string; color_id: string | null; variant_id: string | null; url: string; alt_text: string | null; is_primary: boolean; media_type: 'IMAGE' | 'VIDEO'; thumbnail_url: string | null; video_provider: string | null; sort_order: number; created_by: string | null; created_at: string; deleted_at: string | null }
+        Insert: { id?: string; product_id: string; color_id?: string | null; variant_id?: string | null; url: string; alt_text?: string | null; is_primary?: boolean; media_type?: 'IMAGE' | 'VIDEO'; thumbnail_url?: string | null; video_provider?: string | null; sort_order?: number; created_by?: string | null }
+        Update: { url?: string; alt_text?: string | null; is_primary?: boolean; media_type?: 'IMAGE' | 'VIDEO'; thumbnail_url?: string | null; sort_order?: number; deleted_at?: string | null }
+      }
       enquiries: {
-        Row: { id: string; name: string; email: string; phone: string | null; message: string; status: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply: string | null; replied_at: string | null; replied_by: string | null; created_at: string }
-        Insert: { id?: string; name: string; email: string; phone?: string | null; message: string; status?: 'NEW' | 'REPLIED' | 'CLOSED' }
-        Update: { status?: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply?: string | null; replied_at?: string | null; replied_by?: string | null }
+        Row: { id: string; name: string; email: string; phone: string | null; occasion: string | null; budget: string | null; measurements: Json | null; reference_images: Json | null; message: string; status: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply: string | null; replied_at: string | null; replied_by: string | null; created_at: string; deleted_at: string | null }
+        Insert: { id?: string; name: string; email: string; phone?: string | null; occasion?: string | null; budget?: string | null; measurements?: Json | null; reference_images?: Json | null; message: string; status?: 'NEW' | 'REPLIED' | 'CLOSED' }
+        Update: { status?: 'NEW' | 'REPLIED' | 'CLOSED'; admin_reply?: string | null; replied_at?: string | null; replied_by?: string | null; deleted_at?: string | null }
       }
       banners: {
-        Row: { id: string; title: string; image_url: string; link_url: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string }
+        Row: { id: string; title: string; image_url: string; link_url: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string; deleted_at: string | null }
         Insert: { id?: string; title: string; image_url: string; link_url?: string | null; is_active?: boolean; sort_order?: number }
-        Update: { title?: string; image_url?: string; link_url?: string | null; is_active?: boolean; sort_order?: number }
+        Update: { title?: string; image_url?: string; link_url?: string | null; is_active?: boolean; sort_order?: number; deleted_at?: string | null }
       }
       settings: {
         Row: { key: string; value: unknown; description: string | null; updated_at: string; updated_by: string | null }
@@ -65,6 +70,7 @@ export type Database = {
       order_status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
       product_status: 'PUBLISHED' | 'DRAFT'
       enquiry_status: 'NEW' | 'REPLIED' | 'CLOSED'
+      media_type: 'IMAGE' | 'VIDEO'
     }
   }
 }

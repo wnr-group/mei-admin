@@ -24,6 +24,32 @@ export async function getCategories(options: GetCategoriesOptions = {}) {
   return { categories: (data as Category[] | null) ?? [], total: count ?? 0 }
 }
 
+export async function getCategoryById(id: string): Promise<Category | null> {
+  const supabase = createClient()
+  const response = await supabase
+    .from('categories')
+    .select('*')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single()
+  const { data, error } = response as { data: Category | null; error: { message: string; code: string } | null }
+  if (error && error.code !== 'PGRST116') throw toAppError(new Error(error.message))
+  return (data as Category | null) ?? null
+}
+
+export async function getCategoryBySlug(slug: string): Promise<{ id: string; slug: string } | null> {
+  const supabase = createClient()
+  const response = await supabase
+    .from('categories')
+    .select('id, slug')
+    .eq('slug', slug)
+    .is('deleted_at', null)
+    .single()
+  const { data, error } = response as { data: { id: string; slug: string } | null; error: { message: string; code: string } | null }
+  if (error && error.code !== 'PGRST116') throw toAppError(new Error(error.message))
+  return data ?? null
+}
+
 export async function createCategory(category: CategoryInsert) {
   const supabase = createClient()
   const response = await supabase

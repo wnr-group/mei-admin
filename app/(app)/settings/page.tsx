@@ -17,12 +17,16 @@ export default function SettingsPage() {
     if (settings.length === 0) return
     const values: Record<string, unknown> = {}
     settings.forEach((setting) => { values[setting.key] = setting.value })
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFormValues(values)
   }, [settings])
 
   if (isLoading) return <TableSkeleton rows={6} />
   if (error) return <ErrorState message={error.message} onRetry={refetch} />
   if (settings.length === 0) return <EmptyState message="No settings configured." />
+  // formValues is populated by useEffect after the first render with data.
+  // Guard here so inputs never receive `undefined` as their value.
+  if (Object.keys(formValues).length === 0) return <TableSkeleton rows={6} />
 
   const handleFieldChange = (key: string, value: unknown) => {
     setFormValues((prev) => ({ ...prev, [key]: value }))

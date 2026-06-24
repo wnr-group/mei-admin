@@ -16,6 +16,7 @@ export async function getOrders(options: GetOrdersOptions = {}) {
   let query = supabase
     .from('orders')
     .select('*', { count: 'exact' })
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1)
 
@@ -35,12 +36,12 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
     .from('orders')
     .update({ status } as never)
     .eq('id', id)
+    .is('deleted_at', null)
     .select()
     .single()
   const { data, error } = response as { data: Order | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
 
-  // Add logging
   await logAuditEvent({
     action: 'UPDATE',
     resourceType: 'order',
@@ -49,4 +50,20 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
   })
 
   return data as Order
+}
+
+export async function deleteOrder(id: string) {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('orders')
+    .update({ deleted_at: new Date().toISOString() } as never)
+    .eq('id', id)
+  if (error) throw toAppError(new Error(error.message))
+
+  // Only reached on success — failure path throws above
+  await logAuditEvent({
+    action: 'DELETE',
+    resourceType: 'order',
+    resourceId: id,
+  })
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useOrders, useUpdateOrderStatus } from '@/hooks/use-orders'
+import { useOrders, useUpdateOrderStatus, useDeleteOrder } from '@/hooks/use-orders'
 import { useRealtimeOrders } from '@/hooks/use-realtime-orders'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
@@ -15,6 +15,7 @@ export default function OrdersPage() {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null)
   const { data, isLoading, error, refetch } = useOrders({ page, limit: 6, status: selectedStatus ?? undefined })
   const updateOrderStatusMutation = useUpdateOrderStatus()
+  const deleteOrderMutation = useDeleteOrder()
 
   // Enable real-time updates
   useRealtimeOrders()
@@ -35,15 +36,26 @@ export default function OrdersPage() {
     }
   }
 
+  const handleDelete = async (id: string, orderNumber: string) => {
+    if (!confirm(`Delete order ${orderNumber}? This cannot be undone.`)) return
+    try {
+      await deleteOrderMutation.mutateAsync(id)
+    } catch {
+      alert('Failed to delete order')
+    }
+  }
+
   if (orders.length === 0) return <EmptyState message="No orders yet." />
 
   return (
     <div className="space-y-6 px-8 pt-10 font-inter relative animate-fade-in">
 
       {/* Loading overlay for mutations */}
-      {updateOrderStatusMutation.isPending && (
+      {(updateOrderStatusMutation.isPending || deleteOrderMutation.isPending) && (
         <div className="fixed inset-0 bg-white/50 z-50 flex items-center justify-center">
-          <div className="text-zinc-500 font-medium text-xs">Updating order...</div>
+          <div className="text-zinc-500 font-medium text-xs">
+            {deleteOrderMutation.isPending ? 'Deleting order...' : 'Updating order...'}
+          </div>
         </div>
       )}
 
@@ -154,6 +166,17 @@ export default function OrdersPage() {
                     <td className="px-6 py-4.5 text-right space-x-3 text-[10px] font-bold tracking-widest">
                       <button className="text-[#B38B5D] hover:text-[#A37B4D] uppercase transition-colors">
                         VIEW
+                      </button>
+                      <button
+                        onClick={() => handleDelete(order.id, order.order_number)}
+                        disabled={deleteOrderMutation.isPending}
+                        className={`uppercase transition-colors ${
+                          deleteOrderMutation.isPending
+                            ? 'text-zinc-300 cursor-not-allowed'
+                            : 'text-red-400 hover:text-red-600'
+                        }`}
+                      >
+                        DELETE
                       </button>
                     </td>
                   </tr>

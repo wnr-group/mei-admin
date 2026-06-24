@@ -9,8 +9,8 @@ export default async function DashboardPage() {
   // Fetch real stats from Supabase
   const [productsResult, ordersResult, enquiriesResult] = await Promise.all([
     supabase.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null),
-    supabase.from('orders').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(5),
-    supabase.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'NEW')
+    supabase.from('orders').select('*', { count: 'exact' }).is('deleted_at', null).order('created_at', { ascending: false }).limit(5),
+    supabase.from('enquiries').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'NEW')
   ])
 
   const totalProducts = productsResult.count ?? 0

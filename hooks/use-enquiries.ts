@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getEnquiries, replyToEnquiry, closeEnquiry } from '@/services/enquiries'
+import { getEnquiries, replyToEnquiry, closeEnquiry, deleteEnquiry } from '@/services/enquiries'
 
 type GetEnquiriesOptions = Parameters<typeof getEnquiries>[0]
 
@@ -25,6 +25,14 @@ export function useCloseEnquiry() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => closeEnquiry(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['enquiries'] }),
+  })
+}
+
+export function useDeleteEnquiry() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteEnquiry(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['enquiries'] }),
   })
 }

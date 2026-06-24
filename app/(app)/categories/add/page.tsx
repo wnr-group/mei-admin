@@ -1,134 +1,220 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { addCategory } from '@/lib/mockDb';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  createCategory,
+  updateCategory,
+  getCategoryById,
+  getCategoryBySlug,
+  deleteCategory,
+} from '@/services/categories';
+import { uploadCategoryImage, deleteCategoryImage } from '@/services/storage';
 import { Upload, X, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function AddCategoryPage() {
+function CategoryForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit');
 
-  // Form states
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [description, setDescription] = useState('');
-  const [image, setImage] = useState('');
+  const [imagePreview, setImagePreview] = useState('');         // blob: URL (new) or https: URL (existing)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);  // original File for upload
+  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);  // for cleanup on replace
   const [sortOrder, setSortOrder] = useState(0);
-  const [active, setActive] = useState(true); // Checked by default in screenshot
-
+  const [active, setActive] = useState(true);
+  const [loading, setLoading] = useState(editId ? true : false);
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Auto-generate slug from name
-  const generateSlug = (val: string) => {
-    return val
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '') // remove non-word characters
-      .replace(/[\s_-]+/g, '-') // replace spaces/underscores with hyphens
-      .replace(/^-+|-+$/g, ''); // remove leading/trailing hyphens
-  };
+  useEffect(() => {
+    if (!editId) return;
+
+    async function loadCategory() {
+      try {
+        const cat = await getCategoryById(editId!);
+        if (cat) {
+          setName(cat.name);
+          setSlug(cat.slug);
+          setSubtitle(cat.subtitle ?? '');
+          setDescription(cat.description ?? '');
+          setImagePreview(cat.image_url ?? '');
+          setOriginalImageUrl(cat.image_url ?? null);
+          setSortOrder(cat.sort_order);
+          setActive(cat.is_active ?? true);
+        } else {
+          alert('Category not found.');
+          router.push('/categories');
+        }
+      } catch {
+        alert('Failed to load category. Please try again.');
+        router.push('/categories');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadCategory();
+  }, [editId, router]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
+  const generateSlug = (val: string) =>
+    val.toLowerCase().trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setName(val);
-    setSlug(generateSlug(val));
+    if (!editId) setSlug(generateSlug(val));
   };
 
-  // Drag-and-drop file handlers
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = () => setIsDragging(false);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
-    }
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      processFile(e.target.files[0]);
-    }
+    if (e.target.files && e.target.files[0]) processFile(e.target.files[0]);
   };
 
   const processFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
-        setImage(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    if (imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    setSelectedFile(file);
+    setImagePreview(URL.createObjectURL(file));
   };
 
-  const triggerFileInput = () => {
-    document.getElementById('category-image-input')?.click();
+  const handleClearImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    setImagePreview('');
+    setSelectedFile(null);
   };
 
-  // Submit Handler
+  const triggerFileInput = () => document.getElementById('category-image-input')?.click();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!name.trim()) {
-      alert('Please enter a category name.');
-      return;
-    }
+    if (!name.trim()) { alert('Please enter a category name.'); return; }
 
     setIsSaving(true);
 
     try {
-      // Provide a nice fallback if they didn't upload any image
-      const finalImage = image || 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=150&auto=format&fit=crop';
+      const slugVal = slug.trim() || generateSlug(name.trim());
 
-      await addCategory({
-        name: name.trim(),
-        slug: slug.trim() || generateSlug(name),
-        subtitle: subtitle.trim(),
-        description: description.trim(),
-        sortOrder: sortOrder,
-        status: active ? 'ACTIVE' : 'INACTIVE',
-        image: finalImage,
-      });
+      // Slug uniqueness check — prevent duplicate slugs
+      const existingWithSlug = await getCategoryBySlug(slugVal);
+      if (existingWithSlug && existingWithSlug.id !== editId) {
+        alert(`A category with slug "${slugVal}" already exists. Please choose a different slug.`);
+        setIsSaving(false);
+        return;
+      }
+
+      if (editId) {
+        // ── EDIT FLOW ────────────────────────────────────────────
+        // Three explicit states — easier to audit than implicit initializer
+        let finalImageUrl: string | null = null;
+
+        if (selectedFile) {
+          // REPLACE: new file selected — upload, then clean up old
+          finalImageUrl = await uploadCategoryImage(selectedFile, editId);
+          if (originalImageUrl) deleteCategoryImage(originalImageUrl).catch(() => {});
+        } else if (imagePreview.startsWith('http')) {
+          // KEEP: existing Supabase URL unchanged
+          finalImageUrl = imagePreview;
+        } else {
+          // REMOVE: image cleared via X button — clean up old storage file
+          if (originalImageUrl) deleteCategoryImage(originalImageUrl).catch(() => {});
+          // finalImageUrl remains null
+        }
+
+        await updateCategory(editId, {
+          name: name.trim(),
+          slug: slugVal,
+          subtitle: subtitle.trim() || null,
+          description: description.trim() || null,
+          sort_order: sortOrder,
+          is_active: active,
+          image_url: finalImageUrl,
+        });
+      } else {
+        // ── CREATE FLOW ──────────────────────────────────────────
+        const newCategory = await createCategory({
+          name: name.trim(),
+          slug: slugVal,
+          subtitle: subtitle.trim() || null,
+          description: description.trim() || null,
+          sort_order: sortOrder,
+          is_active: active,
+          image_url: null,
+        });
+
+        if (selectedFile) {
+          try {
+            const imageUrl = await uploadCategoryImage(selectedFile, newCategory.id);
+            await updateCategory(newCategory.id, { image_url: imageUrl });
+          } catch (uploadErr) {
+            // Rollback: soft-delete created category to avoid orphaned records
+            await deleteCategory(newCategory.id).catch(() => {});
+            throw uploadErr;
+          }
+        }
+      }
 
       router.push('/categories');
-    } catch (err) {
-      console.error('Failed to save category:', err);
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (error?.code === '23505' || error?.message?.toLowerCase().includes('duplicate')) {
+        alert('A category with this slug already exists. Please choose a different slug.');
+        return;
+      }
       alert('Error saving category. Please try again.');
     } finally {
       setIsSaving(false);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="animate-pulse flex flex-col items-center gap-2">
+          <span className="font-serif text-lg text-[#B38B5D] tracking-widest uppercase">MEI BRIDAL COUTURE</span>
+          <span className="text-xs text-zinc-400 font-inter">Loading Category Details...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-[480px] mx-auto pt-6 pb-16 font-inter animate-fade-in">
-      {/* Breadcrumbs matching screen layout */}
       <div className="flex items-center text-[10px] tracking-widest uppercase text-zinc-400 font-bold select-none mb-1.5">
         <Link href="/categories" className="hover:text-zinc-600 transition-colors">
           Categories
         </Link>
         <span className="mx-2 text-[#B38B5D] font-bold">/</span>
-        <span className="text-zinc-400">Add Category</span>
+        <span className="text-zinc-400">{editId ? 'Edit Category' : 'Add Category'}</span>
       </div>
 
-      {/* Header Title */}
       <h1 className="font-serif text-[22px] text-zinc-950 font-medium tracking-wide mb-6">
-        Add Category
+        {editId ? 'Edit Category' : 'Add Category'}
       </h1>
 
-      {/* Form Container Card */}
       <div className="bg-white border border-[#E8E0D5] p-8 shadow-xs">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Category Name */}
           <div className="space-y-1">
             <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
               NAME
@@ -143,7 +229,6 @@ export default function AddCategoryPage() {
             />
           </div>
 
-          {/* Slug */}
           <div className="space-y-1">
             <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
               SLUG
@@ -161,7 +246,6 @@ export default function AddCategoryPage() {
             </p>
           </div>
 
-          {/* Subtitle */}
           <div className="space-y-1">
             <div className="flex justify-between items-center">
               <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
@@ -184,7 +268,6 @@ export default function AddCategoryPage() {
             </p>
           </div>
 
-          {/* Description */}
           <div className="space-y-1">
             <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
               DESCRIPTION
@@ -198,13 +281,11 @@ export default function AddCategoryPage() {
             />
           </div>
 
-          {/* Image */}
           <div className="space-y-2">
             <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
               IMAGE
             </label>
 
-            {/* Dropzone */}
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -223,7 +304,6 @@ export default function AddCategoryPage() {
                 onChange={handleFileChange}
                 className="hidden"
               />
-              
               <Upload className="w-5 h-5 stroke-[1.5] text-zinc-400 mb-1" />
               <p className="text-[12px] text-zinc-500 font-medium">
                 Upload category Image
@@ -233,20 +313,16 @@ export default function AddCategoryPage() {
               </p>
             </div>
 
-            {/* Image Preview */}
-            {image && (
+            {imagePreview && (
               <div className="relative border border-[#E8E0D5] w-[70px] h-[70px] flex items-center justify-center overflow-hidden mt-2">
                 <img
-                  src={image}
+                  src={imagePreview}
                   alt="Uploaded category thumbnail"
                   className="w-full h-full object-cover"
                 />
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setImage('');
-                  }}
+                  onClick={handleClearImage}
                   className="absolute right-0.5 top-0.5 bg-black/60 hover:bg-black text-white rounded-full p-0.5 transition-colors cursor-pointer"
                 >
                   <X className="w-2.5 h-2.5" />
@@ -255,7 +331,6 @@ export default function AddCategoryPage() {
             )}
           </div>
 
-          {/* Sort Order */}
           <div className="flex items-center gap-4">
             <label className="text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
               SORT ORDER
@@ -268,7 +343,6 @@ export default function AddCategoryPage() {
             />
           </div>
 
-          {/* Active Status Checkbox */}
           <div className="pt-2">
             <label className="flex items-center gap-2.5 cursor-pointer group select-none">
               <input
@@ -283,7 +357,6 @@ export default function AddCategoryPage() {
             </label>
           </div>
 
-          {/* Action Button */}
           <div className="pt-4">
             <button
               type="submit"
@@ -291,11 +364,10 @@ export default function AddCategoryPage() {
               className="w-full bg-[#1A1A1A] hover:bg-black text-[#FAF8F5] text-[11px] font-bold tracking-widest py-3.5 transition-colors duration-200 rounded-none uppercase cursor-pointer flex items-center justify-center gap-2"
             >
               {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              SAVE CATEGORY
+              {editId ? 'SAVE CHANGES' : 'SAVE CATEGORY'}
             </button>
           </div>
 
-          {/* Cancel */}
           <div className="text-center pt-2">
             <Link
               href="/categories"
@@ -307,5 +379,13 @@ export default function AddCategoryPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function AddCategoryPage() {
+  return (
+    <Suspense>
+      <CategoryForm />
+    </Suspense>
   );
 }

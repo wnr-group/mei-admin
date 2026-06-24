@@ -1,0 +1,13 @@
+CREATE INDEX IF NOT EXISTS idx_pv_product       ON product_variants(product_id)               WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_pv_color         ON product_variants(color_id)                 WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_pv_available     ON product_variants(product_id, is_available) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_pv_type          ON product_variants(product_id, customization_type) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_pc_product       ON product_colors(product_id)                 WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_pm_product       ON product_media(product_id)                  WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_pm_color         ON product_media(product_id, color_id)        WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_mt_category      ON measurement_templates(category_id)        WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_mt_product       ON measurement_templates(product_id)         WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_mtf_template     ON measurement_template_fields(template_id);
+CREATE INDEX IF NOT EXISTS idx_sse_system       ON size_system_entries(system_id, sort_order) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_oi_variant       ON order_items(variant_id);
+CREATE INDEX IF NOT EXISTS idx_oim_order_item   ON order_item_measurements(order_item_id);
