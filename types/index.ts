@@ -8,6 +8,26 @@ export type Product = Tables['products']['Row']
 export type Customer = Tables['customers']['Row']
 export type Order = Tables['orders']['Row']
 export type OrderItem = Tables['order_items']['Row']
+
+export interface OrderWithDetails extends Order {
+  customers: {
+    name: string
+    email: string | null
+  } | null
+  order_items: {
+    quantity: number
+  }[]
+}
+
+export interface OrderDetail extends Order {
+  customers: Customer | null
+  order_items: Array<OrderItem & {
+    products: {
+      image_url: string | null
+    } | null
+  }>
+}
+
 export type Enquiry = Tables['enquiries']['Row']
 export type Banner = Tables['banners']['Row']
 export type Setting = Tables['settings']['Row']

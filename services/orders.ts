@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { toAppError } from '@/lib/errors'
 import { logAuditEvent } from '@/lib/audit'
-import type { Order, OrderStatus } from '@/types'
+import type { Order, OrderStatus, OrderWithDetails, OrderDetail } from '@/types'
 
 interface GetOrdersOptions {
   page?: number
@@ -15,7 +15,7 @@ export async function getOrders(options: GetOrdersOptions = {}) {
 
   let query = supabase
     .from('orders')
-    .select('*', { count: 'exact' })
+    .select('*, customers(name, email), order_items(quantity)', { count: 'exact' })
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1)
@@ -27,7 +27,20 @@ export async function getOrders(options: GetOrdersOptions = {}) {
   const { data, error, count } = await query
 
   if (error) throw toAppError(new Error(error.message))
-  return { orders: (data as Order[] | null) ?? [], total: count ?? 0 }
+  return { orders: (data as OrderWithDetails[] | null) ?? [], total: count ?? 0 }
+}
+
+export async function getOrderById(id: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*, customers(*), order_items(*, products(image_url))')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single()
+
+  if (error) throw toAppError(new Error(error.message))
+  return data as OrderDetail
 }
 
 export async function updateOrderStatus(id: string, status: OrderStatus) {

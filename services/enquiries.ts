@@ -101,3 +101,60 @@ export async function deleteEnquiry(id: string) {
     resourceId: id,
   })
 }
+
+export async function getEnquiryById(id: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('enquiries')
+    .select('*')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single()
+
+  if (error) throw toAppError(new Error(error.message))
+  return data as Enquiry
+}
+
+export async function updateEnquiryStatus(id: string, status: EnquiryStatus) {
+  const supabase = createClient()
+  const response = await supabase
+    .from('enquiries')
+    .update({ status } as never)
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select()
+    .single()
+  const { data, error } = response as { data: Enquiry | null; error: { message: string } | null }
+  if (error) throw toAppError(new Error(error.message))
+
+  await logAuditEvent({
+    action: 'UPDATE',
+    resourceType: 'enquiry',
+    resourceId: id,
+    newData: { status } as Json,
+  })
+
+  return data as Enquiry
+}
+
+export async function updateEnquiryAdminNotes(id: string, adminNotes: string) {
+  const supabase = createClient()
+  const response = await supabase
+    .from('enquiries')
+    .update({ admin_reply: adminNotes } as never)
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select()
+    .single()
+  const { data, error } = response as { data: Enquiry | null; error: { message: string } | null }
+  if (error) throw toAppError(new Error(error.message))
+
+  await logAuditEvent({
+    action: 'UPDATE',
+    resourceType: 'enquiry',
+    resourceId: id,
+    newData: { admin_reply: adminNotes } as Json,
+  })
+
+  return data as Enquiry
+}
