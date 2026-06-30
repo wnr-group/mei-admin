@@ -1,128 +1,198 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-);
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-request-id',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+function jsonResponse(data: unknown, status = 200, extra: Record<string, string> = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json', ...extra },
+  });
+}
+
+async function verifyRazorpaySignature(
+  razorpayOrderId: string,
+  razorpayPaymentId: string,
+  signature: string,
+  secret: string
+): Promise<boolean> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const mac = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    enc.encode(`${razorpayOrderId}|${razorpayPaymentId}`)
+  );
+  const hex = Array.from(new Uint8Array(mac))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  return hex === signature;
+}
+
+interface OrderItem {
+  product_id: string;
+  name: string;
+  quantity: number;
+}
+
+interface PaymentInfo {
+  provider: string;
+  payment_id: string;
+  order_id: string;
+  signature: string;
+}
 
 interface CreateOrderRequest {
-  user_id: string;
-  items: Array<{
-    variant_id: string;
-    quantity: number;
-    measurements?: Record<string, number>;
-  }>;
-  shipping_address: string;
+  customer: { name: string; email: string; phone: string; city: string };
+  items: OrderItem[];
+  shipping_address: Record<string, string>;
+  payment: PaymentInfo;
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    return jsonResponse({ success: false, error: 'METHOD_NOT_ALLOWED' }, 405);
   }
 
+  const requestId = req.headers.get('x-request-id') ?? crypto.randomUUID();
+  const log = (msg: string, data?: Record<string, unknown>) =>
+    console.log(JSON.stringify({ requestId, msg, ...(data ?? {}) }));
+
+  log('create-order started');
+
   try {
-    const body = await req.json() as CreateOrderRequest;
+    log('request received');
 
-    // Start transaction
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        user_id: body.user_id,
-        total_amount: 0,
-        order_status: 'PENDING',
-        shipping_address: body.shipping_address
-      })
-      .select()
-      .single();
+    const body = (await req.json()) as CreateOrderRequest;
+    log('payload parsed', { has_customer: !!body.customer, has_items: !!body.items, has_payment: !!body.payment });
 
-    if (orderError) throw orderError;
-
-    let totalAmount = 0;
-
-    for (const item of body.items) {
-      const { data: variant } = await supabase
-        .from('product_variants')
-        .select('id, product_id, price_override, stock_quantity, allow_backorder, track_inventory')
-        .eq('id', item.variant_id)
-        .single();
-
-      if (!variant) throw new Error(`Variant ${item.variant_id} not found`);
-
-      if (variant.track_inventory && variant.stock_quantity < item.quantity && !variant.allow_backorder) {
-        throw new Error(`Insufficient stock for variant ${item.variant_id}`);
-      }
-
-      const { data: product } = await supabase
-        .from('products')
-        .select('id, name, category, price')
-        .eq('id', variant.product_id)
-        .single();
-
-      const effectivePrice = variant.price_override ?? product.price;
-      const itemTotal = effectivePrice * item.quantity;
-      totalAmount += itemTotal;
-
-      const { data: orderItem, error: itemError } = await supabase
-        .from('order_items')
-        .insert({
-          order_id: order.id,
-          variant_id: item.variant_id,
-          quantity: item.quantity,
-          unit_price: effectivePrice,
-          product_snapshot: {
-            id: product.id,
-            name: product.name,
-            category: product.category,
-            base_price: product.price
-          },
-          variant_snapshot: {
-            variant_name: 'Variant',
-            price: effectivePrice
-          }
-        })
-        .select()
-        .single();
-
-      if (itemError) throw itemError;
-
-      if (item.measurements) {
-        const measurementRows = Object.entries(item.measurements).map(([key, value]) => ({
-          order_item_id: orderItem.id,
-          field_key: key,
-          value_cm: value,
-          recorded_at: new Date().toISOString()
-        }));
-
-        const { error: measError } = await supabase
-          .from('order_item_measurements')
-          .insert(measurementRows);
-
-        if (measError) throw measError;
-      }
-
-      if (variant.track_inventory) {
-        const { error: stockError } = await supabase
-          .from('product_variants')
-          .update({ stock_quantity: Math.max(0, variant.stock_quantity - item.quantity) })
-          .eq('id', item.variant_id);
-
-        if (stockError) throw stockError;
-      }
+    if (!body.customer?.email || !body.items?.length || !body.payment?.payment_id) {
+      log('invalid payload');
+      return jsonResponse({ success: false, error: 'INVALID_PAYLOAD' }, 400);
     }
 
-    await supabase
-      .from('orders')
-      .update({ total_amount: totalAmount })
-      .eq('id', order.id);
+    const bypass = Deno.env.get('ENABLE_PAYMENT_BYPASS') === 'true';
+    log('environment check', {
+      bypass_enabled: bypass,
+      has_supabase_url: !!Deno.env.get('SUPABASE_URL'),
+      has_service_role: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+      has_razorpay_secret: !!Deno.env.get('RAZORPAY_KEY_SECRET'),
+    });
 
-    return new Response(JSON.stringify({ order_id: order.id, total_amount: totalAmount }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
+    // Handle bypass mode early - no signature verification or database access needed
+    if (bypass) {
+      log('bypass mode — signature verification and database calls skipped');
+      return jsonResponse(
+        {
+          success: true,
+          order_id: crypto.randomUUID(),
+          order_number: `BYPASS-${Date.now()}`,
+          total: body.items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0),
+        },
+        200,
+        { 'x-request-id': requestId }
+      );
+    }
+
+    // Production mode: verify signature
+    const secret = Deno.env.get('RAZORPAY_KEY_SECRET');
+    if (!secret) {
+      log('RAZORPAY_KEY_SECRET not configured');
+      return jsonResponse({
+        success: false,
+        error: 'SERVER_MISCONFIGURED',
+        detail: 'RAZORPAY_KEY_SECRET not set'
+      }, 500);
+    }
+
+    const valid = await verifyRazorpaySignature(
+      body.payment.order_id,
+      body.payment.payment_id,
+      body.payment.signature,
+      secret
+    );
+    if (!valid) {
+      log('HMAC verification failed', { payment_id: body.payment.payment_id });
+      return jsonResponse({ success: false, error: 'PAYMENT_VERIFICATION_FAILED' }, 400);
+    }
+    log('HMAC verified', { payment_id: body.payment.payment_id });
+
+    // Production mode: verify Supabase credentials
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      log('missing supabase credentials', {
+        url_missing: !supabaseUrl,
+        key_missing: !serviceRoleKey,
+      });
+      return jsonResponse({
+        success: false,
+        error: 'SERVER_MISCONFIGURED',
+        detail: `Missing: ${!supabaseUrl ? 'SUPABASE_URL ' : ''}${!serviceRoleKey ? 'SUPABASE_SERVICE_ROLE_KEY' : ''}`.trim(),
+      }, 500);
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    log('supabase client created');
+
+    const { data, error } = await supabase.rpc('create_order_txn', {
+      p_customer: body.customer,
+      p_items: body.items,
+      p_shipping_address: body.shipping_address,
+      p_payment_id: body.payment.payment_id,
+      p_payment_provider: body.payment.provider,
+      p_payment_metadata: {
+        razorpay_order_id: body.payment.order_id,
+        razorpay_signature: body.payment.signature,
+        request_id: requestId,
+      },
     });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: String(error) }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
+
+    if (error) {
+      log('RPC error', {
+        message: error.message,
+        code: (error as any).code,
+        details: (error as any).details,
+      });
+      if (error.message?.includes('PRODUCT_NOT_FOUND')) {
+        return jsonResponse({ success: false, error: 'PRODUCT_NOT_FOUND' }, 400);
+      }
+      return jsonResponse({
+        success: false,
+        error: 'ORDER_CREATION_FAILED',
+        detail: error.message,
+      }, 500);
+    }
+
+    log('order created', {
+      order_id: String(data.order_id),
+      already_exists: String(data.already_exists),
     });
+
+    return jsonResponse(
+      {
+        success: true,
+        order_id: data.order_id,
+        order_number: data.order_number,
+        total: data.total,
+      },
+      200,
+      { 'x-request-id': requestId }
+    );
+  } catch (err) {
+    log('unhandled error', { message: String(err) });
+    return jsonResponse({ success: false, error: 'INTERNAL_ERROR' }, 500);
   }
 });
