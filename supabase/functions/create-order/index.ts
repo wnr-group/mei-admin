@@ -128,9 +128,11 @@ Deno.serve(async (req) => {
     }
     log('HMAC verified', { payment_id: body.payment.payment_id });
 
-    // Production mode: verify Supabase credentials
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    // Production mode: verify Supabase credentials.
+    // MEI_DB_URL / MEI_SERVICE_KEY are custom vars used in local dev to point at the hosted
+    // project, because Supabase CLI always overrides SUPABASE_URL with the local kong URL.
+    const supabaseUrl = Deno.env.get('MEI_DB_URL') ?? Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('MEI_SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
       log('missing supabase credentials', {
@@ -145,7 +147,14 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-    log('supabase client created');
+    log('supabase client created', { supabase_url: supabaseUrl });
+
+    // Phase 1 diagnostic: log exact payload reaching RPC
+    log('rpc payload', {
+      item_count: body.items.length,
+      product_ids: body.items.map((i) => i.product_id),
+      quantities: body.items.map((i) => i.quantity),
+    });
 
     const { data, error } = await supabase.rpc('create_order_txn', {
       p_customer: body.customer,
@@ -167,7 +176,10 @@ Deno.serve(async (req) => {
         details: (error as any).details,
       });
       if (error.message?.includes('PRODUCT_NOT_FOUND')) {
-        return jsonResponse({ success: false, error: 'PRODUCT_NOT_FOUND' }, 400);
+        // Extract the failing product_id from the exception message (format: PRODUCT_NOT_FOUND:<uuid>)
+        const failingId = error.message.split(':').slice(1).join(':').trim();
+        log('product not found', { failing_product_id: failingId, supabase_url: supabaseUrl });
+        return jsonResponse({ success: false, error: 'PRODUCT_NOT_FOUND', product_id: failingId }, 400);
       }
       return jsonResponse({
         success: false,
@@ -180,6 +192,60 @@ Deno.serve(async (req) => {
       order_id: String(data.order_id),
       already_exists: String(data.already_exists),
     });
+
+    // Enqueue notifications (idempotent — safe to call even for already_exists)
+    if (!data.already_exists) {
+      const adminEmail = Deno.env.get('ADMIN_EMAIL');
+      const adminUrl   = Deno.env.get('ADMIN_URL') ?? '';
+      const enabled    = Deno.env.get('NOTIFICATIONS_ENABLED') === 'true';
+
+      if (enabled) {
+        const customerPayload = {
+          customerName: body.customer.name,
+          orderNumber:  data.order_number,
+          items:        body.items.map((i: OrderItem) => ({ name: i.name, quantity: i.quantity })),
+          total:        Number(data.total),
+        };
+        const adminPayload = {
+          customerName:  body.customer.name,
+          customerEmail: body.customer.email,
+          customerPhone: body.customer.phone ?? null,
+          orderNumber:   data.order_number,
+          total:         Number(data.total),
+          adminOrderUrl: `${adminUrl}/orders/${data.order_id}`,
+        };
+
+        const enqueueCustomer = supabase.rpc('enqueue_notification', {
+          p_idempotency_key: `ORDER_CONFIRMATION_CUSTOMER:${data.order_id}`,
+          p_type:            'ORDER_CONFIRMATION_CUSTOMER',
+          p_recipient_email: body.customer.email,
+          p_payload:         customerPayload,
+          p_priority:        1,
+        }).then(({ error }) => {
+          if (error) log('enqueue_customer_failed', { error: error.message });
+        });
+
+        const enqueueAdmin = adminEmail
+          ? supabase.rpc('enqueue_notification', {
+              p_idempotency_key: `ORDER_CONFIRMATION_ADMIN:${data.order_id}`,
+              p_type:            'ORDER_CONFIRMATION_ADMIN',
+              p_recipient_email: adminEmail,
+              p_payload:         adminPayload,
+              p_priority:        1,
+            }).then(({ error }) => {
+              if (error) log('enqueue_admin_failed', { error: error.message });
+            })
+          : Promise.resolve();
+
+        // Fire-and-forget — do not await before returning order response
+        Promise.allSettled([enqueueCustomer, enqueueAdmin])
+          .then((results) => {
+            results.forEach((r, i) => {
+              if (r.status === 'rejected') log('enqueue_settled_error', { index: i, reason: String(r.reason) });
+            });
+          });
+      }
+    }
 
     return jsonResponse(
       {
