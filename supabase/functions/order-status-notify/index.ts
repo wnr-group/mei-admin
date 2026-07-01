@@ -1,5 +1,4 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { jwtVerify } from 'jsr:@oakserver/oak@14.2.0/jwt';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

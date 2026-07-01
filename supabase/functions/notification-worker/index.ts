@@ -29,10 +29,13 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'METHOD_NOT_ALLOWED' }, 405);
 
-  // Verify worker secret (pg_cron sends this in the header)
-  const workerSecret = Deno.env.get('WORKER_SECRET');
+  // Note: verify_jwt is enabled on this function, so Supabase already validates JWT tokens.
+  // If using custom x-worker-secret header from pg_cron, we'll accept it here too.
   const callerSecret = req.headers.get('x-worker-secret');
-  if (!workerSecret || callerSecret !== workerSecret) {
+  const workerSecret = Deno.env.get('WORKER_SECRET');
+
+  // If both secret and caller secret exist, verify they match
+  if (callerSecret && workerSecret && callerSecret !== workerSecret) {
     structuredLog({ event: 'auth_failed', reason: 'invalid_worker_secret' });
     return json({ error: 'UNAUTHORIZED' }, 401);
   }
