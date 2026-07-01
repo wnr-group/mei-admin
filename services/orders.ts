@@ -63,9 +63,11 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
   })
 
   // Fire-and-forget: enqueue status update notification
-  supabase.functions
-    .invoke('order-status-notify', { body: { order_id: id, new_status: status } })
-    .catch((err) => console.error('order-status-notify invoke failed:', err))
+  if (supabase.functions) {
+    supabase.functions
+      .invoke('order-status-notify', { body: { order_id: id, new_status: status } })
+      .catch((err) => console.error('order-status-notify invoke failed:', err))
+  }
 
   return data as Order
 }
