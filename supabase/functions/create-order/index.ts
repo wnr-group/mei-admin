@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { logNotification } from '../_shared/log.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -209,12 +210,14 @@ Deno.serve(async (req) => {
 
       if (enabled) {
         const customerPayload = {
+          correlationId: requestId,
           customerName: body.customer.name,
           orderNumber:  data.order_number,
           items:        body.items.map((i: OrderItem) => ({ name: i.name, quantity: i.quantity })),
           total:        Number(data.total),
         };
         const adminPayload = {
+          correlationId: requestId,
           customerName:  body.customer.name,
           customerEmail: body.customer.email,
           customerPhone: body.customer.phone ?? null,
@@ -226,7 +229,20 @@ Deno.serve(async (req) => {
         const customerKey = `ORDER_CONFIRMATION_CUSTOMER:${data.order_id}`;
         const adminKey    = `ORDER_CONFIRMATION_ADMIN:${data.order_id}`;
 
-        log('notification_enqueue_started', { customer_key: customerKey, admin_key: adminKey });
+        const enqueueFields = {
+          correlation_id: requestId,
+          order_id: String(data.order_id),
+          order_number: data.order_number,
+          customer_email: body.customer.email,
+          customer_phone: body.customer.phone ?? null,
+          provider: 'queue',
+        };
+
+        logNotification('create-order', {
+          event: 'notification_enqueue_started',
+          ...enqueueFields,
+          notification_type: 'ORDER_CONFIRMATION_CUSTOMER',
+        });
 
         // Direct table insert instead of supabase.rpc('enqueue_notification') to avoid
         // a PostgREST limitation: the RPC has a `notification_type` ENUM parameter, and
@@ -247,43 +263,61 @@ Deno.serve(async (req) => {
           )
           .then(({ error }) => {
             if (error) {
-              log('enqueue_customer_failed', {
-                error:   error.message,
-                code:    (error as any).code,
-                details: (error as any).details,
-                hint:    (error as any).hint,
+              logNotification('create-order', {
+                event: 'notification_enqueue_failed',
+                ...enqueueFields,
+                notification_type: 'ORDER_CONFIRMATION_CUSTOMER',
+                error_message: error.message,
+                error_code: (error as any).code ?? null,
               });
             } else {
-              log('enqueue_customer_success', { customer_key: customerKey });
+              logNotification('create-order', {
+                event: 'notification_enqueue_success',
+                ...enqueueFields,
+                notification_type: 'ORDER_CONFIRMATION_CUSTOMER',
+              });
             }
           });
 
-        const enqueueAdmin = adminEmail
-          ? supabase
-              .from('notification_jobs')
-              .upsert(
-                {
-                  idempotency_key: adminKey,
-                  type:            'ORDER_CONFIRMATION_ADMIN',
-                  recipient_email: adminEmail,
-                  payload:         adminPayload,
-                  priority:        1,
-                },
-                { onConflict: 'idempotency_key', ignoreDuplicates: true }
-              )
-              .then(({ error }) => {
-                if (error) {
-                  log('enqueue_admin_failed', {
-                    error:   error.message,
-                    code:    (error as any).code,
-                    details: (error as any).details,
-                    hint:    (error as any).hint,
-                  });
-                } else {
-                  log('enqueue_admin_success', { admin_key: adminKey });
-                }
-              })
-          : Promise.resolve();
+        let enqueueAdmin: PromiseLike<void>;
+        if (adminEmail) {
+          logNotification('create-order', {
+            event: 'notification_enqueue_started',
+            ...enqueueFields,
+            notification_type: 'ORDER_CONFIRMATION_ADMIN',
+          });
+          enqueueAdmin = supabase
+            .from('notification_jobs')
+            .upsert(
+              {
+                idempotency_key: adminKey,
+                type:            'ORDER_CONFIRMATION_ADMIN',
+                recipient_email: adminEmail,
+                payload:         adminPayload,
+                priority:        1,
+              },
+              { onConflict: 'idempotency_key', ignoreDuplicates: true }
+            )
+            .then(({ error }) => {
+              if (error) {
+                logNotification('create-order', {
+                  event: 'notification_enqueue_failed',
+                  ...enqueueFields,
+                  notification_type: 'ORDER_CONFIRMATION_ADMIN',
+                  error_message: error.message,
+                  error_code: (error as any).code ?? null,
+                });
+              } else {
+                logNotification('create-order', {
+                  event: 'notification_enqueue_success',
+                  ...enqueueFields,
+                  notification_type: 'ORDER_CONFIRMATION_ADMIN',
+                });
+              }
+            });
+        } else {
+          enqueueAdmin = Promise.resolve();
+        }
 
         // Await enqueue before returning — Edge Function isolate is killed when the response
         // is sent, so fire-and-forget fetch() calls are dropped before they complete.

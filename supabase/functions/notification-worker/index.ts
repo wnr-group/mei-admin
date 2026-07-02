@@ -2,6 +2,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { createEmailProvider } from '../_shared/email-provider.ts';
 import { renderTemplate } from '../_shared/email-templates.ts';
 import type { NotificationJob } from '../_shared/notification-types.ts';
+import { logNotification } from '../_shared/log.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,30 +76,46 @@ Deno.serve(async (req) => {
       structuredLog({ event, runId, jobId: job.id, type: job.type, attempt: job.attempts + 1, ...extra });
 
     const start = Date.now();
+    const correlationId = (job.payload?.correlationId as string) ?? job.id;
+    const baseFields = {
+      correlation_id: correlationId,
+      notification_type: job.type,
+      customer_email: job.recipient_email,
+      order_id: (job.payload?.orderId as string) ?? null,
+      order_number: (job.payload?.orderNumber as string) ?? null,
+      customer_id: (job.payload?.customerId as string) ?? null,
+      customer_phone: (job.payload?.customerPhone as string) ?? null,
+      provider: 'mailgun',
+    };
+
+    logNotification('notification-worker', { event: 'provider_request_started', ...baseFields });
 
     try {
       const { subject, html } = renderTemplate(job.type, job.payload);
-
-      const messageId = await provider.send({
-        to: job.recipient_email,
-        subject,
-        html,
-      });
+      const messageId = await provider.send({ to: job.recipient_email, subject, html });
 
       await db.rpc('complete_notification_job', {
         p_job_id: job.id,
         p_provider_message_id: messageId,
       });
 
+      logNotification('notification-worker', {
+        event: 'provider_request_success',
+        ...baseFields,
+        provider_message_id: messageId,
+      });
       jobLog('job_sent', { messageId, durationMs: Date.now() - start });
       results.push({ jobId: job.id, status: 'sent' });
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      await db.rpc('fail_notification_job', {
-        p_job_id: job.id,
-        p_error: errMsg,
-      });
+      await db.rpc('fail_notification_job', { p_job_id: job.id, p_error: errMsg });
 
+      logNotification('notification-worker', {
+        event: 'provider_request_failed',
+        ...baseFields,
+        error_message: errMsg,
+        error_code: errMsg.match(/Mailgun (\d{3})/)?.[1] ?? null,
+      });
       jobLog('job_failed', { error: errMsg, durationMs: Date.now() - start });
       results.push({ jobId: job.id, status: 'failed', error: errMsg });
     }
