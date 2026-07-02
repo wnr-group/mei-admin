@@ -198,7 +198,14 @@ Deno.serve(async (req) => {
       const adminEmail = Deno.env.get('ADMIN_EMAIL');
       const adminUrl   = Deno.env.get('ADMIN_URL') ?? '';
       const enabled    = Deno.env.get('NOTIFICATIONS_ENABLED') === 'true';
-      log('notifications_config', { enabled });
+      log('notifications_config', {
+        enabled,
+        has_admin_email: !!adminEmail,
+        order_id:        String(data.order_id),
+        order_number:    data.order_number,
+        customer_email:  body.customer.email,
+        customer_phone:  body.customer.phone ?? null,
+      });
 
       if (enabled) {
         const customerPayload = {
@@ -216,30 +223,71 @@ Deno.serve(async (req) => {
           adminOrderUrl: `${adminUrl}/orders/${data.order_id}`,
         };
 
-        const enqueueCustomer = supabase.rpc('enqueue_notification', {
-          p_idempotency_key: `ORDER_CONFIRMATION_CUSTOMER:${data.order_id}`,
-          p_type:            'ORDER_CONFIRMATION_CUSTOMER',
-          p_recipient_email: body.customer.email,
-          p_payload:         customerPayload,
-          p_priority:        1,
-        }).then(({ error }) => {
-          if (error) log('enqueue_customer_failed', { error: error.message });
-        });
+        const customerKey = `ORDER_CONFIRMATION_CUSTOMER:${data.order_id}`;
+        const adminKey    = `ORDER_CONFIRMATION_ADMIN:${data.order_id}`;
+
+        log('notification_enqueue_started', { customer_key: customerKey, admin_key: adminKey });
+
+        // Direct table insert instead of supabase.rpc('enqueue_notification') to avoid
+        // a PostgREST limitation: the RPC has a `notification_type` ENUM parameter, and
+        // PostgREST passes JSON strings as `text`, which PostgreSQL cannot implicitly cast
+        // to a user-defined ENUM for function argument resolution. Table upsert uses the
+        // column's own type context (assignment cast), which accepts text → ENUM correctly.
+        const enqueueCustomer = supabase
+          .from('notification_jobs')
+          .upsert(
+            {
+              idempotency_key: customerKey,
+              type:            'ORDER_CONFIRMATION_CUSTOMER',
+              recipient_email: body.customer.email,
+              payload:         customerPayload,
+              priority:        1,
+            },
+            { onConflict: 'idempotency_key', ignoreDuplicates: true }
+          )
+          .then(({ error }) => {
+            if (error) {
+              log('enqueue_customer_failed', {
+                error:   error.message,
+                code:    (error as any).code,
+                details: (error as any).details,
+                hint:    (error as any).hint,
+              });
+            } else {
+              log('enqueue_customer_success', { customer_key: customerKey });
+            }
+          });
 
         const enqueueAdmin = adminEmail
-          ? supabase.rpc('enqueue_notification', {
-              p_idempotency_key: `ORDER_CONFIRMATION_ADMIN:${data.order_id}`,
-              p_type:            'ORDER_CONFIRMATION_ADMIN',
-              p_recipient_email: adminEmail,
-              p_payload:         adminPayload,
-              p_priority:        1,
-            }).then(({ error }) => {
-              if (error) log('enqueue_admin_failed', { error: error.message });
-            })
+          ? supabase
+              .from('notification_jobs')
+              .upsert(
+                {
+                  idempotency_key: adminKey,
+                  type:            'ORDER_CONFIRMATION_ADMIN',
+                  recipient_email: adminEmail,
+                  payload:         adminPayload,
+                  priority:        1,
+                },
+                { onConflict: 'idempotency_key', ignoreDuplicates: true }
+              )
+              .then(({ error }) => {
+                if (error) {
+                  log('enqueue_admin_failed', {
+                    error:   error.message,
+                    code:    (error as any).code,
+                    details: (error as any).details,
+                    hint:    (error as any).hint,
+                  });
+                } else {
+                  log('enqueue_admin_success', { admin_key: adminKey });
+                }
+              })
           : Promise.resolve();
 
-        // Fire-and-forget — do not await before returning order response
-        Promise.allSettled([enqueueCustomer, enqueueAdmin])
+        // Await enqueue before returning — Edge Function isolate is killed when the response
+        // is sent, so fire-and-forget fetch() calls are dropped before they complete.
+        await Promise.allSettled([enqueueCustomer, enqueueAdmin])
           .then((results) => {
             results.forEach((r, i) => {
               if (r.status === 'rejected') log('enqueue_settled_error', { index: i, reason: String(r.reason) });
