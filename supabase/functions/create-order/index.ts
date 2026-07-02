@@ -198,6 +198,7 @@ Deno.serve(async (req) => {
       const adminEmail = Deno.env.get('ADMIN_EMAIL');
       const adminUrl   = Deno.env.get('ADMIN_URL') ?? '';
       const enabled    = Deno.env.get('NOTIFICATIONS_ENABLED') === 'true';
+      log('notifications_config', { enabled });
 
       if (enabled) {
         const customerPayload = {
