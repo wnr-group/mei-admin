@@ -82,4 +82,4 @@ Correlation ID flows: create-order sets `correlationId: requestId` in the job pa
 
 ## Commit
 
-commit: (see git log)
+commit: 25b1256 feat(notifications): add Phase-6 structured logging with correlation ids
