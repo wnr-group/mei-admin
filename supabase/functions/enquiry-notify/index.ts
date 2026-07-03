@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { logNotification } from '../_shared/log.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,32 +14,32 @@ function json(data: unknown, status = 200) {
   });
 }
 
-function structuredLog(fields: Record<string, unknown>) {
-  console.log(JSON.stringify({
-    service: 'enquiry-notify',
-    ts: new Date().toISOString(),
-    ...fields,
-  }));
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ success: false, error: 'METHOD_NOT_ALLOWED' }, 405);
 
-  const enquiryId = crypto.randomUUID();
+  const correlationId = req.headers.get('x-request-id') ?? crypto.randomUUID();
 
-  // Verify storefront secret
+  const log = (event: string, extra?: Record<string, unknown>) =>
+    logNotification('enquiry-notify', { event, correlation_id: correlationId, ...extra });
+
   const storefrontSecret = Deno.env.get('STOREFRONT_API_SECRET');
   const callerSecret = req.headers.get('x-storefront-secret');
   if (!storefrontSecret || callerSecret !== storefrontSecret) {
-    structuredLog({ event: 'auth_failed', enquiry_id: enquiryId, reason: 'invalid_secret' });
+    log('auth_failed', { reason: 'invalid_secret' });
     return json({ success: false, error: 'UNAUTHORIZED' }, 401);
   }
 
   const body = await req.json().catch(() => null);
   if (!body?.enquiry_id) {
-    structuredLog({ event: 'validation_failed', reason: 'missing_enquiry_id' });
+    log('validation_failed', { reason: 'missing_enquiry_id' });
     return json({ success: false, error: 'INVALID_PAYLOAD' }, 400);
+  }
+
+  const enabled = Deno.env.get('NOTIFICATIONS_ENABLED') === 'true';
+  if (!enabled) {
+    log('notifications_disabled', { enquiry_id: body.enquiry_id });
+    return json({ success: true });
   }
 
   const db = createClient(
@@ -53,49 +54,65 @@ Deno.serve(async (req) => {
     .single();
 
   if (error || !enquiry) {
-    structuredLog({ event: 'enquiry_not_found', enquiry_id: body.enquiry_id, error: error?.message });
+    log('enquiry_not_found', { enquiry_id: body.enquiry_id, error: error?.message });
     return json({ success: false, error: 'ENQUIRY_NOT_FOUND' }, 404);
   }
 
-  structuredLog({ event: 'enquiry_fetched', enquiry_id: body.enquiry_id, customer_email: enquiry.email });
+  log('enquiry_fetched', { enquiry_id: body.enquiry_id, customer_email: enquiry.email });
 
   const adminEmail = Deno.env.get('ADMIN_EMAIL');
   const adminUrl = Deno.env.get('ADMIN_URL') ?? '';
 
-  // Enqueue customer receipt notification
+  // Direct upsert — avoids PostgREST text→ENUM casting failure that affects RPC calls.
+  // See create-order/index.ts for the documented explanation of this pattern.
+
   const customerPayload = {
+    correlationId,
     name: enquiry.name,
     message: enquiry.message,
   };
 
-  const { data: customerResult, error: customerError } = await db.rpc('enqueue_notification', {
-    p_idempotency_key: `ENQUIRY_RECEIPT_CUSTOMER:${body.enquiry_id}`,
-    p_type: 'ENQUIRY_RECEIPT_CUSTOMER',
-    p_recipient_email: enquiry.email,
-    p_payload: customerPayload,
+  logNotification('enquiry-notify', {
+    event: 'notification_enqueue_started',
+    correlation_id: correlationId,
+    notification_type: 'ENQUIRY_RECEIPT_CUSTOMER',
+    customer_email: enquiry.email,
   });
 
+  const { error: customerError } = await db
+    .from('notification_jobs')
+    .upsert(
+      {
+        idempotency_key: `ENQUIRY_RECEIPT_CUSTOMER:${body.enquiry_id}`,
+        type: 'ENQUIRY_RECEIPT_CUSTOMER',
+        recipient_email: enquiry.email,
+        payload: customerPayload,
+        priority: 1,
+      },
+      { onConflict: 'idempotency_key', ignoreDuplicates: true }
+    );
+
   if (customerError) {
-    structuredLog({
-      event: 'customer_enqueue_failed',
-      enquiry_id: body.enquiry_id,
-      error: customerError.message
+    logNotification('enquiry-notify', {
+      event: 'notification_enqueue_failed',
+      correlation_id: correlationId,
+      notification_type: 'ENQUIRY_RECEIPT_CUSTOMER',
+      customer_email: enquiry.email,
+      error_message: customerError.message,
+      error_code: customerError.code ?? null,
     });
   } else {
-    structuredLog({
-      event: 'customer_enqueued',
-      enquiry_id: body.enquiry_id,
-      job_id: (customerResult as Record<string, unknown>)?.job_id,
-      enqueued: (customerResult as Record<string, unknown>)?.enqueued,
+    logNotification('enquiry-notify', {
+      event: 'notification_enqueue_success',
+      correlation_id: correlationId,
+      notification_type: 'ENQUIRY_RECEIPT_CUSTOMER',
+      customer_email: enquiry.email,
     });
   }
 
-  // Enqueue admin notification if admin email is set
-  let adminResult = null;
-  let adminError = null;
-
   if (adminEmail) {
     const adminPayload = {
+      correlationId,
       name: enquiry.name,
       email: enquiry.email,
       phone: enquiry.phone ?? null,
@@ -105,38 +122,45 @@ Deno.serve(async (req) => {
       adminEnquiryUrl: `${adminUrl}/enquiries/${body.enquiry_id}`,
     };
 
-    const result = await db.rpc('enqueue_notification', {
-      p_idempotency_key: `ENQUIRY_ADMIN_NOTIFICATION:${body.enquiry_id}`,
-      p_type: 'ENQUIRY_ADMIN_NOTIFICATION',
-      p_recipient_email: adminEmail,
-      p_payload: adminPayload,
+    logNotification('enquiry-notify', {
+      event: 'notification_enqueue_started',
+      correlation_id: correlationId,
+      notification_type: 'ENQUIRY_ADMIN_NOTIFICATION',
+      customer_email: adminEmail,
     });
 
-    adminResult = result.data;
-    adminError = result.error;
+    const { error: adminError } = await db
+      .from('notification_jobs')
+      .upsert(
+        {
+          idempotency_key: `ENQUIRY_ADMIN_NOTIFICATION:${body.enquiry_id}`,
+          type: 'ENQUIRY_ADMIN_NOTIFICATION',
+          recipient_email: adminEmail,
+          payload: adminPayload,
+          priority: 1,
+        },
+        { onConflict: 'idempotency_key', ignoreDuplicates: true }
+      );
+
+    if (adminError) {
+      logNotification('enquiry-notify', {
+        event: 'notification_enqueue_failed',
+        correlation_id: correlationId,
+        notification_type: 'ENQUIRY_ADMIN_NOTIFICATION',
+        customer_email: adminEmail,
+        error_message: adminError.message,
+        error_code: adminError.code ?? null,
+      });
+    } else {
+      logNotification('enquiry-notify', {
+        event: 'notification_enqueue_success',
+        correlation_id: correlationId,
+        notification_type: 'ENQUIRY_ADMIN_NOTIFICATION',
+        customer_email: adminEmail,
+      });
+    }
   }
 
-  if (adminError) {
-    structuredLog({
-      event: 'admin_enqueue_failed',
-      enquiry_id: body.enquiry_id,
-      error: adminError.message
-    });
-  } else if (adminEmail) {
-    structuredLog({
-      event: 'admin_enqueued',
-      enquiry_id: body.enquiry_id,
-      job_id: (adminResult as Record<string, unknown>)?.job_id,
-      enqueued: (adminResult as Record<string, unknown>)?.enqueued,
-    });
-  }
-
-  structuredLog({
-    event: 'enquiry_notify_complete',
-    enquiry_id: body.enquiry_id,
-    customer_queued: !customerError,
-    admin_queued: !adminError || !adminEmail,
-  });
-
+  log('enquiry_notify_complete', { enquiry_id: body.enquiry_id });
   return json({ success: true });
 });
