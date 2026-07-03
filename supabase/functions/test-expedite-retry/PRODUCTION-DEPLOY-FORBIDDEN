@@ -1,0 +1,10 @@
+DO NOT DEPLOY THIS FUNCTION TO PRODUCTION.
+
+This is a development utility with no authentication. It directly modifies
+notification_jobs.next_attempt_at and is intended only for local testing.
+
+Deploying it creates an unauthenticated endpoint that allows arbitrary
+notification job manipulation.
+
+To test retry behavior in development only:
+  npx supabase functions deploy test-expedite-retry  # local stack only

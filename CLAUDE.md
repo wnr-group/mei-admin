@@ -44,6 +44,17 @@ npm run lint      # ESLint
 npx tsc --noEmit  # Type check
 ```
 
+**Never deploy test-expedite-retry to production:**
+
+```bash
+# Safe: deploy specific functions by name
+npx supabase functions deploy create-order
+npx supabase functions deploy notification-worker
+
+# NEVER run this — deploys all functions including test-expedite-retry:
+# npx supabase functions deploy  (no args)
+```
+
 ## Local Development Setup
 
 **Critical:** For local development to work correctly, `.env.local` must point to the **hosted Supabase project**, not the local Docker instance. This ensures:
@@ -53,12 +64,19 @@ npx tsc --noEmit  # Type check
 
 **Required `.env.local` entries:**
 ```bash
-# Points to hosted Supabase (DO NOT use local Docker URL)
+# Admin panel browser client — MUST point to hosted Supabase, not local Docker
+# Without this, the browser gets "permission denied for table orders" (local DB has no data/grants)
+NEXT_PUBLIC_SUPABASE_URL=https://hjhqemsyufsifmgespur.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqaHFlbXN5dWZzaWZtZ2VzcHVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5OTYzMDksImV4cCI6MjA5NjU3MjMwOX0.C3q3hCrcbdKxDmvCpEzAZ4sO3AKXXdfAVE6fq4E7M_g
+
+# Edge Function client — also points to hosted Supabase
 MEI_DB_URL=https://hjhqemsyufsifmgespur.supabase.co
 MEI_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqaHFlbXN5dWZzaWZtZ2VzcHVyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDk5NjMwOSwiZXhwIjoyMDk2NTcyMzA5fQ.-FRJZIPq-hpfstKY2vZvahztAa0ZEv2-QSSpiEy591o
 ```
 
-**Why:** The `create-order` Edge Function checks `MEI_DB_URL` first (line 134), then falls back to `SUPABASE_URL`. Without `MEI_DB_URL`, it queries the empty local Docker database and fails with PRODUCT_NOT_FOUND.
+**Why:** Two separate clients need the hosted URL:
+1. **Browser client** (`NEXT_PUBLIC_SUPABASE_URL`): Used by the admin panel UI. `.env` defaults to `http://127.0.0.1:54321` (local Docker). If `.env.local` doesn't override this, the browser queries the empty local database → "permission denied for table orders".
+2. **Edge Function** (`MEI_DB_URL`): The `create-order` Edge Function checks `MEI_DB_URL` first, then falls back to `SUPABASE_URL`. Without `MEI_DB_URL`, it queries the empty local Docker database and fails with PRODUCT_NOT_FOUND.
 
 ## Conventions
 
