@@ -35,9 +35,14 @@ Deno.serve(async (req) => {
   const callerSecret = req.headers.get('x-worker-secret');
   const workerSecret = Deno.env.get('WORKER_SECRET');
 
-  // If both secret and caller secret exist, verify they match
-  if (callerSecret && workerSecret && callerSecret !== workerSecret) {
-    structuredLog({ event: 'auth_failed', reason: 'invalid_worker_secret' });
+  if (!workerSecret) {
+    structuredLog({ event: 'config_error', error: 'WORKER_SECRET not set' });
+    return json({ error: 'SERVER_MISCONFIGURED' }, 500);
+  }
+
+  // Reject if header is missing or doesn't match: null !== 'secret' is true, so unauthenticated requests fail
+  if (callerSecret !== workerSecret) {
+    structuredLog({ event: 'auth_failed', reason: 'invalid_worker_secret', has_header: callerSecret !== null });
     return json({ error: 'UNAUTHORIZED' }, 401);
   }
 
