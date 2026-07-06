@@ -30,9 +30,9 @@ export type Database = {
         Update: { name?: string; email?: string | null; phone?: string | null; city?: string | null }
       }
       orders: {
-        Row: { id: string; order_number: string; customer_id: string | null; status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes: string | null; created_at: string; updated_at: string; deleted_at: string | null }
-        Insert: { id?: string; order_number?: string; customer_id?: string | null; status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes?: string | null }
-        Update: { status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total?: number; notes?: string | null; deleted_at?: string | null }
+        Row: { id: string; order_number: string; customer_id: string | null; status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes: string | null; created_at: string; updated_at: string; deleted_at: string | null; razorpay_order_id: string | null; razorpay_payment_id: string | null; payment_method: string | null; payment_status: string | null; payment_captured_at: string | null; webhook_verified: boolean; reconciliation_status: string | null }
+        Insert: { id?: string; order_number?: string; customer_id?: string | null; status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes?: string | null; razorpay_order_id?: string | null; razorpay_payment_id?: string | null; payment_method?: string | null; payment_status?: string | null; payment_captured_at?: string | null; webhook_verified?: boolean; reconciliation_status?: string | null }
+        Update: { status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total?: number; notes?: string | null; deleted_at?: string | null; razorpay_order_id?: string | null; razorpay_payment_id?: string | null; payment_method?: string | null; payment_status?: string | null; payment_captured_at?: string | null; webhook_verified?: boolean; reconciliation_status?: string | null }
       }
       order_items: {
         Row: { id: string; order_id: string; product_id: string | null; product_name: string; quantity: number; unit_price: number; created_at: string }

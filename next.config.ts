@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
@@ -23,6 +24,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   /* config options here */
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   reactCompiler: true,
   async headers() {
     return [
@@ -35,3 +39,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+

@@ -159,7 +159,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         </div>
 
         {/* Status Dropdown & Dot indicator */}
-        <div className="flex flex-col items-end w-full sm:w-auto">
+        <div className="flex flex-col items-end w-full sm:w-auto gap-3">
           <div className="relative">
             <select
               value={order.status}
@@ -179,10 +179,25 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2.5 text-[10px] font-bold tracking-widest text-zinc-500 uppercase font-sans mt-2.5">
+          <div className="flex items-center justify-end gap-2.5 text-[10px] font-bold tracking-widest text-zinc-500 uppercase font-sans">
             <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(order.status)}`} />
             <span>{order.status}</span>
           </div>
+
+          {/* Message on WhatsApp Button */}
+          {order.customers?.phone && (
+            <a
+              href={`https://wa.me/${order.customers.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(`Hello ${order.customers.name ?? ''}, regarding your order ${order.order_number}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#25D366] hover:bg-[#20ba5a] text-white text-[12px] font-bold px-4 py-2.5 flex items-center gap-2.5 transition-colors cursor-pointer select-none font-sans rounded-none"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.665.989 3.3 1.489 5.361 1.49 5.373 0 9.743-4.307 9.745-9.643.001-2.585-1.01-5.016-2.85-6.859-1.84-1.84-4.284-2.85-6.867-2.852-5.379 0-9.752 4.307-9.754 9.64-.001 2.128.56 4.198 1.628 5.945l-1.066 3.89 3.996-1.037z" />
+              </svg>
+              Message on WhatsApp
+            </a>
+          )}
         </div>
       </div>
 
