@@ -2,9 +2,10 @@ import {
   getTemplates,
   createTemplate,
 } from '@/lib/services/measurement-templates';
+import { createUntypedClient } from '@/lib/supabase/client';
 
 // Helper to generate UUID-like string
-const generateId = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+const generateId = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
   const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
   return v.toString(16);
 });
@@ -15,11 +16,7 @@ describe('Measurement Templates Service', () => {
   let realCategoryId: string;
 
   beforeAll(async () => {
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = createUntypedClient();
     await supabase.auth.signInWithPassword({
       email: 'admin@mei.com',
       password: 'MeiAdmin@123',

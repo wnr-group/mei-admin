@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createUntypedClient } from '@/lib/supabase/client';
 
 export type CustomizationType =
   | 'UNSTITCHED'
@@ -25,6 +20,7 @@ export async function getBlouseConfig(
   productId: string,
   customizationType?: CustomizationType
 ): Promise<BlouseConfiguration | null> {
+  const supabase = createUntypedClient();
   let query = supabase
     .from('blouse_configurations')
     .select('*')
@@ -42,6 +38,7 @@ export async function upsertBlouseConfig(input: {
   includes_blouse?: boolean;
   stitching_options?: string[];
 }): Promise<BlouseConfiguration> {
+  const supabase = createUntypedClient();
   const existing = await getBlouseConfig(input.product_id, input.customization_type);
 
   if (existing) {

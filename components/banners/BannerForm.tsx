@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchBanners, addBanner, updateBanner, Banner } from '@/lib/mockDb';
+import { useCreateBanner, useUpdateBanner } from '@/hooks/use-banners';
+import { getBannerById } from '@/services/banners';
+import { uploadBannerImage } from '@/services/storage';
 import { Upload, X, Loader2, Link as LinkIcon } from 'lucide-react';
 import Link from 'next/link';
 
@@ -14,51 +16,43 @@ export default function BannerForm({ editId }: BannerFormProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const createMutation = useCreateBanner();
+  const updateMutation = useUpdateBanner();
+
   // Form states
-  const [name, setName] = useState('');
   const [title, setTitle] = useState('');
-  const [subtitle, setSubtitle] = useState('');
-  const [image, setImage] = useState('');
+  const [image, setImage] = useState(''); // Stores preview DataURL or image URL
+  const [imageFile, setImageFile] = useState<File | null>(null); // Stores raw File for upload
   const [link, setLink] = useState('');
-  const [linkText, setLinkText] = useState('');
-  const [position, setPosition] = useState<Banner['type']>('HERO');
   const [sortOrder, setSortOrder] = useState(0);
   const [active, setActive] = useState(true);
-  
-  // Date schedule states
-  const [showFrom, setShowFrom] = useState('');
-  const [showUntil, setShowUntil] = useState('');
 
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(editId ? true : false);
   const [saving, setSaving] = useState(false);
 
-  // Load existing banner data if in edit mode
+  // Fetch banner details if in edit mode
   useEffect(() => {
     if (!editId) return;
 
     async function loadBanner() {
       try {
-        const banners = await fetchBanners();
-        const banner = banners.find((b) => b.id === editId);
-        if (banner) {
-          setName(banner.name || '');
-          setTitle(banner.title);
-          setSubtitle(banner.subtitle || '');
-          setImage(banner.image || '');
-          setLink(banner.link || '');
-          setLinkText(banner.linkText || '');
-          setPosition(banner.type);
-          setSortOrder(banner.sortOrder || 0);
-          setActive(banner.status === 'ACTIVE');
-          setShowFrom(banner.startDate || '');
-          setShowUntil(banner.endDate || '');
+        const data = await getBannerById(editId!);
+        if (data) {
+          setTitle(data.title || '');
+          setImage(data.image_url || '');
+          setLink(data.link_url || '');
+          setSortOrder(data.sort_order || 0);
+          setActive(data.is_active ?? true);
+          setImageFile(null);
         } else {
           alert('Banner not found.');
           router.push('/banners');
         }
       } catch (err) {
         console.error('Failed to load banner details:', err);
+        alert('Failed to load banner details. Redirecting to banners list...');
+        router.push('/banners');
       } finally {
         setLoading(false);
       }
@@ -92,6 +86,7 @@ export default function BannerForm({ editId }: BannerFormProps) {
   };
 
   const processFile = (file: File) => {
+    setImageFile(file);
     const reader = new FileReader();
     reader.onloadend = () => {
       if (typeof reader.result === 'string') {
@@ -114,48 +109,50 @@ export default function BannerForm({ editId }: BannerFormProps) {
       return;
     }
 
-    // Dynamic banner internal name fallback if not specified
-    const finalName = name.trim() || `${title.trim()} Banner`;
-
-    // Date validation
-    if (showFrom && showUntil && new Date(showFrom) > new Date(showUntil)) {
-      alert('Show From date cannot be after the Show Until date.');
+    if (!image.trim()) {
+      alert('Please select a banner image or enter an image URL.');
       return;
     }
 
     setSaving(true);
 
-    const payload = {
-      name: finalName,
-      title: title.trim(),
-      subtitle: subtitle.trim(),
-      type: position,
-      status: active ? ('ACTIVE' as const) : ('INACTIVE' as const),
-      startDate: showFrom,
-      endDate: showUntil,
-      image: image.trim(),
-      link: link.trim(),
-      linkText: linkText.trim(),
-      sortOrder: sortOrder
-    };
-
     try {
+      let finalImageUrl = image;
+
+      // If a local image file was chosen, upload it first
+      if (imageFile) {
+        // Generate a fallback ID if creating new banner
+        const uploadId = editId || `new-${Date.now()}`;
+        finalImageUrl = await uploadBannerImage(imageFile, uploadId);
+      }
+
+      const payload = {
+        title: title.trim(),
+        image_url: finalImageUrl.trim(),
+        link_url: link.trim() || null,
+        is_active: active,
+        sort_order: sortOrder,
+      };
+
       if (editId) {
-        await updateBanner({
+        await updateMutation.mutateAsync({
           id: editId,
-          ...payload
+          updates: payload,
         });
       } else {
-        await addBanner(payload);
+        await createMutation.mutateAsync(payload);
       }
+
       router.push('/banners');
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to save banner:', err);
-      alert('Failed to save banner. Please try again.');
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Failed to save banner: ${message}. Please try again.`);
     } finally {
       setSaving(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -171,7 +168,7 @@ export default function BannerForm({ editId }: BannerFormProps) {
   return (
     <div className="max-w-[480px] mx-auto pt-6 pb-16 font-inter animate-fade-in px-4">
       
-      {/* 1. Breadcrumbs matching screenshot */}
+      {/* 1. Breadcrumbs */}
       <div className="flex items-center text-[10px] tracking-widest uppercase text-zinc-600 font-medium select-none mb-1.5 font-inter">
         <Link href="/banners" className="hover:text-zinc-600 transition-colors">
           BANNERS
@@ -200,20 +197,6 @@ export default function BannerForm({ editId }: BannerFormProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Summer Bridal Collection"
-              className="w-full border border-[#E8E0D5] px-4 py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
-            />
-          </div>
-
-          {/* SUBTITLE field */}
-          <div className="space-y-1">
-            <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
-              SUBTITLE
-            </label>
-            <input
-              type="text"
-              value={subtitle}
-              onChange={(e) => setSubtitle(e.target.value)}
-              placeholder="e.g., Discover the new elegance"
               className="w-full border border-[#E8E0D5] px-4 py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
             />
           </div>
@@ -259,6 +242,7 @@ export default function BannerForm({ editId }: BannerFormProps) {
                     onClick={(e) => {
                       e.stopPropagation();
                       setImage('');
+                      setImageFile(null);
                     }}
                     className="absolute right-2 top-2 bg-black/60 hover:bg-black text-white rounded-full p-1.5 transition-colors cursor-pointer z-10"
                   >
@@ -286,8 +270,11 @@ export default function BannerForm({ editId }: BannerFormProps) {
               </label>
               <input
                 type="text"
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
+                value={imageFile ? '' : image}
+                onChange={(e) => {
+                  setImage(e.target.value);
+                  setImageFile(null);
+                }}
                 placeholder="e.g., https://images.unsplash.com/photo-..."
                 className="w-full border border-[#E8E0D5] px-4 py-2 text-[12px] text-zinc-700 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
               />
@@ -308,77 +295,18 @@ export default function BannerForm({ editId }: BannerFormProps) {
             />
           </div>
 
-          {/* LINK TEXT field */}
+          {/* SORT ORDER field */}
           <div className="space-y-1">
             <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
-              LINK TEXT
+              SORT ORDER
             </label>
             <input
-              type="text"
-              value={linkText}
-              onChange={(e) => setLinkText(e.target.value)}
-              placeholder="e.g., Explore Collection"
-              className="w-full border border-[#E8E0D5] px-4 py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
-            />
-          </div>
-
-          {/* POSITION and SORT ORDER side-by-side */}
-          <div className="grid grid-cols-2 gap-4">
-            
-            {/* POSITION control */}
-            <div className="space-y-1">
-              <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
-                POSITION
-              </label>
-              <div className="flex border border-[#E8E0D5] rounded-none overflow-hidden h-[40px]">
-                {['HERO', 'PROMO'].map((pos) => {
-                  const isActive = position === pos;
-                  return (
-                    <button
-                      key={pos}
-                      type="button"
-                      onClick={() => setPosition(pos as Banner['type'])}
-                      className={`flex-1 text-[10px] font-bold tracking-widest uppercase transition-all duration-150 text-center cursor-pointer ${
-                        isActive
-                          ? 'bg-[#C29E75] text-white border-none'
-                          : 'bg-white text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700 border-r border-[#E8E0D5] last:border-none'
-                      }`}
-                    >
-                      {pos}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* SORT ORDER field */}
-            <div className="space-y-1">
-              <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
-                SORT ORDER
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={sortOrder}
-                onChange={(e) => setSortOrder(parseInt(e.target.value, 10) || 0)}
-                placeholder="0"
-                className="w-full border border-[#E8E0D5] px-4 py-2.5 text-[13px] text-zinc-800 focus:outline-hidden focus:border-[#B38B5D] transition-colors font-sans h-[40px]"
-              />
-            </div>
-
-          </div>
-
-          {/* Internal Name (Internal classification, optional) */}
-          <div className="space-y-1">
-            <label className="block text-[8px] font-bold tracking-wider text-zinc-400 uppercase">
-              INTERNAL NAME (FOR ADMIN REFERENCE)
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Summer Bridal Collection Banner"
-              className="w-full border border-[#E8E0D5] px-4 py-2 text-[12px] text-zinc-700 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors"
+              type="number"
+              min={0}
+              value={sortOrder}
+              onChange={(e) => setSortOrder(parseInt(e.target.value, 10) || 0)}
+              placeholder="0"
+              className="w-full border border-[#E8E0D5] px-4 py-2.5 text-[13px] text-zinc-800 focus:outline-hidden focus:border-[#B38B5D] transition-colors font-sans h-[40px]"
             />
           </div>
 
@@ -402,50 +330,6 @@ export default function BannerForm({ editId }: BannerFormProps) {
                 }`}
               />
             </button>
-          </div>
-
-          {/* Schedule (Optional) divider */}
-          <div className="border-t border-dashed border-[#E8E0D5] my-6" />
-
-          {/* Schedule Header */}
-          <div className="space-y-0.5">
-            <h3 className="font-serif text-[15px] font-medium text-zinc-800">
-              Schedule (Optional)
-            </h3>
-            <p className="text-[11px] text-zinc-400 font-inter font-light italic">
-              Leave blank to show indefinitely.
-            </p>
-          </div>
-
-          {/* Schedule Dates pickers */}
-          <div className="grid grid-cols-2 gap-4">
-            
-            {/* SHOW FROM */}
-            <div className="space-y-1">
-              <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
-                SHOW FROM
-              </label>
-              <input
-                type="datetime-local"
-                value={showFrom}
-                onChange={(e) => setShowFrom(e.target.value)}
-                className="w-full border border-[#E8E0D5] px-3 py-2 text-[12px] text-zinc-800 bg-white focus:outline-hidden focus:border-[#B38B5D] transition-colors font-sans"
-              />
-            </div>
-
-            {/* SHOW UNTIL */}
-            <div className="space-y-1">
-              <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
-                SHOW UNTIL
-              </label>
-              <input
-                type="datetime-local"
-                value={showUntil}
-                onChange={(e) => setShowUntil(e.target.value)}
-                className="w-full border border-[#E8E0D5] px-3 py-2 text-[12px] text-zinc-800 bg-white focus:outline-hidden focus:border-[#B38B5D] transition-colors font-sans"
-              />
-            </div>
-
           </div>
 
           {/* Action buttons */}

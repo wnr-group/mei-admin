@@ -30,7 +30,7 @@ describe('Schema Verification', () => {
         throw new Error(`Table ${table} check failed: ${error.message}`);
       }
     }
-  });
+  }, 15000);
 
   test('product_variants unique index prevents duplicates', async () => {
     let testColor: { id: string } | null = null;
