@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client';
+import { createUntypedClient } from '@/lib/supabase/client';
 
 export interface ProductMedia {
   id: string;
@@ -19,7 +19,7 @@ export async function getProductMedia(
   productId: string,
   colorId?: string
 ): Promise<ProductMedia[]> {
-  const supabase = createClient<any>();
+  const supabase = createUntypedClient();
   let query = supabase
     .from('product_media')
     .select('*')
@@ -41,7 +41,7 @@ export async function uploadMedia(input: {
   is_primary?: boolean;
   sort_order?: number;
 }): Promise<ProductMedia> {
-  const supabase = createClient<any>();
+  const supabase = createUntypedClient();
   const { data, error } = await supabase
     .from('product_media')
     .insert({
@@ -57,7 +57,7 @@ export async function uploadMedia(input: {
 }
 
 export async function deleteMedia(id: string): Promise<void> {
-  const supabase = createClient<any>();
+  const supabase = createUntypedClient();
   const { error } = await supabase
     .from('product_media')
     .update({ deleted_at: new Date().toISOString() })

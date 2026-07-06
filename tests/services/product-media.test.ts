@@ -3,7 +3,7 @@ import {
   uploadMedia,
   deleteMedia,
 } from '@/lib/services/product-media';
-import { createClient } from '@/lib/supabase/client';
+import { createUntypedClient } from '@/lib/supabase/client';
 
 describe.runIf(!!process.env.NEXT_PUBLIC_SUPABASE_URL)('Product Media Service', () => {
   // Note: These tests assume seeded product data exists
@@ -12,7 +12,7 @@ describe.runIf(!!process.env.NEXT_PUBLIC_SUPABASE_URL)('Product Media Service', 
 
   beforeAll(async () => {
     // Get first product to test with
-    const supabase = createClient<any>();
+    const supabase = createUntypedClient();
 
     // Sign in as admin to have write permissions for database tests
     await supabase.auth.signInWithPassword({

@@ -2,7 +2,7 @@ import {
   getTemplates,
   createTemplate,
 } from '@/lib/services/measurement-templates';
-import { createClient } from '@/lib/supabase/client';
+import { createUntypedClient } from '@/lib/supabase/client';
 
 // Helper to generate UUID-like string
 const generateId = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -16,7 +16,7 @@ describe('Measurement Templates Service', () => {
   let realCategoryId: string;
 
   beforeAll(async () => {
-    const supabase = createClient<any>();
+    const supabase = createUntypedClient();
     await supabase.auth.signInWithPassword({
       email: 'admin@mei.com',
       password: 'MeiAdmin@123',

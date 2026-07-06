@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client';
+import { createUntypedClient } from '@/lib/supabase/client';
 
 export interface SizeSystem {
   id: string;
@@ -19,7 +19,7 @@ export interface SizeSystemEntry {
 }
 
 export async function getSizeSystems(): Promise<SizeSystem[]> {
-  const supabase = createClient();
+  const supabase = createUntypedClient();
   const { data, error } = await supabase
     .from('size_systems')
     .select('id, name, description, created_at')
@@ -31,7 +31,7 @@ export async function getSizeSystems(): Promise<SizeSystem[]> {
 }
 
 export async function getSizeSystemEntries(systemId: string): Promise<SizeSystemEntry[]> {
-  const supabase = createClient();
+  const supabase = createUntypedClient();
   const { data, error } = await supabase
     .from('size_system_entries')
     .select('*')

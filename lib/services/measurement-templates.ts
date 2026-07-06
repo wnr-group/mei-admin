@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client';
+import { createUntypedClient } from '@/lib/supabase/client';
 
 export type CustomizationType =
   | 'UNSTITCHED'
@@ -31,7 +31,7 @@ export async function getTemplates(filters?: {
   categoryId?: string;
   productId?: string;
 }): Promise<MeasurementTemplate[]> {
-  const supabase = createClient<any>();
+  const supabase = createUntypedClient();
   let query = supabase
     .from('measurement_templates')
     .select('*')
@@ -50,7 +50,7 @@ export async function createTemplate(input: {
   productId?: string;
   customizationType?: CustomizationType;
 }): Promise<MeasurementTemplate> {
-  const supabase = createClient<any>();
+  const supabase = createUntypedClient();
   const { data, error } = await supabase
     .from('measurement_templates')
     .insert({

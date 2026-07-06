@@ -2,7 +2,7 @@ import {
   getBlouseConfig,
   upsertBlouseConfig,
 } from '@/lib/services/blouse-config';
-import { createClient } from '@/lib/supabase/client';
+import { createUntypedClient } from '@/lib/supabase/client';
 
 // Helper to generate UUID-like string
 const generateId = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -14,7 +14,7 @@ describe('Blouse Config Service', () => {
   let testProductId: string;
 
   beforeAll(async () => {
-    const supabase = createClient<any>();
+    const supabase = createUntypedClient();
     const { data, error } = await supabase.auth.signInWithPassword({
       email: 'admin@mei.com',
       password: 'MeiAdmin@123',
@@ -37,7 +37,7 @@ describe('Blouse Config Service', () => {
 
   beforeEach(async () => {
     if (testProductId) {
-      const supabase = createClient<any>();
+      const supabase = createUntypedClient();
       await supabase.from('blouse_configurations').delete().eq('product_id', testProductId);
     }
   });
