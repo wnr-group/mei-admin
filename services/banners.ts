@@ -24,6 +24,20 @@ export async function getBanners(options: GetBannersOptions = {}) {
   return { banners: (data as Banner[] | null) ?? [], total: count ?? 0 }
 }
 
+export async function getBannerById(id: string): Promise<Banner> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('banners')
+    .select('*')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single()
+
+  if (error) throw toAppError(new Error(error.message))
+  if (!data) throw new AppError('NOT_FOUND', 'Banner not found')
+  return data as Banner
+}
+
 export async function createBanner(banner: BannerInsert) {
   const supabase = createClient()
   const response = await supabase

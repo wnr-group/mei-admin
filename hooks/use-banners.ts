@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getBanners, createBanner, updateBanner, deleteBanner } from '@/services/banners'
+import { getBanners, createBanner, updateBanner, deleteBanner, getBannerById } from '@/services/banners'
 import type { BannerInsert, BannerUpdate } from '@/types'
 
 type GetBannersOptions = Parameters<typeof getBanners>[0]
@@ -11,6 +11,14 @@ export function useBanners(options?: GetBannersOptions) {
     queryKey: ['banners', options],
     queryFn: () => getBanners(options),
     select: (data) => data.banners,
+  })
+}
+
+export function useBanner(id: string) {
+  return useQuery({
+    queryKey: ['banners', id],
+    queryFn: () => getBannerById(id),
+    enabled: !!id,
   })
 }
 
