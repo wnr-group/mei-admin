@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useBanner, useCreateBanner, useUpdateBanner } from '@/hooks/use-banners';
+import { useCreateBanner, useUpdateBanner } from '@/hooks/use-banners';
+import { getBannerById } from '@/services/banners';
 import { uploadBannerImage } from '@/services/storage';
 import { Upload, X, Loader2, Link as LinkIcon } from 'lucide-react';
 import Link from 'next/link';
@@ -15,8 +16,6 @@ export default function BannerForm({ editId }: BannerFormProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch banner details if in edit mode
-  const { data: banner, isLoading: queryLoading, error: queryError } = useBanner(editId || '');
   const createMutation = useCreateBanner();
   const updateMutation = useUpdateBanner();
 
@@ -29,27 +28,38 @@ export default function BannerForm({ editId }: BannerFormProps) {
   const [active, setActive] = useState(true);
 
   const [isDragging, setIsDragging] = useState(false);
+  const [loading, setLoading] = useState(editId ? true : false);
   const [saving, setSaving] = useState(false);
 
-  // Populate form fields when banner data loads
+  // Fetch banner details if in edit mode
   useEffect(() => {
-    if (banner) {
-      setTitle(banner.title || '');
-      setImage(banner.image_url || '');
-      setLink(banner.link_url || '');
-      setSortOrder(banner.sort_order || 0);
-      setActive(banner.is_active ?? true);
-      setImageFile(null);
-    }
-  }, [banner]);
+    if (!editId) return;
 
-  // Handle errors if fetching single banner fails
-  useEffect(() => {
-    if (queryError) {
-      alert('Failed to load banner details. Redirecting to banners list...');
-      router.push('/banners');
+    async function loadBanner() {
+      try {
+        const data = await getBannerById(editId!);
+        if (data) {
+          setTitle(data.title || '');
+          setImage(data.image_url || '');
+          setLink(data.link_url || '');
+          setSortOrder(data.sort_order || 0);
+          setActive(data.is_active ?? true);
+          setImageFile(null);
+        } else {
+          alert('Banner not found.');
+          router.push('/banners');
+        }
+      } catch (err) {
+        console.error('Failed to load banner details:', err);
+        alert('Failed to load banner details. Redirecting to banners list...');
+        router.push('/banners');
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [queryError, router]);
+
+    loadBanner();
+  }, [editId, router]);
 
   // Drag-and-drop handlers
   const handleDragOver = (e: React.DragEvent) => {
@@ -143,7 +153,6 @@ export default function BannerForm({ editId }: BannerFormProps) {
     }
   };
 
-  const loading = editId ? queryLoading : false;
 
   if (loading) {
     return (
