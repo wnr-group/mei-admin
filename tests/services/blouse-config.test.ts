@@ -2,9 +2,10 @@ import {
   getBlouseConfig,
   upsertBlouseConfig,
 } from '@/lib/services/blouse-config';
+import { createClient } from '@/lib/supabase/client';
 
 // Helper to generate UUID-like string
-const generateId = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+const generateId = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
   const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
   return v.toString(16);
 });
@@ -13,15 +14,16 @@ describe('Blouse Config Service', () => {
   let testProductId: string;
 
   beforeAll(async () => {
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    await supabase.auth.signInWithPassword({
+    const supabase = createClient<any>();
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: 'admin@mei.com',
       password: 'MeiAdmin@123',
     });
+    if (error) {
+      console.error('AUTH ERROR:', error);
+    } else {
+      console.log('AUTH SUCCESS:', data.user?.email);
+    }
 
     const { data: products } = await supabase
       .from('products')
@@ -35,11 +37,7 @@ describe('Blouse Config Service', () => {
 
   beforeEach(async () => {
     if (testProductId) {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+      const supabase = createClient<any>();
       await supabase.from('blouse_configurations').delete().eq('product_id', testProductId);
     }
   });

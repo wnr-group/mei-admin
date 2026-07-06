@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createClient } from '@/lib/supabase/client';
 
 export interface SizeSystem {
   id: string;
@@ -24,6 +19,7 @@ export interface SizeSystemEntry {
 }
 
 export async function getSizeSystems(): Promise<SizeSystem[]> {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('size_systems')
     .select('id, name, description, created_at')
@@ -35,6 +31,7 @@ export async function getSizeSystems(): Promise<SizeSystem[]> {
 }
 
 export async function getSizeSystemEntries(systemId: string): Promise<SizeSystemEntry[]> {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('size_system_entries')
     .select('*')

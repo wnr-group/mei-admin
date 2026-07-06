@@ -3,19 +3,16 @@ import {
   uploadMedia,
   deleteMedia,
 } from '@/lib/services/product-media';
+import { createClient } from '@/lib/supabase/client';
 
-describe('Product Media Service', () => {
+describe.runIf(!!process.env.NEXT_PUBLIC_SUPABASE_URL)('Product Media Service', () => {
   // Note: These tests assume seeded product data exists
   let productId: string;
   let mediaId: string;
 
   beforeAll(async () => {
     // Get first product to test with
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = createClient<any>();
 
     // Sign in as admin to have write permissions for database tests
     await supabase.auth.signInWithPassword({
@@ -102,7 +99,7 @@ describe('Product Media Service', () => {
     }
 
     // Generate a UUID-like color ID for testing
-    const colorId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const colorId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
       const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
       return v.toString(16);
     });
