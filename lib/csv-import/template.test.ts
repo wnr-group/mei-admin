@@ -89,9 +89,12 @@ describe('template', () => {
         header: true,
       });
 
+      // Type the parsed data array properly
+      const data = parsed.data as Array<Record<string, string>>;
+
       // Find the Bridal Lehenga product
-      const bridalRow = parsed.data.find(
-        (row: Record<string, string>) => row.name === 'Bridal Lehenga A1'
+      const bridalRow = data.find(
+        (row) => row.name === 'Bridal Lehenga A1'
       );
 
       expect(bridalRow).toBeDefined();
@@ -103,8 +106,8 @@ describe('template', () => {
       }
 
       // Find the Evening Gown product
-      const eveningRow = parsed.data.find(
-        (row: Record<string, string>) => row.name === 'Evening Gown B1'
+      const eveningRow = data.find(
+        (row) => row.name === 'Evening Gown B1'
       );
 
       expect(eveningRow).toBeDefined();
