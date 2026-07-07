@@ -5,7 +5,7 @@ vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ from: mockFrom }),
 }))
 
-const { getProducts, createProduct, updateProduct, deleteProduct, getProductBySlug } = await import('@/services/products')
+const { getProducts, createProduct, updateProduct, deleteProduct, getProductBySlug, getProductByCode } = await import('@/services/products')
 
 interface MockChain extends Record<string, unknown> {
   then: (onFulfilled?: ((value: unknown) => unknown) | null, onRejected?: ((reason: unknown) => unknown) | null) => Promise<unknown>
@@ -159,6 +159,27 @@ describe('getProductBySlug', () => {
   it('throws on unexpected Supabase error', async () => {
     mockFrom.mockReturnValueOnce(createChain({ data: null, error: { code: '42501', message: 'permission denied' } }))
     await expect(getProductBySlug('any')).rejects.toThrow('permission denied')
+  })
+})
+
+describe('getProductByCode', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('returns null when no product matches (PGRST116)', async () => {
+    mockFrom.mockReturnValueOnce(createChain({ data: null, error: { code: 'PGRST116', message: 'No rows found' } }))
+    const result = await getProductByCode('MEI-NOPE-0000')
+    expect(result).toBeNull()
+  })
+
+  it('returns { id, product_code } when a product matches', async () => {
+    mockFrom.mockReturnValueOnce(createChain({ data: { id: 'p1', product_code: 'MEI-LEHENG-AB12' }, error: null }))
+    const result = await getProductByCode('MEI-LEHENG-AB12')
+    expect(result).toEqual({ id: 'p1', product_code: 'MEI-LEHENG-AB12' })
+  })
+
+  it('throws on unexpected Supabase error', async () => {
+    mockFrom.mockReturnValueOnce(createChain({ data: null, error: { code: '42501', message: 'permission denied' } }))
+    await expect(getProductByCode('any')).rejects.toThrow('permission denied')
   })
 })
 
