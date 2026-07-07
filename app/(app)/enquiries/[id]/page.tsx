@@ -46,17 +46,6 @@ export default function EnquiryDetailsPage({ params }: { params: Promise<{ id: s
     }
   }
 
-  // Format price (e.g. ₹1,85,000)
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    })
-      .format(price)
-      .replace('INR', '₹')
-  }
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -87,71 +76,43 @@ export default function EnquiryDetailsPage({ params }: { params: Promise<{ id: s
     )
   }
 
-  // Dynamic heuristics to derive Product and details from the message
-  const getProductDetails = (msg: string) => {
-    const msgLower = (msg || '').toLowerCase()
-    if (msgLower.includes('noor lehenga')) {
-      return {
-        name: 'The Noor Lehenga',
-        price: 185000,
-        image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop'
-      }
-    }
-    if (msgLower.includes('crimson lehenga')) {
-      return {
-        name: 'Afsana Crimson Lehenga',
-        price: 230000,
-        image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=150&auto=format&fit=crop'
-      }
-    }
-    if (msgLower.includes('silk saree')) {
-      return {
-        name: 'Heritage Silk Saree',
-        price: 85000,
-        image: 'https://images.unsplash.com/photo-1610030469668-93535c17b6b3?q=80&w=150&auto=format&fit=crop'
-      }
-    }
-    if (msgLower.includes('velvet gown')) {
-      return {
-        name: 'Zoya Velvet Gown',
-        price: 110000,
-        image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=150&auto=format&fit=crop'
-      }
-    }
-    if (msgLower.includes('atelier')) {
-      return {
-        name: 'Custom Atelier Piece',
-        price: 350000,
-        image: 'https://images.unsplash.com/photo-1605722243979-fe0be8158232?q=80&w=150&auto=format&fit=crop'
-      }
-    }
-    return {
-      name: 'Custom Tailoring Request',
-      price: 150000,
-      image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop'
-    }
+  const OCCASION_LABELS: Record<string, string> = {
+    bridal: 'Bridal Lehenga',
+    couture: 'Couture Saree',
+    anarkali: 'Anarkali / Gown',
+    groom: 'Groom Wear',
+    other: 'Bespoke Couture',
+  }
+  const BUDGET_LABELS: Record<string, string> = {
+    'under-1l': 'Under ₹1,00,000',
+    '1l-2l': '₹1,00,000 - ₹2,00,000',
+    '2l-3l': '₹2,00,000 - ₹3,00,000',
+    '3l-5l': '₹3,00,000 - ₹5,00,000',
+    'above-5l': '₹5,00,000+',
   }
 
-  const prodInfo = getProductDetails(enquiry.message)
-
-  // Fallback defaults for custom tags and metadata
   const finalEmail = enquiry.email
   const finalPhone = enquiry.phone ?? null
-  const finalOccasion = 'Bridal'
-  const finalBudget = '₹1L - ₹2L'
-  const finalMeasurements = {
-    bust: '36"',
-    waist: '28"',
-    hip: '38"',
-    shoulder: '14"',
-    length: '44"',
-    sleeve: '22"',
-  }
-  const finalRefImages = [
-    'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=150&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1610030469668-93535c17b6b3?q=80&w=150&auto=format&fit=crop',
+  const finalOccasion = enquiry.occasion
+    ? (OCCASION_LABELS[enquiry.occasion] ?? enquiry.occasion)
+    : null
+  const finalBudget = enquiry.budget
+    ? (BUDGET_LABELS[enquiry.budget] ?? enquiry.budget)
+    : null
+
+  const MEASUREMENT_FIELDS: Array<{ key: string; label: string }> = [
+    { key: 'bust', label: 'BUST' },
+    { key: 'waist', label: 'WAIST' },
+    { key: 'hip', label: 'HIP' },
+    { key: 'shoulder', label: 'SHOULDER' },
+    { key: 'length', label: 'LENGTH' },
+    { key: 'sleeve', label: 'SLEEVE' },
   ]
+  const measurements = (enquiry.measurements ?? null) as Record<string, string | null> | null
+  const hasMeasurements = measurements
+    ? MEASUREMENT_FIELDS.some(({ key }) => measurements[key])
+    : false
+  const refImages = (enquiry.reference_images ?? null) as string[] | null
 
   const dateFormatted = new Date(enquiry.created_at).toLocaleDateString('en-IN', {
     day: '2-digit',
@@ -247,36 +208,20 @@ export default function EnquiryDetailsPage({ params }: { params: Promise<{ id: s
             </div>
 
             {/* Occasion and Budget tags */}
-            <div className="flex flex-wrap gap-3 pt-2">
-              <span className="border border-[#E8E0D5] bg-[#FAF8F5]/40 px-3 py-1.5 text-[11px] font-sans font-medium text-zinc-600 rounded-none">
-                Occasion: {finalOccasion}
-              </span>
-              <span className="border border-[#E8E0D5] bg-[#FAF8F5]/40 px-3 py-1.5 text-[11px] font-sans font-medium text-zinc-600 rounded-none">
-                Budget: {finalBudget}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* INTERESTED IN Card */}
-        <div className="bg-white border border-[#E8E0D5] p-6 shadow-xs">
-          <h3 className="text-[9px] font-medium tracking-widest text-zinc-600 uppercase mb-4 font-sans">
-            INTERESTED IN
-          </h3>
-          <div className="flex items-center gap-4">
-            <div className="w-[60px] h-[60px] border border-[#E8E0D5] overflow-hidden bg-zinc-100 flex-shrink-0">
-              <img
-                src={prodInfo.image}
-                alt={prodInfo.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div>
-              <div className="text-[13px] font-medium text-zinc-800">{prodInfo.name}</div>
-              <div className="text-[12px] text-zinc-500 font-inter mt-1">
-                {formatPrice(prodInfo.price)}
+            {(finalOccasion || finalBudget) && (
+              <div className="flex flex-wrap gap-3 pt-2">
+                {finalOccasion && (
+                  <span className="border border-[#E8E0D5] bg-[#FAF8F5]/40 px-3 py-1.5 text-[11px] font-sans font-medium text-zinc-600 rounded-none">
+                    Occasion: {finalOccasion}
+                  </span>
+                )}
+                {finalBudget && (
+                  <span className="border border-[#E8E0D5] bg-[#FAF8F5]/40 px-3 py-1.5 text-[11px] font-sans font-medium text-zinc-600 rounded-none">
+                    Budget: {finalBudget}
+                  </span>
+                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -291,61 +236,47 @@ export default function EnquiryDetailsPage({ params }: { params: Promise<{ id: s
         </div>
 
         {/* PROVIDED MEASUREMENTS Card */}
-        <div className="bg-white border border-[#E8E0D5] p-6 shadow-xs">
-          <h3 className="text-[9px] font-medium tracking-widest text-zinc-600 uppercase mb-4 font-sans">
-            PROVIDED MEASUREMENTS
-          </h3>
-          <div className="grid grid-cols-3 gap-4">
-            {/* BUST */}
-            <div className="bg-[#FAF8F5]/60 border border-[#E8E0D5] p-3 text-left">
-              <div className="text-[9px] font-medium text-zinc-600 font-inter tracking-wide">BUST</div>
-              <div className="text-[16px] font-medium text-zinc-800 mt-1 font-inter">{finalMeasurements.bust}</div>
-            </div>
-            {/* WAIST */}
-            <div className="bg-[#FAF8F5]/60 border border-[#E8E0D5] p-3 text-left">
-              <div className="text-[9px] font-bold text-zinc-600 font-sans tracking-wide">WAIST</div>
-              <div className="text-[16px] font-medium text-zinc-800 mt-1 font-inter">{finalMeasurements.waist}</div>
-            </div>
-            {/* HIP */}
-            <div className="bg-[#FAF8F5]/60 border border-[#E8E0D5] p-3 text-left">
-              <div className="text-[9px] font-bold text-zinc-600 font-sans tracking-wide">HIP</div>
-              <div className="text-[16px] font-medium text-zinc-800 mt-1 font-inter">{finalMeasurements.hip}</div>
-            </div>
-            {/* SHOULDER */}
-            <div className="bg-[#FAF8F5]/60 border border-[#E8E0D5] p-3 text-left">
-              <div className="text-[9px] font-bold text-zinc-600 font-sans tracking-wide">SHOULDER</div>
-              <div className="text-[16px] font-medium text-zinc-800 mt-1 font-inter">{finalMeasurements.shoulder}</div>
-            </div>
-            {/* LENGTH */}
-            <div className="bg-[#FAF8F5]/60 border border-[#E8E0D5] p-3 text-left">
-              <div className="text-[9px] font-bold text-zinc-600 font-sans tracking-wide">LENGTH</div>
-              <div className="text-[16px] font-medium text-zinc-800 mt-1 font-inter">{finalMeasurements.length}</div>
-            </div>
-            {/* SLEEVE */}
-            <div className="bg-[#FAF8F5]/60 border border-[#E8E0D5] p-3 text-left">
-              <div className="text-[9px] font-bold text-zinc-600 font-sans tracking-wide">SLEEVE</div>
-              <div className="text-[16px] font-medium text-zinc-800 mt-1 font-inter">{finalMeasurements.sleeve}</div>
+        {hasMeasurements && measurements && (
+          <div className="bg-white border border-[#E8E0D5] p-6 shadow-xs">
+            <h3 className="text-[9px] font-medium tracking-widest text-zinc-600 uppercase mb-4 font-sans">
+              PROVIDED MEASUREMENTS
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              {MEASUREMENT_FIELDS.filter(({ key }) => measurements[key]).map(({ key, label }) => (
+                <div key={key} className="bg-[#FAF8F5]/60 border border-[#E8E0D5] p-3 text-left">
+                  <div className="text-[9px] font-bold text-zinc-600 font-sans tracking-wide">{label}</div>
+                  <div className="text-[16px] font-medium text-zinc-800 mt-1 font-inter">{measurements[key]}</div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        )}
 
         {/* REFERENCE IMAGES Card */}
-        <div className="bg-white border border-[#E8E0D5] p-6 shadow-xs">
-          <h3 className="text-[9px] font-medium tracking-widest text-zinc-600 uppercase mb-4 font-inter">
-            REFERENCE IMAGES
-          </h3>
-          <div className="flex flex-wrap gap-4">
-            {finalRefImages.map((img, idx) => (
-              <div key={idx} className="relative border border-[#E8E0D5] w-[110px] h-[110px] bg-zinc-100 overflow-hidden flex-shrink-0">
-                <img
-                  src={img}
-                  alt={`Reference snippet ${idx + 1}`}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            ))}
+        {refImages && refImages.length > 0 && (
+          <div className="bg-white border border-[#E8E0D5] p-6 shadow-xs">
+            <h3 className="text-[9px] font-medium tracking-widest text-zinc-600 uppercase mb-4 font-inter">
+              REFERENCE IMAGES
+            </h3>
+            <div className="flex flex-wrap gap-4">
+              {refImages.map((img, idx) => (
+                <a
+                  key={idx}
+                  href={img}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative border border-[#E8E0D5] w-[110px] h-[110px] bg-zinc-100 overflow-hidden flex-shrink-0"
+                >
+                  <img
+                    src={img}
+                    alt={`Reference ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </a>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ADMIN NOTES Card */}
         <div className="bg-white border border-[#E8E0D5] p-6 shadow-xs">
