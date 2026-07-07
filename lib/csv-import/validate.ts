@@ -16,7 +16,7 @@ import type {
   ValidationContext,
   RowError,
 } from './types';
-import { WORK_TYPES, SHORT_DESCRIPTION_MAX_LENGTH } from './constants';
+import { SHORT_DESCRIPTION_MAX_LENGTH } from './constants';
 
 /**
  * Normalize a value for consistent comparison
@@ -200,20 +200,63 @@ export function validateProductGroup(
   }
 
   // Validate conflicting repeated product fields (multi-row groups only)
-  if (group.groupRowIndices.length > 1) {
+  if (group.groupRowIndices.length > 1 && group.nonAnchorRowsData) {
     const anchorFields = [
-      { key: 'categoryName', displayName: 'category_name' },
-      { key: 'price', displayName: 'price' },
-      { key: 'status', displayName: 'status' },
-      { key: 'workTypes', displayName: 'work_types' },
-      { key: 'shortDescription', displayName: 'short_description' },
-      { key: 'description', displayName: 'description' },
+      { key: 'categoryName', displayName: 'category_name', getValue: () => group.categoryName || '' },
+      { key: 'rawPrice', displayName: 'price', getValue: () => group.rawPrice },
+      { key: 'rawStatus', displayName: 'status', getValue: () => group.rawStatus },
+      { key: 'rawWorkTypes', displayName: 'work_types', getValue: () => group.rawWorkTypes },
+      { key: 'shortDescription', displayName: 'short_description', getValue: () => group.shortDescription || '' },
+      { key: 'description', displayName: 'description', getValue: () => group.description || '' },
     ];
 
-    // This validation would require access to the original non-anchor rows,
-    // which are not available in the ProductGroup at this stage.
-    // The grouping stage should have already handled this.
-    // For now, this is a placeholder for the logic.
+    // Check each non-anchor row for conflicting anchor field values
+    for (const nonAnchorRow of group.nonAnchorRowsData) {
+      for (const field of anchorFields) {
+        let nonAnchorValue = '';
+
+        switch (field.key) {
+          case 'categoryName':
+            nonAnchorValue = nonAnchorRow.categoryName || '';
+            break;
+          case 'rawPrice':
+            nonAnchorValue = nonAnchorRow.rawPrice || '';
+            break;
+          case 'rawStatus':
+            nonAnchorValue = nonAnchorRow.rawStatus || '';
+            break;
+          case 'rawWorkTypes':
+            nonAnchorValue = nonAnchorRow.rawWorkTypes || '';
+            break;
+          case 'shortDescription':
+            nonAnchorValue = nonAnchorRow.shortDescription || '';
+            break;
+          case 'description':
+            nonAnchorValue = nonAnchorRow.description || '';
+            break;
+        }
+
+        // Skip if non-anchor row has blank value for this field
+        if (nonAnchorValue.trim() === '') {
+          continue;
+        }
+
+        const anchorValue = field.getValue().toString();
+
+        // Normalize both values for comparison
+        const normalizedAnchor = normalizeForComparison(anchorValue, false);
+        const normalizedNonAnchor = normalizeForComparison(nonAnchorValue, false);
+
+        // Check if values conflict after normalization
+        if (normalizedAnchor !== normalizedNonAnchor) {
+          errors.push({
+            row: nonAnchorRow.rowIndex,
+            field: field.displayName,
+            message: `Conflicting ${field.displayName}: anchor row has '${anchorValue}', but row ${nonAnchorRow.rowIndex} has '${nonAnchorValue}'`,
+          });
+        }
+      }
+    }
   }
 
   // Validate images

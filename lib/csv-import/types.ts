@@ -63,6 +63,26 @@ export interface ProductImage {
 }
 
 /**
+ * Represents field values from a non-anchor row (used for conflict validation)
+ */
+export interface NonAnchorRowData {
+  /** 1-indexed row number */
+  rowIndex: number;
+  /** Category name value from this row (may be blank) */
+  categoryName?: string;
+  /** Price value from this row (may be blank) */
+  rawPrice?: string;
+  /** Status value from this row (may be blank) */
+  rawStatus?: string;
+  /** Work types value from this row (may be blank) */
+  rawWorkTypes?: string;
+  /** Short description from this row (may be blank) */
+  shortDescription?: string;
+  /** Description from this row (may be blank) */
+  description?: string;
+}
+
+/**
  * Represents a grouped product after the grouping stage
  *
  * Multiple rows in the CSV can describe one product (one row per color/image).
@@ -101,6 +121,8 @@ export interface ProductGroup {
   errors: RowError[];
   /** All 1-indexed row numbers that belong to this product group */
   groupRowIndices: number[];
+  /** Field values from non-anchor rows (for conflict validation in multi-row groups) */
+  nonAnchorRowsData?: NonAnchorRowData[];
 }
 
 /**

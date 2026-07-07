@@ -124,6 +124,20 @@ export function groupRowsByProduct(
       const group = groupMap.get(normalizedName)!
       group.groupRowIndices.push(rowNumber)
 
+      // Capture non-anchor row field data for conflict validation
+      if (!group.nonAnchorRowsData) {
+        group.nonAnchorRowsData = []
+      }
+      group.nonAnchorRowsData.push({
+        rowIndex: rowNumber,
+        categoryName: row.category_name,
+        rawPrice: row.price,
+        rawStatus: row.status,
+        rawWorkTypes: row.work_types,
+        shortDescription: row.short_description,
+        description: row.description,
+      })
+
       // Process image and color
       if (isBlank(colorLabel)) {
         // Primary image row

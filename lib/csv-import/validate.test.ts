@@ -311,6 +311,220 @@ describe('validateProductGroup', () => {
     expect(result.shortDescription).toBe('Brief description');
     expect(result.description).toContain('description');
   });
+
+  it('should detect conflicting category in non-anchor rows', () => {
+    const group = createMockProductGroup({
+      categoryName: 'Bridal Lehengas',
+      colors: [{ label: 'Red', imageUrls: ['url'] }],
+      groupRowIndices: [1, 2],
+      nonAnchorRowsData: [
+        {
+          rowIndex: 2,
+          categoryName: 'Evening Gowns',
+        },
+      ],
+    });
+
+    const result = validateProductGroup(group, mockContext);
+
+    expect(result.errors.some((e) => e.field === 'category_name')).toBe(true);
+    expect(result.errors.find((e) => e.field === 'category_name')?.message).toContain(
+      'Conflicting category_name'
+    );
+  });
+
+  it('should accept matching category in non-anchor rows (case-insensitive)', () => {
+    const group = createMockProductGroup({
+      categoryName: 'Bridal Lehengas',
+      colors: [{ label: 'Red', imageUrls: ['url'] }],
+      groupRowIndices: [1, 2],
+      nonAnchorRowsData: [
+        {
+          rowIndex: 2,
+          categoryName: 'bridal lehengas',
+        },
+      ],
+    });
+
+    const result = validateProductGroup(group, mockContext);
+
+    expect(result.errors.filter((e) => e.field === 'category_name')).toHaveLength(0);
+  });
+
+  it('should ignore blank anchor field values in non-anchor rows', () => {
+    const group = createMockProductGroup({
+      categoryName: 'Bridal Lehengas',
+      rawPrice: '50000',
+      colors: [{ label: 'Red', imageUrls: ['url'] }],
+      groupRowIndices: [1, 2],
+      nonAnchorRowsData: [
+        {
+          rowIndex: 2,
+          categoryName: '', // blank - should be ignored
+          rawPrice: '',     // blank - should be ignored
+        },
+      ],
+    });
+
+    const result = validateProductGroup(group, mockContext);
+
+    // No conflict errors should be present
+    expect(result.errors.filter((e) => e.field === 'category_name')).toHaveLength(0);
+    expect(result.errors.filter((e) => e.field === 'price')).toHaveLength(0);
+  });
+
+  it('should detect conflicting price in non-anchor rows', () => {
+    const group = createMockProductGroup({
+      rawPrice: '50000',
+      price: 50000,
+      colors: [{ label: 'Red', imageUrls: ['url'] }],
+      groupRowIndices: [1, 2],
+      nonAnchorRowsData: [
+        {
+          rowIndex: 2,
+          rawPrice: '60000',
+        },
+      ],
+    });
+
+    const result = validateProductGroup(group, mockContext);
+
+    expect(result.errors.some((e) => e.field === 'price')).toBe(true);
+    expect(result.errors.find((e) => e.field === 'price')?.message).toContain(
+      'Conflicting price'
+    );
+  });
+
+  it('should detect conflicting status in non-anchor rows', () => {
+    const group = createMockProductGroup({
+      rawStatus: 'PUBLISHED',
+      status: 'PUBLISHED',
+      colors: [{ label: 'Red', imageUrls: ['url'] }],
+      groupRowIndices: [1, 2],
+      nonAnchorRowsData: [
+        {
+          rowIndex: 2,
+          rawStatus: 'DRAFT',
+        },
+      ],
+    });
+
+    const result = validateProductGroup(group, mockContext);
+
+    expect(result.errors.some((e) => e.field === 'status')).toBe(true);
+    expect(result.errors.find((e) => e.field === 'status')?.message).toContain(
+      'Conflicting status'
+    );
+  });
+
+  it('should detect conflicting work types in non-anchor rows', () => {
+    const group = createMockProductGroup({
+      rawWorkTypes: 'Zardozi',
+      workTypes: ['Zardozi'],
+      colors: [{ label: 'Red', imageUrls: ['url'] }],
+      groupRowIndices: [1, 2],
+      nonAnchorRowsData: [
+        {
+          rowIndex: 2,
+          rawWorkTypes: 'Kundan',
+        },
+      ],
+    });
+
+    const result = validateProductGroup(group, mockContext);
+
+    expect(result.errors.some((e) => e.field === 'work_types')).toBe(true);
+    expect(result.errors.find((e) => e.field === 'work_types')?.message).toContain(
+      'Conflicting work_types'
+    );
+  });
+
+  it('should accept matching work types in non-anchor rows (case-insensitive)', () => {
+    const group = createMockProductGroup({
+      rawWorkTypes: 'Zardozi',
+      workTypes: ['Zardozi'],
+      colors: [{ label: 'Red', imageUrls: ['url'] }],
+      groupRowIndices: [1, 2],
+      nonAnchorRowsData: [
+        {
+          rowIndex: 2,
+          rawWorkTypes: 'zardozi',
+        },
+      ],
+    });
+
+    const result = validateProductGroup(group, mockContext);
+
+    expect(result.errors.filter((e) => e.field === 'work_types')).toHaveLength(0);
+  });
+
+  it('should detect conflicting short description in non-anchor rows', () => {
+    const group = createMockProductGroup({
+      shortDescription: 'Original description',
+      colors: [{ label: 'Red', imageUrls: ['url'] }],
+      groupRowIndices: [1, 2],
+      nonAnchorRowsData: [
+        {
+          rowIndex: 2,
+          shortDescription: 'Different description',
+        },
+      ],
+    });
+
+    const result = validateProductGroup(group, mockContext);
+
+    expect(result.errors.some((e) => e.field === 'short_description')).toBe(true);
+    expect(result.errors.find((e) => e.field === 'short_description')?.message).toContain(
+      'Conflicting short_description'
+    );
+  });
+
+  it('should detect conflicting description in non-anchor rows', () => {
+    const group = createMockProductGroup({
+      description: 'Original long description',
+      colors: [{ label: 'Red', imageUrls: ['url'] }],
+      groupRowIndices: [1, 2],
+      nonAnchorRowsData: [
+        {
+          rowIndex: 2,
+          description: 'Different long description',
+        },
+      ],
+    });
+
+    const result = validateProductGroup(group, mockContext);
+
+    expect(result.errors.some((e) => e.field === 'description')).toBe(true);
+    expect(result.errors.find((e) => e.field === 'description')?.message).toContain(
+      'Conflicting description'
+    );
+  });
+
+  it('should handle multiple conflicting fields in a single non-anchor row', () => {
+    const group = createMockProductGroup({
+      categoryName: 'Bridal Lehengas',
+      rawPrice: '50000',
+      rawStatus: 'PUBLISHED',
+      colors: [{ label: 'Red', imageUrls: ['url'] }],
+      groupRowIndices: [1, 2],
+      nonAnchorRowsData: [
+        {
+          rowIndex: 2,
+          categoryName: 'Evening Gowns',
+          rawPrice: '60000',
+          rawStatus: 'DRAFT',
+        },
+      ],
+    });
+
+    const result = validateProductGroup(group, mockContext);
+
+    // Should have at least 3 conflict errors (could have more)
+    const conflictErrors = result.errors.filter((e) =>
+      ['category_name', 'price', 'status'].includes(e.field)
+    );
+    expect(conflictErrors.length).toBeGreaterThanOrEqual(3);
+  });
 });
 
 describe('validateGroupingResult', () => {
