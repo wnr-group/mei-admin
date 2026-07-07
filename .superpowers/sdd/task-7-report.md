@@ -1,101 +1,104 @@
-# Task 7 Report — Email Test Matrix
+# Task 7 Report — Bulk Import Page (MEI-42)
 
-## TEST 1: Authorized Recipient, Full Path
+**Plan:** docs/superpowers/specs/2026-07-07-bulk-product-csv-import-design.md
 
-**Job ID:** c6514fcf-f5d4-4f19-bea6-b405599b44a2  
-**Idempotency Key:** TEST1_12345678-1234-1234-1234-123456789012  
-**Status after worker invocation:** SENT  
-**Attempts:** 0  
-**Provider Message ID:** 20260702115837.bc06f1a70b911717@sandbox739a7b96765f4459874a3e1e76dc1d6c.mailgun.org  
-**Last Error:** null  
-**Sent at:** 2026-07-02 11:58:37.802509+00  
-**Log event:** provider_request_success [yes]
+**Scope:** Build `app/(app)/products/import/page.tsx`, orchestrating the CSV
+import preview pipeline (`lib/csv-import/*`) with the UI components
+(`FormatGuide`, `ImportDropzone`, `PreviewTree`, `ProductPreviewCard`).
+Preview only — no database writes, no Edge Function calls.
 
-**PASS/FAIL:** PASS — Job successfully sent with real Mailgun message ID; no errors.
+## Status
 
----
+✅ **COMPLETE**
 
-## TEST 2: Unauthorized Recipient → DEAD After Retries
+## Commit
 
-**Job ID:** 1aa00d8e-6d95-4e42-bed4-32981ac23014  
-**Idempotency Key:** TEST2_87654321-4321-4321-4321-210987654321  
-**Status after 3 attempts:** DEAD  
-**Attempts:** 3  
-**Provider Message ID:** null  
-**Last Error:** Mailgun 403 Forbidden: "Domain sandbox739a7b96765f4459874a3e1e76dc1d6c.mailgun.org is not allowed to send: Sandbox subdomains are for test purposes only. Please add your own domain or add the address to your authorized recipients."  
-**Log events:** provider_request_failed (count: 3) [yes]
+`508175e` — "Add bulk import page orchestrating CSV preview pipeline (MEI-42 Task 7)"
 
-**PASS/FAIL:** PASS — Job correctly marked DEAD after 3 attempts; error contains Mailgun 403 (unauthorized recipient); worker retried and eventually gave up as expected.
+## Context note
 
----
-
-## TEST 5: Idempotency / Duplicate
-
-**First enqueue result:** enqueued=true, job_id=3f9e2c39-2c7e-4c1b-a5a1-17375c69cbe4 (TEST5_DUP)  
-**Second enqueue result (same idempotency_key):** enqueued=false, reason=DUPLICATE (implied by no second record created)
-
-**Corrected test:** TEST5_DUP_CORRECT  
-**Job ID:** 3e9a2705-c4d4-41d6-a856-9c07a287dc9e  
-**Status:** SENT  
-**Attempts:** 0  
-**Provider Message ID:** 20260702120420.c9241bd75349701d@sandbox739a7b96765f4459874a3e1e76dc1d6c.mailgun.org  
-**Sent at:** 2026-07-02 12:04:20.706956+00  
-**Job count in queue for TEST5_DUP_CORRECT:** 1  
-**Emails sent (from worker log):** 1
-
-**Note:** TEST5_DUP shows attempts=2 with error "Cannot read properties of undefined (reading 'map')" — this appears to be an unrelated payload bug in an earlier attempt. The corrected test (TEST5_DUP_CORRECT) demonstrates idempotency working correctly: enqueue same job twice → only 1 row created, 1 email sent.
-
-**PASS/FAIL:** PASS — Duplicate rejection verified; only 1 job enqueued; 1 email successfully sent via Mailgun.
-
----
-
-## TEST 6: Mailgun Unavailable, Failure Isolated
-
-**Job created:** ff8a037f-0a06-4adb-8d17-bf46ee356225  
-**Idempotency Key:** TEST6_bc69f961-d9cd-4521-9b1c-3fb62d54dcf0  
-**Worker response when Mailgun invalid:** processed=1, sent=0, failed=1  
-**Job status after worker:** RETRYING  
-**Attempts:** 1  
-**Last error:** error sending request for url (https://api.invalid.mailgun.test/v3/...): client error (Connect): dns error: failed to lookup address information: Name or service not known  
-**Last error contains connection error:** yes (DNS/connection error, not Mailgun API error)
-
-**PASS/FAIL:** PASS — Job failed gracefully when Mailgun became unreachable; error message correctly shows connection/DNS failure (not API rejection); status is RETRYING (will attempt again later when Mailgun is restored); no impact on checkout/order creation flow.
-
----
+By the time this task started, `components/products/import/{FormatGuide,
+ImportDropzone, PreviewTree, ProductPreviewCard}.tsx` (Task 6) had already
+been implemented and committed (`ff6d578`) by a concurrent session, and the
+"BULK IMPORT" button on the products list page (`ddd0b14`) already linked to
+`/products/import`. This task only needed to add the page itself. The
+`.superpowers/sdd/task-1` through `task-8` brief/report files still contain
+stale content from an unrelated earlier plan (email notification
+stabilization) in places I didn't touch (e.g. `task-7-brief.md`); I only
+overwrote this report file, at the path given in the task instructions.
 
 ## Summary
 
-| Test | Result | Key Finding |
-|------|--------|------------|
-| TEST 1 | **PASS** | Authorized recipient → email sent with real Mailgun ID |
-| TEST 2 | **PASS** | Unauthorized recipient → job DEAD after 3 retries with 403 error |
-| TEST 5 | **PASS** | Idempotency enforced; duplicate rejected; only 1 email sent |
-| TEST 6 | **PASS** | Mailgun outage → job fails gracefully with connection error; no impact on order flow |
+Two new files:
 
-**Overall:** **ALL PASS** — Email notification system demonstrates correct behavior across:
-- Happy path (successful delivery to authorized recipient)
-- Error handling (graceful failure for unauthorized recipients with max retry limit)
-- Idempotency (duplicate prevention working as expected)
-- Resilience (connection failures isolated from order creation; no checkout breakage)
+- **`app/(app)/products/import/page.tsx`** — async Server Component. Loads
+  `SELECT id, name FROM categories WHERE deleted_at IS NULL` via
+  `lib/supabase/server`'s `createClient()` (same pattern as
+  `app/(app)/dashboard/page.tsx`), then renders
+  `<ImportPageClient categories={...} />`. No `'use client'` — all
+  interactivity lives in the client component.
 
----
+- **`components/products/import/ImportPageClient.tsx`** — `'use client'`,
+  owns all page state and the parse/group/validate pipeline:
+  - State: `fileName`, `status` (`idle|loading|success|error`), `fileError`,
+    `groupingResult: GroupingResult | null`, `toastMessage`.
+  - `validationContext` built via `useMemo` from the `categories` prop plus
+    `WORK_TYPES`/`PRODUCT_STATUSES` from `lib/csv-import/constants.ts`.
+  - `handleFileSelected(file)`: `FileReader.readAsText` → `parseAndValidateFile`
+    → on file-level error, sets `fileError`/`status='error'` (surfaced inside
+    `ImportDropzone`, which already renders its own `error` prop); on success,
+    `groupRowsByProduct` → `validateGroupingResult` → `status='success'`.
+  - `isImportEnabled = status === 'success' && groupingResult !== null &&
+    isValidFile(groupingResult)` — disabled for no file, any parse/header
+    error, any product-group error, or any unassigned row.
+  - Import button `onClick`: only when enabled, sets a toast message
+    ("Bulk import preview completed successfully. Database import will be
+    implemented in a future ticket."), auto-dismissed after 6s or manually
+    closable. No network/DB calls anywhere in this handler.
+  - Layout: breadcrumb (`Products / Bulk Import`) → title + "Download CSV
+    Template" button (calls `downloadTemplate()` from `lib/csv-import/template.ts`)
+    → `FormatGuide` (collapsible, expanded by default) → Upload card
+    (`ImportDropzone`) → Preview card (`PreviewTree`, only rendered once
+    `status === 'success'`) → fixed footer bar (Cancel link to `/products` +
+    Import button) → toast.
 
-## Verification Details
+No `console.log` anywhere in the new code. No writes to Supabase tables and
+no `supabase.functions.invoke(...)` calls in the client component — the only
+Supabase call is the server-side category `select` in `page.tsx`.
 
-**Mailgun Configuration:**
-- Sandbox domain: sandbox739a7b96765f4459874a3e1e76dc1d6c.mailgun.org
-- Authorized recipient: eshwarpaygude@gmail.com (allows successful delivery)
-- Unauthorized recipient test: unauthorized@example.com (rejected by Mailgun 403)
+## Verification performed
 
-**Worker Configuration:**
-- Max attempts: 3
-- Retry backoff: Exponential (30s, 60s, then DEAD)
-- Failure isolation: Connection errors and API errors both trigger retry logic; no impact on checkout
+- `npx tsc --noEmit`: no errors in the new files (6 pre-existing errors in
+  `lib/csv-import/template.test.ts` confirmed present before this change too,
+  via `git stash`/`git stash pop` — unrelated to this task).
+- `npx eslint` on both new files: clean.
+- `npm run build`: succeeds; `/products/import` appears in the route table as
+  `ƒ` (dynamic/server-rendered), consistent with other authenticated pages.
+- `npm run dev` + `curl -D- http://localhost:3000/products/import`: returns
+  `307` → `location: /login`, i.e. the existing auth route guard correctly
+  intercepts the unauthenticated request the same way it does for every
+  other `(app)` route. Could not verify the authenticated render inside this
+  sandboxed session (no browser/login session available), but this confirms
+  the route resolves and the middleware treats it like every other
+  authenticated page.
 
-**Correlation IDs:**
-- TEST1: 'test-1'
-- TEST2: 'test-2'
-- TEST5: 'test-5'
-- TEST6: 'test-6'
+## Concerns / questions
 
-All events logged with correlation ID for end-to-end tracing.
+- **Not manually verified with a real CSV upload in a browser** (no
+  authenticated browser session available in this environment). The
+  component wiring (prop names/types) was cross-checked directly against
+  the actual signatures in `lib/csv-import/{parse,group,validate,template}.ts`
+  and the actual `PreviewTree`/`ImportDropzone`/`FormatGuide` prop interfaces
+  as committed in `ff6d578`, so this should work, but an end-to-end manual
+  pass (download template → re-upload → confirm clean preview → confirm
+  Import button enables and shows the toast) is recommended before closing
+  out MEI-42.
+- The design spec's ASCII mock also shows a page-level error banner state
+  for file-level errors ("file-level error (banner, no tree, re-upload
+  prompt)"); I relied on `ImportDropzone`'s built-in `error` display (already
+  implemented in Task 6) rather than adding a second, separate banner —
+  keeps a single source of truth for the error message and avoids
+  duplicated error UI.
+- `.superpowers/sdd/task-6-report.md` and `task-8-report.md` show as
+  modified in the working tree (from the concurrent Task 6 session) but are
+  not part of this commit — left untouched per scope.

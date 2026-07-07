@@ -102,8 +102,7 @@ export default function FormatGuide({ isExpanded, onToggle }: FormatGuideProps) 
         <div id="format-guide-content" className="px-8 pb-8 space-y-6 border-t border-[#FAF8F5]">
           <p className="text-[13px] text-zinc-600 leading-relaxed mt-6">
             Each row in the CSV describes one image (and optionally one color) for a product. To
-            import a product with multiple colors or images, repeat the row with the same{' '}
-            <code className="text-[11px] bg-[#FAF8F5] px-1 py-0.5 rounded">name</code>, leaving the
+            import a product with multiple colors or images, repeat the row with the same <code className="text-[11px] bg-[#FAF8F5] px-1 py-0.5 rounded">name</code>, leaving the
             product-level fields (category, price, status, work types, descriptions) blank on every
             row after the first.
           </p>
@@ -171,13 +170,7 @@ Evening Gown B1,,,,,,,,https://example.com/gown-b1-red-back.jpg
 Evening Gown B1,,,,,,,Gold,https://example.com/gown-b1-gold-front.jpg`}
             </pre>
             <p className="text-[11px] text-zinc-500 leading-relaxed">
-              Row 1 is the anchor row — it carries category, price, status, and starts the
-              &quot;Red&quot; color. Row 2 repeats the same <code className="bg-white px-1">name</code> but
-              leaves <code className="bg-white px-1">color_label</code> blank, so its image is added
-              as a primary/main image (not attached to Red). Row 3 repeats the name again with{' '}
-              <code className="bg-white px-1">color_label</code> set to &quot;Gold&quot;, introducing a
-              second color. To add a second image to the same color, repeat that color&apos;s label
-              on another row.
+              Row 1 is the anchor row — it carries category, price, status, and starts the &quot;Red&quot; color. Row 2 repeats the same <code className="bg-white px-1">name</code> but leaves <code className="bg-white px-1">color_label</code> blank, so its image is added as a primary/main image (not attached to Red). Row 3 repeats the name again with <code className="bg-white px-1">color_label</code> set to &quot;Gold&quot;, introducing a second color. To add a second image to the same color, repeat that color&apos;s label on another row.
             </p>
           </div>
         </div>
