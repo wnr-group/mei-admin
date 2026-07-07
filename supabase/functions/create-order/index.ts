@@ -1,5 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { logNotification } from '../_shared/log.ts';
+import { createEmailProvider } from '../_shared/email-provider.ts';
+import { renderTemplate } from '../_shared/email-templates.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-request-id',
@@ -59,26 +61,12 @@ Deno.serve(async (req)=>{
         error: 'INVALID_PAYLOAD'
       }, 400);
     }
-    const bypass = Deno.env.get('ENABLE_PAYMENT_BYPASS') === 'true';
     log('environment check', {
-      bypass_enabled: bypass,
       has_supabase_url: !!Deno.env.get('SUPABASE_URL'),
       has_service_role: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
       has_razorpay_secret: !!Deno.env.get('RAZORPAY_KEY_SECRET')
     });
-    // Handle bypass mode early - no signature verification or database access needed
-    if (bypass) {
-      log('bypass mode — signature verification and database calls skipped');
-      return jsonResponse({
-        success: true,
-        order_id: crypto.randomUUID(),
-        order_number: `BYPASS-${Date.now()}`,
-        total: body.items.reduce((sum, item)=>sum + (Number(item.quantity) || 0), 0)
-      }, 200, {
-        'x-request-id': requestId
-      });
-    }
-    // Production mode: verify signature
+    // Verify Razorpay payment signature
     const secret = Deno.env.get('RAZORPAY_KEY_SECRET');
     if (!secret) {
       log('RAZORPAY_KEY_SECRET not configured');
@@ -168,10 +156,12 @@ Deno.serve(async (req)=>{
       order_id: String(data.order_id),
       already_exists: String(data.already_exists)
     });
-    // Enqueue notifications (idempotent — safe to call even for already_exists)
+    // Send confirmation emails transactionally (idempotency handled by create_order_txn —
+    // already_exists means the order + emails were processed on a prior attempt).
     if (!data.already_exists) {
       const adminEmail = Deno.env.get('ADMIN_EMAIL');
       const adminUrl = Deno.env.get('ADMIN_URL') ?? '';
+      const storefrontUrl = Deno.env.get('STOREFRONT_URL') ?? '';
       const enabled = Deno.env.get('NOTIFICATIONS_ENABLED') === 'true';
       log('notifications_config', {
         enabled,
@@ -182,120 +172,71 @@ Deno.serve(async (req)=>{
         customer_phone: body.customer.phone ?? null
       });
       if (enabled) {
-        const customerPayload = {
-          correlationId: requestId,
-          customerName: body.customer.name,
-          orderNumber: data.order_number,
-          items: body.items.map((i)=>({
-              name: i.name,
-              quantity: i.quantity
-            })),
-          total: Number(data.total)
-        };
-        const adminPayload = {
-          correlationId: requestId,
-          customerName: body.customer.name,
-          customerEmail: body.customer.email,
-          customerPhone: body.customer.phone ?? null,
-          orderNumber: data.order_number,
-          total: Number(data.total),
-          adminOrderUrl: `${adminUrl}/orders/${data.order_id}`
-        };
-        const customerKey = `ORDER_CONFIRMATION_CUSTOMER:${data.order_id}`;
-        const adminKey = `ORDER_CONFIRMATION_ADMIN:${data.order_id}`;
-        const enqueueFields = {
+        const provider = createEmailProvider();
+        const baseFields = {
           correlation_id: requestId,
           order_id: String(data.order_id),
           order_number: data.order_number,
           customer_email: body.customer.email,
           customer_phone: body.customer.phone ?? null,
-          provider: 'queue'
+          provider: 'mailgun'
         };
-        logNotification('create-order', {
-          event: 'notification_enqueue_started',
-          ...enqueueFields,
-          notification_type: 'ORDER_CONFIRMATION_CUSTOMER'
-        });
-        // Direct table insert instead of supabase.rpc('enqueue_notification') to avoid
-        // a PostgREST limitation: the RPC has a `notification_type` ENUM parameter, and
-        // PostgREST passes JSON strings as `text`, which PostgreSQL cannot implicitly cast
-        // to a user-defined ENUM for function argument resolution. Table upsert uses the
-        // column's own type context (assignment cast), which accepts text → ENUM correctly.
-        const enqueueCustomer = supabase.from('notification_jobs').upsert({
-          idempotency_key: customerKey,
-          type: 'ORDER_CONFIRMATION_CUSTOMER',
-          recipient_email: body.customer.email,
-          payload: customerPayload,
-          priority: 1
-        }, {
-          onConflict: 'idempotency_key',
-          ignoreDuplicates: true
-        }).then(({ error })=>{
-          if (error) {
-            logNotification('create-order', {
-              event: 'notification_enqueue_failed',
-              ...enqueueFields,
-              notification_type: 'ORDER_CONFIRMATION_CUSTOMER',
-              error_message: error.message,
-              error_code: error.code ?? null
-            });
-          } else {
-            logNotification('create-order', {
-              event: 'notification_enqueue_success',
-              ...enqueueFields,
-              notification_type: 'ORDER_CONFIRMATION_CUSTOMER'
-            });
+
+        const sends = [
+          {
+            type: 'ORDER_CONFIRMATION_CUSTOMER',
+            to: body.customer.email,
+            payload: {
+              customerName: body.customer.name,
+              orderNumber: data.order_number,
+              items: body.items.map((i)=>({ name: i.name, quantity: i.quantity })),
+              total: Number(data.total),
+              orderUrl: storefrontUrl ? `${storefrontUrl}/orders/${data.order_id}` : undefined
+            }
           }
-        });
-        let enqueueAdmin;
+        ];
         if (adminEmail) {
-          logNotification('create-order', {
-            event: 'notification_enqueue_started',
-            ...enqueueFields,
-            notification_type: 'ORDER_CONFIRMATION_ADMIN'
-          });
-          enqueueAdmin = supabase.from('notification_jobs').upsert({
-            idempotency_key: adminKey,
+          sends.push({
             type: 'ORDER_CONFIRMATION_ADMIN',
-            recipient_email: adminEmail,
-            payload: adminPayload,
-            priority: 1
-          }, {
-            onConflict: 'idempotency_key',
-            ignoreDuplicates: true
-          }).then(({ error })=>{
-            if (error) {
-              logNotification('create-order', {
-                event: 'notification_enqueue_failed',
-                ...enqueueFields,
-                notification_type: 'ORDER_CONFIRMATION_ADMIN',
-                error_message: error.message,
-                error_code: error.code ?? null
-              });
-            } else {
-              logNotification('create-order', {
-                event: 'notification_enqueue_success',
-                ...enqueueFields,
-                notification_type: 'ORDER_CONFIRMATION_ADMIN'
-              });
+            to: adminEmail,
+            payload: {
+              customerName: body.customer.name,
+              customerEmail: body.customer.email,
+              customerPhone: body.customer.phone ?? null,
+              orderNumber: data.order_number,
+              total: Number(data.total),
+              adminOrderUrl: `${adminUrl}/orders/${data.order_id}`
             }
           });
-        } else {
-          enqueueAdmin = Promise.resolve();
         }
-        // Await enqueue before returning — Edge Function isolate is killed when the response
-        // is sent, so fire-and-forget fetch() calls are dropped before they complete.
-        await Promise.allSettled([
-          enqueueCustomer,
-          enqueueAdmin
-        ]).then((results)=>{
-          results.forEach((r, i)=>{
-            if (r.status === 'rejected') log('enqueue_settled_error', {
-              index: i,
-              reason: String(r.reason)
-            });
+
+        // Send sequentially — the Mailgun sandbox rejects concurrent requests with a
+        // spurious 401, and for two emails there's no latency benefit to parallelism.
+        // Await before returning: the isolate is killed once the response is sent.
+        for (const s of sends) {
+          logNotification('create-order', {
+            event: 'provider_request_started',
+            ...baseFields,
+            notification_type: s.type
           });
-        });
+          try {
+            const { subject, html } = renderTemplate(s.type, s.payload);
+            const messageId = await provider.send({ to: s.to, subject, html });
+            logNotification('create-order', {
+              event: 'provider_request_success',
+              ...baseFields,
+              notification_type: s.type,
+              provider_message_id: messageId
+            });
+          } catch (err) {
+            logNotification('create-order', {
+              event: 'provider_request_failed',
+              ...baseFields,
+              notification_type: s.type,
+              error_message: err instanceof Error ? err.message : String(err)
+            });
+          }
+        }
       }
     }
     return jsonResponse({
