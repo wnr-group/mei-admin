@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import type { Json } from '@/types/database'
 
-type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE'
+type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'BULK_IMPORT'
 
 type ResourceType =
   | 'product'
