@@ -156,7 +156,7 @@ export default function MediaLibraryPage() {
                 <button
                   type="button"
                   onClick={() => handleRemove(item.id)}
-                  className="absolute right-1 top-1 bg-black/60 hover:bg-black text-white rounded-full p-0.5 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                  className="absolute right-1 top-1 z-10 bg-black/60 hover:bg-black text-white rounded-full p-0.5 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
                 >
                   <X className="w-3 h-3" />
                 </button>
