@@ -8,6 +8,7 @@ import { getCategories } from '@/services/categories';
 import { Upload, X, ChevronDown, ChevronUp, Loader2, Plus } from 'lucide-react';
 import Link from 'next/link';
 import type { Category } from '@/types';
+import { generateSlug } from '@/lib/slug';
 
 const WORK_TYPES = ['Aari', 'Zardozi', 'Mirror', 'Cut', 'Thread', 'Tailoring', 'Kundan'];
 
@@ -119,15 +120,6 @@ export default function ProductForm({ editId }: ProductFormProps) {
   }, []);
 
   // Auto-generate slug from name
-  const generateSlug = (val: string) => {
-    return val
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '') // remove non-word characters
-      .replace(/[\s_-]+/g, '-') // replace spaces/underscores with hyphens
-      .replace(/^-+|-+$/g, ''); // remove leading/trailing hyphens
-  };
-
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setName(val);
