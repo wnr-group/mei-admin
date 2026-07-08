@@ -15,9 +15,19 @@ export type Database = {
         Update: { role?: 'admin' | 'super_admin'; full_name?: string | null }
       }
       categories: {
-        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string; deleted_at: string | null }
-        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number }
-        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; deleted_at?: string | null }
+        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; is_active: boolean; sort_order: number; rule_match_type: 'ALL' | 'ANY'; created_at: string; updated_at: string; deleted_at: string | null }
+        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY' }
+        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY'; deleted_at?: string | null }
+      }
+      category_rules: {
+        Row: { id: string; category_id: string; field: 'name' | 'work_types' | 'price'; operator: 'contains' | 'is' | 'greater_than' | 'less_than'; value: string; created_at: string; updated_at: string }
+        Insert: { id?: string; category_id: string; field: 'name' | 'work_types' | 'price'; operator: 'contains' | 'is' | 'greater_than' | 'less_than'; value: string }
+        Update: { field?: 'name' | 'work_types' | 'price'; operator?: 'contains' | 'is' | 'greater_than' | 'less_than'; value?: string }
+      }
+      product_categories: {
+        Row: { id: string; product_id: string; category_id: string; source: 'manual' | 'rule'; created_at: string }
+        Insert: { id?: string; product_id: string; category_id: string; source: 'manual' | 'rule' }
+        Update: { source?: 'manual' | 'rule' }
       }
       products: {
         Row: { id: string; name: string; slug: string | null; short_description: string | null; category_id: string | null; price: number; work_types: string[]; status: 'PUBLISHED' | 'DRAFT'; description: string | null; image_url: string | null; created_at: string; updated_at: string; deleted_at: string | null; product_code: string; has_variants: boolean; size_system_id: string | null; supported_customization_types: string[] }
@@ -71,6 +81,10 @@ export type Database = {
       product_status: 'PUBLISHED' | 'DRAFT'
       enquiry_status: 'NEW' | 'REPLIED' | 'CLOSED'
       media_type: 'IMAGE' | 'VIDEO'
+      rule_field: 'name' | 'work_types' | 'price'
+      rule_operator: 'contains' | 'is' | 'greater_than' | 'less_than'
+      category_match_type: 'ALL' | 'ANY'
+      product_category_source: 'manual' | 'rule'
     }
   }
 }
