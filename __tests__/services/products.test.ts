@@ -5,6 +5,11 @@ vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ from: mockFrom }),
 }))
 
+const mockSyncProductCategoryAssignments = vi.fn().mockResolvedValue(undefined)
+vi.mock('@/services/product-categories', () => ({
+  syncProductCategoryAssignments: (...args: unknown[]) => mockSyncProductCategoryAssignments(...args),
+}))
+
 const { getProducts, createProduct, updateProduct, deleteProduct, getProductBySlug, getProductByCode } = await import('@/services/products')
 
 interface MockChain extends Record<string, unknown> {
@@ -94,6 +99,14 @@ describe('createProduct', () => {
     createMockChainForQuery({ data: null, error: { message: 'Insert failed' } })
     await expect(createProduct({ name: 'Bad', price: 0 })).rejects.toThrow('Insert failed')
   })
+
+  it('syncs product-category assignments after a successful create', async () => {
+    const newProduct = { id: '2', name: 'New Product', price: 200, status: 'DRAFT', work_types: [], category_id: 'cat-1' }
+    createMockChainForQuery({ data: newProduct, error: null })
+    mockSyncProductCategoryAssignments.mockClear()
+    await createProduct({ name: 'New Product', price: 200, category_id: 'cat-1' })
+    expect(mockSyncProductCategoryAssignments).toHaveBeenCalledWith(newProduct)
+  })
 })
 
 describe('updateProduct', () => {
@@ -110,6 +123,14 @@ describe('updateProduct', () => {
   it('throws on Supabase error', async () => {
     createMockChainForQuery({ data: null, error: { message: 'Update failed' } })
     await expect(updateProduct('1', { name: 'Bad' })).rejects.toThrow('Update failed')
+  })
+
+  it('syncs product-category assignments after a successful update', async () => {
+    const updated = { id: '1', name: 'Updated', price: 150, work_types: [], category_id: 'cat-2' }
+    createMockChainForQuery({ data: updated, error: null })
+    mockSyncProductCategoryAssignments.mockClear()
+    await updateProduct('1', { name: 'Updated', price: 150 })
+    expect(mockSyncProductCategoryAssignments).toHaveBeenCalledWith(updated)
   })
 })
 

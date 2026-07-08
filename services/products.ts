@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toAppError, AppError } from '@/lib/errors'
 import { logAuditEvent } from '@/lib/audit'
 import { generateProductCode } from '@/lib/product-code'
+import { syncProductCategoryAssignments } from '@/services/product-categories'
 import type { Product, ProductInsert, ProductUpdate } from '@/types'
 import type { Json } from '@/types/database'
 
@@ -59,6 +60,7 @@ export async function createProduct(product: ProductInsert) {
     if (error) throw toAppError(new Error(error.message))
     if (!data) throw new AppError('NOT_FOUND', 'Product not returned after insert')
     await logAuditEvent({ action: 'CREATE', resourceType: 'product', resourceId: data.id, newData: data as Json })
+    await syncCategoriesOrLog(data)
     return data as Product
   }
 
@@ -85,6 +87,7 @@ export async function createProduct(product: ProductInsert) {
     if (!data) throw new AppError('NOT_FOUND', 'Product not returned after insert')
 
     await logAuditEvent({ action: 'CREATE', resourceType: 'product', resourceId: data.id, newData: data as Json })
+    await syncCategoriesOrLog(data)
     return data as Product
   }
 
@@ -110,6 +113,7 @@ export async function updateProduct(id: string, updates: ProductUpdate) {
     resourceId: id,
     newData: updates as Json,
   })
+  await syncCategoriesOrLog(data)
 
   return data as Product
 }
@@ -158,6 +162,14 @@ export async function getProductByCode(productCode: string): Promise<{ id: strin
 
 function isUniqueSlugViolation(error: { message: string; code?: string }): boolean {
   return error.code === '23505' || error.message.includes('products_slug_unique')
+}
+
+async function syncCategoriesOrLog(product: Product) {
+  try {
+    await syncProductCategoryAssignments(product)
+  } catch (err) {
+    console.error('[products] Failed to sync category assignments:', err)
+  }
 }
 
 export async function deleteProduct(id: string) {
