@@ -96,6 +96,7 @@ export interface OrderConfirmationCustomerPayload {
   orderNumber: string;
   items: Array<{ name: string; quantity: number }>;
   total: number;
+  orderUrl?: string;
 }
 
 export function orderConfirmationCustomer(p: OrderConfirmationCustomerPayload): string {
@@ -126,6 +127,7 @@ export function orderConfirmationCustomer(p: OrderConfirmationCustomerPayload): 
         </tr>
       </tfoot>
     </table>
+    ${p.orderUrl ? `<div style="margin-bottom:24px;">${ctaButton('View Order Details', p.orderUrl)}</div>` : ''}
     ${para('<span style="font-size:13px;color:#888;">We will keep you updated as your order progresses. For any queries, simply reply to this email.</span>')}
   `);
 }

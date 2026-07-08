@@ -1,5 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { logNotification } from '../_shared/log.ts';
+import { createEmailProvider } from '../_shared/email-provider.ts';
+import { renderTemplate } from '../_shared/email-templates.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,101 +64,63 @@ Deno.serve(async (req) => {
 
   const adminEmail = Deno.env.get('ADMIN_EMAIL');
   const adminUrl = Deno.env.get('ADMIN_URL') ?? '';
+  const provider = createEmailProvider();
 
-  // Direct upsert — avoids PostgREST text→ENUM casting failure that affects RPC calls.
-  // See create-order/index.ts for the documented explanation of this pattern.
-
-  const customerPayload = {
-    correlationId,
-    name: enquiry.name,
-    message: enquiry.message,
-  };
-
-  logNotification('enquiry-notify', {
-    event: 'notification_enqueue_started',
-    correlation_id: correlationId,
-    notification_type: 'ENQUIRY_RECEIPT_CUSTOMER',
-    customer_email: enquiry.email,
-  });
-
-  const { error: customerError } = await db
-    .from('notification_jobs')
-    .upsert(
-      {
-        idempotency_key: `ENQUIRY_RECEIPT_CUSTOMER:${body.enquiry_id}`,
-        type: 'ENQUIRY_RECEIPT_CUSTOMER',
-        recipient_email: enquiry.email,
-        payload: customerPayload,
-        priority: 1,
+  const sends: Array<{ type: string; to: string; payload: Record<string, unknown> }> = [
+    {
+      type: 'ENQUIRY_RECEIPT_CUSTOMER',
+      to: enquiry.email,
+      payload: {
+        correlationId,
+        name: enquiry.name,
+        message: enquiry.message,
       },
-      { onConflict: 'idempotency_key', ignoreDuplicates: true }
-    );
+    },
+  ];
 
-  if (customerError) {
-    logNotification('enquiry-notify', {
-      event: 'notification_enqueue_failed',
-      correlation_id: correlationId,
-      notification_type: 'ENQUIRY_RECEIPT_CUSTOMER',
-      customer_email: enquiry.email,
-      error_message: customerError.message,
-      error_code: customerError.code ?? null,
-    });
-  } else {
-    logNotification('enquiry-notify', {
-      event: 'notification_enqueue_success',
-      correlation_id: correlationId,
-      notification_type: 'ENQUIRY_RECEIPT_CUSTOMER',
-      customer_email: enquiry.email,
+  if (adminEmail) {
+    sends.push({
+      type: 'ENQUIRY_ADMIN_NOTIFICATION',
+      to: adminEmail,
+      payload: {
+        correlationId,
+        name: enquiry.name,
+        email: enquiry.email,
+        phone: enquiry.phone ?? null,
+        message: enquiry.message,
+        occasion: enquiry.occasion ?? null,
+        budget: enquiry.budget ?? null,
+        adminEnquiryUrl: `${adminUrl}/enquiries/${body.enquiry_id}`,
+      },
     });
   }
 
-  if (adminEmail) {
-    const adminPayload = {
-      correlationId,
-      name: enquiry.name,
-      email: enquiry.email,
-      phone: enquiry.phone ?? null,
-      message: enquiry.message,
-      occasion: enquiry.occasion ?? null,
-      budget: enquiry.budget ?? null,
-      adminEnquiryUrl: `${adminUrl}/enquiries/${body.enquiry_id}`,
-    };
-
+  // Send sequentially — the Mailgun sandbox rejects concurrent requests with a
+  // spurious 401. Await before returning: the isolate is killed once the response is sent.
+  for (const s of sends) {
     logNotification('enquiry-notify', {
-      event: 'notification_enqueue_started',
+      event: 'provider_request_started',
       correlation_id: correlationId,
-      notification_type: 'ENQUIRY_ADMIN_NOTIFICATION',
-      customer_email: adminEmail,
+      notification_type: s.type,
+      customer_email: s.to,
     });
-
-    const { error: adminError } = await db
-      .from('notification_jobs')
-      .upsert(
-        {
-          idempotency_key: `ENQUIRY_ADMIN_NOTIFICATION:${body.enquiry_id}`,
-          type: 'ENQUIRY_ADMIN_NOTIFICATION',
-          recipient_email: adminEmail,
-          payload: adminPayload,
-          priority: 1,
-        },
-        { onConflict: 'idempotency_key', ignoreDuplicates: true }
-      );
-
-    if (adminError) {
+    try {
+      const { subject, html } = renderTemplate(s.type, s.payload);
+      const messageId = await provider.send({ to: s.to, subject, html });
       logNotification('enquiry-notify', {
-        event: 'notification_enqueue_failed',
+        event: 'provider_request_success',
         correlation_id: correlationId,
-        notification_type: 'ENQUIRY_ADMIN_NOTIFICATION',
-        customer_email: adminEmail,
-        error_message: adminError.message,
-        error_code: adminError.code ?? null,
+        notification_type: s.type,
+        customer_email: s.to,
+        provider_message_id: messageId,
       });
-    } else {
+    } catch (err) {
       logNotification('enquiry-notify', {
-        event: 'notification_enqueue_success',
+        event: 'provider_request_failed',
         correlation_id: correlationId,
-        notification_type: 'ENQUIRY_ADMIN_NOTIFICATION',
-        customer_email: adminEmail,
+        notification_type: s.type,
+        customer_email: s.to,
+        error_message: err instanceof Error ? err.message : String(err),
       });
     }
   }
