@@ -15,7 +15,8 @@ describe('Schema Verification', () => {
     const tables = [
       'size_systems', 'size_system_entries', 'product_colors',
       'product_variants', 'product_media', 'measurement_templates',
-      'measurement_template_fields', 'blouse_configurations', 'order_item_measurements'
+      'measurement_template_fields', 'blouse_configurations', 'order_item_measurements',
+      'category_rules', 'product_categories'
     ];
 
     for (const table of tables) {
