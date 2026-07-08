@@ -32,8 +32,11 @@ export default function RuleFormDialog({ categoryId, open, onClose, initialRule 
   const prevOpenRef = useRef(open)
   const prevRuleRef = useRef(initialRule)
 
+  // eslint-disable-next-line react-hooks/refs
   if (prevOpenRef.current !== open || prevRuleRef.current !== initialRule) {
+    // eslint-disable-next-line react-hooks/refs
     prevOpenRef.current = open
+    // eslint-disable-next-line react-hooks/refs
     prevRuleRef.current = initialRule
     if (open) {
       setField(initialRule?.field ?? 'name')

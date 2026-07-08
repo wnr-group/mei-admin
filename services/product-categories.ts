@@ -65,16 +65,25 @@ async function reconcileSource(
   }
 }
 
-// Reconciles ONLY source='rule' rows against current rule matches. Never reads
-// or writes source='manual' rows — safe to call in bulk from reevaluateAllProducts
-// without disturbing anyone's manual category assignment.
-export async function syncRuleCategoryAssignments(product: RuleEvaluableProductRow): Promise<void> {
-  const categoriesWithRules = await getCategoriesWithRules()
+// Private helper — receives pre-fetched categories to avoid N round-trips when
+// called in a loop. Reconciles ONLY source='rule' rows for a single product.
+async function syncRuleCategoryAssignmentsWithCategories(
+  product: RuleEvaluableProductRow,
+  categoriesWithRules: CategoryWithRules[]
+): Promise<void> {
   const matchedCategoryIds = categoriesWithRules
     .filter((c) => evaluateCategoryRules(product, c.category_rules, c.rule_match_type))
     .map((c) => c.id)
 
   await reconcileSource(product.id, 'rule', matchedCategoryIds)
+}
+
+// Reconciles ONLY source='rule' rows against current rule matches. Never reads
+// or writes source='manual' rows — safe to call in bulk from reevaluateAllProducts
+// without disturbing anyone's manual category assignment.
+export async function syncRuleCategoryAssignments(product: RuleEvaluableProductRow): Promise<void> {
+  const categoriesWithRules = await getCategoriesWithRules()
+  await syncRuleCategoryAssignmentsWithCategories(product, categoriesWithRules)
 }
 
 // Reconciles ONLY the single source='manual' row against the product's current
@@ -90,8 +99,8 @@ export async function syncProductCategoryAssignments(product: RuleEvaluableProdu
 }
 
 // Bulk re-evaluation. Per the locked reconciliation rule, this rebuilds ONLY
-// rule-based assignments across every product — it must never touch manual rows,
-// so it calls syncRuleCategoryAssignments directly, not the full sync.
+// rule-based assignments across every product — it must never touch manual rows.
+// Categories-with-rules are fetched once before the loop to avoid O(N) round-trips.
 export async function reevaluateAllProducts(): Promise<{ evaluated: number }> {
   const supabase = createClient()
   const { data, error } = await supabase
@@ -101,8 +110,9 @@ export async function reevaluateAllProducts(): Promise<{ evaluated: number }> {
   if (error) throw toAppError(new Error(error.message))
 
   const products = (data as RuleEvaluableProductRow[] | null) ?? []
+  const categoriesWithRules = await getCategoriesWithRules()
   for (const product of products) {
-    await syncRuleCategoryAssignments(product)
+    await syncRuleCategoryAssignmentsWithCategories(product, categoriesWithRules)
   }
   return { evaluated: products.length }
 }

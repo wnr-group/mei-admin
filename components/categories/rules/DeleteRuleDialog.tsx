@@ -24,7 +24,7 @@ export default function DeleteRuleDialog({ categoryId, rule, onClose }: Props) {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
         <h2 className="text-lg font-semibold mb-2">Delete Condition</h2>
         <p className="text-sm text-gray-600 mb-4">
-          Delete this condition? Products matched only through it will be unlinked from this category.
+          Delete this condition? Run &ldquo;Re-evaluate All Products&rdquo; afterwards to remove product memberships that were matched only by this condition.
         </p>
         {deleteRule.error && <p className="text-sm text-red-600 mb-3">Failed to delete. Please try again.</p>}
         <div className="flex justify-end gap-2">
