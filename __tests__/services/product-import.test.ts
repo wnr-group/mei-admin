@@ -16,6 +16,16 @@ vi.mock('@/lib/monitoring', () => ({
   captureError: (...args: unknown[]) => mockCaptureError(...args),
 }))
 
+const mockUploadProductImage = vi.fn((_file: File, _productId: string) => Promise.resolve('https://example.com/uploaded-image.jpg'))
+vi.mock('@/services/storage', () => ({
+  uploadProductImage: (file: File, productId: string) => mockUploadProductImage(file, productId),
+}))
+
+const mockValidateImageFile = vi.fn((_file: File) => null)
+vi.mock('@/lib/validators/image', () => ({
+  validateImageFile: (file: File) => mockValidateImageFile(file),
+}))
+
 const {
   bulkImportProducts,
   resolveCategoryId,
@@ -178,6 +188,41 @@ describe('bulkImportProducts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGenerateProductCode.mockReturnValue('MEI-TEST-CODE')
+
+    // Mock global fetch to return a valid image response
+    // This is needed for downloadValidateAndUploadImage() which calls fetch()
+    const mockFetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        headers: {
+          get: (name: string) => {
+            if (name.toLowerCase() === 'content-type') {
+              return 'image/jpeg'
+            }
+            return null
+          },
+        },
+        arrayBuffer: () => {
+          // Return a minimal valid JPEG buffer (1x1 pixel)
+          const jpegBuffer = Buffer.from([
+            0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01,
+            0x00, 0x01, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08,
+            0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0a, 0x0c, 0x14, 0x0d, 0x0c, 0x0b, 0x0b, 0x0c, 0x19, 0x12,
+            0x13, 0x0f, 0x14, 0x1d, 0x1a, 0x1f, 0x1e, 0x1d, 0x1a, 0x1c, 0x1c, 0x20, 0x24, 0x2e, 0x27, 0x20,
+            0x22, 0x2c, 0x23, 0x1c, 0x1c, 0x28, 0x37, 0x29, 0x2c, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1f, 0x27,
+            0x39, 0x3d, 0x38, 0x32, 0x3c, 0x2e, 0x33, 0x34, 0x32, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01,
+            0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xc4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0xff, 0xc4, 0x00, 0x14,
+            0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, 0x7f, 0xff, 0xd9,
+          ])
+          return Promise.resolve(jpegBuffer.buffer as ArrayBuffer)
+        },
+      })
+    )
+    vi.stubGlobal('fetch', mockFetch)
   })
 
   it('imports a single product with a primary image and reports expanded summary fields', async () => {
@@ -186,6 +231,7 @@ describe('bulkImportProducts', () => {
       .mockReturnValueOnce(createChain(NOT_FOUND)) // code check
       .mockReturnValueOnce(createChain({ data: [{ id: 'prod-1', name: 'Lehenga A' }], error: null })) // batch insert
       .mockReturnValueOnce(createChain({ data: [{ id: 'media-1' }], error: null })) // primary image (multi-row insert)
+      .mockReturnValueOnce(createChain({ error: null })) // product image_url update
 
     const summary = await bulkImportProducts([makeGroup()], categories)
 
@@ -213,6 +259,7 @@ describe('bulkImportProducts', () => {
       .mockReturnValueOnce(createChain({ data: [], error: null })) // batch insert returns 0 rows for 1 requested
       .mockReturnValueOnce(createChain({ data: { id: 'prod-1', name: 'Lehenga A' }, error: null })) // fallback single insert succeeds
       .mockReturnValueOnce(createChain({ data: [{ id: 'media-1' }], error: null })) // media
+      .mockReturnValueOnce(createChain({ error: null })) // product image_url update
 
     const summary = await bulkImportProducts([makeGroup()], categories)
 
@@ -279,6 +326,7 @@ describe('bulkImportProducts', () => {
       .mockReturnValueOnce(createChain(NOT_FOUND)) // retry: 'MEI-TEST-CODE-2' free
       .mockReturnValueOnce(createChain({ data: { id: 'prod-1', name: 'Lehenga A' }, error: null })) // fallback single insert retried: success
       .mockReturnValueOnce(createChain({ data: [{ id: 'media-1' }], error: null })) // media
+      .mockReturnValueOnce(createChain({ error: null })) // product image_url update
 
     const summary = await bulkImportProducts([makeGroup()], categories)
 
@@ -293,6 +341,7 @@ describe('bulkImportProducts', () => {
       .mockReturnValueOnce(createChain({ data: null, error: { message: 'fetch failed: network timeout' } })) // transient failure
       .mockReturnValueOnce(createChain({ data: [{ id: 'prod-1', name: 'Lehenga A' }], error: null })) // retried batch insert succeeds
       .mockReturnValueOnce(createChain({ data: [{ id: 'media-1' }], error: null })) // media
+      .mockReturnValueOnce(createChain({ error: null })) // product image_url update
 
     const summary = await bulkImportProducts([makeGroup()], categories)
 
@@ -383,6 +432,10 @@ describe('bulkImportProducts', () => {
       mockFrom.mockReturnValueOnce(createChain({ data: [{ id: `media-${i}` }], error: null }))
     }
 
+    for (let i = 0; i < groupCount; i++) {
+      mockFrom.mockReturnValueOnce(createChain({ error: null })) // product image_url update for each product
+    }
+
     const summary = await bulkImportProducts(groups, categories)
 
     expect(summary.productsCreated).toBe(groupCount)
@@ -398,6 +451,7 @@ describe('bulkImportProducts', () => {
       .mockReturnValueOnce(createChain(NOT_FOUND)) // code for A
       .mockReturnValueOnce(createChain({ data: [{ id: 'prod-1', name: 'Lehenga A' }], error: null })) // batch insert (only A)
       .mockReturnValueOnce(createChain({ data: [{ id: 'media-1' }], error: null })) // A's primary image
+      .mockReturnValueOnce(createChain({ error: null })) // product image_url update for A
 
     const summary = await bulkImportProducts([groupA, groupB], categories)
 
