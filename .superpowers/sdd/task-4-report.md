@@ -1,152 +1,149 @@
-# Task 4 Report: Validation Module (validate.ts)
+# Task 4 Report: Category Rules CRUD Service
 
 ## Status
-**COMPLETE** ✓
+**COMPLETE** ✅
 
 ## Commit Hash
-- **de97378bb169052c6b9571571f065b10008d0bdb**
+- **533c0db** — `feat(category-rules): add CRUD service for category rules`
 
 ## Deliverables
 
-### 1. `lib/csv-import/validate.ts`
-Successfully created with all required functions:
+### 1. `services/category-rules.ts`
+Successfully created with all required CRUD functions and validation:
 
 #### Functions Implemented:
-1. **`normalizeForComparison(value: string, caseSensitive?: boolean): string`**
-   - Trims leading/trailing whitespace
-   - Collapses multiple consecutive spaces to single space
-   - Optionally lowercases (default: false)
-   - Returns normalized string for consistent comparison
 
-2. **`validateProductGroup(group: ProductGroup, context: ValidationContext): ProductGroup`**
-   - Validates all product fields against business rules
-   - Populates `group.errors` array with specific error details
-   - Validates:
-     - Category: must exist in provided list (case-insensitive)
-     - Price: non-negative number only (rejects currency, commas, invalid decimals)
-     - Status: PUBLISHED or DRAFT (case-insensitive, normalized to uppercase)
-     - Work types: semicolon-separated, case-insensitive matching against WORK_TYPES
-     - Short description: trimmed, max 300 characters
-     - Description: trimmed and preserved
-     - Images: product must have at least one (color or primary)
+1. **`getCategoryRules(categoryId: string): Promise<CategoryRule[]>`**
+   - Fetches all category rules for a given category
+   - Ordered by created_at ascending (chronological order)
+   - Returns empty array if no rules or null data returned
+   - Throws AppError on Supabase error
 
-3. **`validateGroupingResult(result: GroupingResult, context: ValidationContext): GroupingResult`**
-   - Validates all ProductGroups in result.groups
-   - Preserves unassignedRows (errors already set during grouping stage)
-   - Returns updated result with all errors populated
+2. **`createCategoryRule(rule: CategoryRuleInsert): Promise<CategoryRule>`**
+   - Creates a new category rule
+   - **Validates operator is legal for field BEFORE database call** (clean first line of defense)
+   - Throws `AppError('VALIDATION_ERROR', ...)` if operator invalid for field
+   - Returns created rule via `.select().single()`
+   - Throws AppError on Supabase error
 
-4. **`isValidFile(result: GroupingResult): boolean`**
-   - Returns true only if:
-     - All groups have zero errors
-     - No unassignedRows exist
-   - False if any errors or unassigned rows found
+3. **`updateCategoryRule(id: string, updates: CategoryRuleUpdate): Promise<CategoryRule>`**
+   - Updates an existing category rule (supports partial updates)
+   - **Validates operator if present in updates** (skips validation for value-only updates)
+   - Relies on DB CHECK constraint for partial updates missing field/operator
+   - Returns updated rule via `.select().single()`
+   - Throws AppError on Supabase error
 
-### 2. `lib/csv-import/validate.test.ts`
-Comprehensive Vitest test suite with **27 passing tests** (exceeds requirement of 14):
+4. **`deleteCategoryRule(id: string): Promise<void>`**
+   - Deletes a category rule by ID
+   - Throws AppError on Supabase error
+
+#### Operator Validation Helper:
+- **`assertValidOperatorForField(field?, operator?): void`**
+  - Only validates when BOTH field and operator are present
+  - Throws clear `AppError('VALIDATION_ERROR', ...)` message
+  - Allows partial updates to rely on DB CHECK constraint
+
+### 2. `__tests__/services/category-rules.test.ts`
+Comprehensive Vitest test suite with **12 passing tests**:
 
 #### Test Coverage:
 
-**normalizeForComparison (4 tests)**
-- Trim and collapse spaces with lowercasing
-- Multiple consecutive spaces handling
-- Case-sensitive preservation
-- Empty string handling
+**getCategoryRules (3 tests)**
+- ✅ Returns rules for a category ordered by created_at
+- ✅ Returns empty array when no data
+- ✅ Throws on Supabase error
 
-**validateProductGroup (18 tests)**
-- Missing category detection
-- Unknown category detection
-- Case-insensitive category matching
-- Invalid price (non-numeric, negative)
-- Valid price formats: "45000", "45000.00", " 45000 ", "45000.5"
-- Missing price detection
-- Invalid status detection
-- Case-insensitive status matching (normalized to uppercase)
-- Valid work types parsing and normalization
-- Unknown work type detection
-- Case-insensitive work type matching
-- Empty work types handling
-- Missing images detection
-- Product with color images (valid)
-- Product with primary images (valid)
-- Description trimming and preservation
+**createCategoryRule (3 tests)**
+- ✅ Creates and returns a rule
+- ✅ Throws on Supabase error
+- ✅ Rejects invalid operator before calling Supabase (validation gate works)
 
-**validateGroupingResult (2 tests)**
-- Validate all groups in result
-- Preserve unassigned rows
+**updateCategoryRule (4 tests)**
+- ✅ Updates and returns the rule
+- ✅ Throws on Supabase error
+- ✅ Rejects invalid operator before calling Supabase
+- ✅ Allows partial update (value only) without field/operator
 
-**isValidFile (4 tests)**
-- Return true when all groups valid, no unassigned rows
-- Return false when any group has errors
-- Return false when unassigned rows exist
-- Return false with both errors and unassigned rows
+**deleteCategoryRule (2 tests)**
+- ✅ Deletes the rule
+- ✅ Throws on Supabase error
 
 ## Test Results
 
+### Initial Test Run (Expected Failure)
+```
+Error: Failed to resolve import "@/services/category-rules" from "__tests__/services/category-rules.test.ts". 
+Does the file exist?
+```
+✅ Tests correctly failed with "Cannot find module" error.
+
+### Final Test Run (After Implementation)
 ```
  Test Files  1 passed (1)
-      Tests  27 passed (27)
- Start at  11:38:48
- Duration  1.60s
+      Tests  12 passed (12)
+   Start at  16:32:06
+   Duration  1.31s (transform 75ms, setup 126ms, import 61ms, tests 9ms, environment 920ms)
 ```
 
-All tests running successfully with command: `npm run test -- lib/csv-import/validate.test.ts`
+All tests passing! ✅
 
 ## Key Features & Compliance
 
-✅ **All field validations implemented**
-- Category existence (case-insensitive match)
-- Price validation (non-negative numbers only)
-- Status validation (PUBLISHED or DRAFT)
-- Work types validation (semicolon-separated, enum matching)
-- Short description validation (max 300 chars)
-- Description validation (trimmed, multiline preserved)
-- Image validation (at least one required)
+✅ **Operator validation before database calls**
+- Clean first line of defense against invalid operator-field combinations
+- Throws friendly `AppError('VALIDATION_ERROR', ...)` instead of raw Postgres CHECK violation
+- Prevents database constraint errors from reaching users
+- DB CHECK constraint (`category_rules_valid_operator_for_field`) remains as backstop
 
-✅ **No silent data loss**
-- Validation errors are specific and clear
-- Errors include row number, field name, and actionable message
-- All validated data is either accepted or explicitly rejected
+✅ **Proper Supabase response handling**
+- Write operations: cast with `as never`
+- Read operations: cast as `{ data: X | null; error: ... }`
+- All errors wrapped via `toAppError()` for consistent error handling
+- Uses `.select().single()` pattern for inserts/updates to return full row
+
+✅ **Supports partial updates**
+- `updateCategoryRule` allows updates with only value changes
+- Field and operator are optional in `CategoryRuleUpdate`
+- When both missing, DB CHECK constraint is the validation layer
+- When present together, pre-validation gate activates
 
 ✅ **TypeScript strict mode**
 - No `any` types
-- All types explicitly defined
-- Pure functions only
-- No console.log statements
+- All types from `@/types` (CategoryRule, CategoryRuleInsert, CategoryRuleUpdate)
+- Proper function signatures with async/Promise types
 
-✅ **Edge cases handled**
-- Whitespace and space-collapsing
-- Case-insensitive matching with canonical form preservation
-- Negative numbers rejected at parse stage
-- Multiple work types with semicolon separation
-- Empty optional fields handled gracefully
-- Multi-row product groups (groupRowIndices preserved)
+✅ **Comprehensive test mocking**
+- Mocks entire Supabase client chain (select, insert, update, delete, eq, order, single)
+- Tests both happy path and error paths
+- Verifies mockFrom called/not called appropriately
+- Validates operator validation happens before Supabase call
 
 ## Design Notes
 
-### Price Validation
-- Regex: `/^-?\d+(\.\d+)?$/` allows optional minus sign to detect negatives
-- Negative prices caught after parsing with clear error message
-- Supports decimals and integers
+### Operator Validation Strategy
+```typescript
+assertValidOperatorForField(field?: string, operator?: string)
+// Only validates if BOTH present:
+// - createCategoryRule: Always has both field+operator → validates
+// - updateCategoryRule with {field, operator}: Validates
+// - updateCategoryRule with {value}: Skips validation, DB CHECK catches errors
+```
 
-### Status Normalization
-- Input normalized to lowercase for comparison
-- Output set to uppercase (PUBLISHED or DRAFT)
-- Ensures consistent database representation
+### Error Handling
+- Supabase errors wrapped via `toAppError(new Error(error.message))`
+- ValidationErrors for operator mismatches before DB call
+- NotFound errors if .select().single() returns null
+- Consistent error type across all operations
 
-### Work Types Normalization
-- Case-insensitive comparison against allowedWorkTypes array
-- Canonical form preserved from WORK_TYPES constant
-- Empty parts skipped when splitting by semicolon
+### Database Integration
+- Table: `category_rules` (created in Task 1)
+- Ordering: `created_at ascending` for consistent retrieval
+- Partial updates: ORM update() method accepts partial objects
+- Single row returns: `.select().single()` after insert/update
 
-### Conflict Detection Note
-- Tests 9 and 10 (conflicting/matching prices in multi-row groups) are not applicable at validation stage
-- These conflicts should be detected and resolved during the grouping stage (group.ts)
-- By validation time, ProductGroup structure doesn't preserve individual non-anchor row data
-- Grouping stage responsibility: merge or reject rows with field conflicts
+## Files Created
+- ✅ `services/category-rules.ts` (54 lines)
+- ✅ `__tests__/services/category-rules.test.ts` (115 lines)
 
-## Files Modified/Created
-- ✅ `lib/csv-import/validate.ts` (259 lines)
-- ✅ `lib/csv-import/validate.test.ts` (470 lines)
-
-## No Concerns
-All requirements met, tests passing, code follows project conventions and TypeScript strict mode.
+## Ready for Next Task
+Task 4 complete. Task 5 (Product-category sync service) is now unblocked and can use these CRUD functions.

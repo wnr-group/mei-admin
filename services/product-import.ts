@@ -135,9 +135,9 @@ async function downloadValidateAndUploadImage(
 ): Promise<string | null> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined
   try {
-    // Step 1: Download the image with a short timeout
+    // Step 1: Download the image — allow up to 15 s for slow external CDNs
     const controller = new AbortController()
-    timeoutId = setTimeout(() => controller.abort(), 500)
+    timeoutId = setTimeout(() => controller.abort(), 15_000)
 
     const response = await fetch(imageUrl, { signal: controller.signal })
 
@@ -175,12 +175,21 @@ async function downloadValidateAndUploadImage(
   } catch (err) {
     // Log download/upload failures but don't crash the import
     if (err instanceof Error) {
-      captureError(err, {
-        context: 'csv-import-image-upload-error',
-        imageUrl,
-        productId,
-        errorName: err.name,
-      })
+      if (err.name === 'AbortError') {
+        captureError(err, {
+          context: 'csv-import-image-timeout',
+          imageUrl,
+          productId,
+          errorName: err.name,
+        })
+      } else {
+        captureError(err, {
+          context: 'csv-import-image-upload-error',
+          imageUrl,
+          productId,
+          errorName: err.name,
+        })
+      }
     }
     return null
   } finally {

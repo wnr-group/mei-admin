@@ -1,126 +1,81 @@
-# Task 2: CSV Parsing Module (parse.ts)
+### Task 2: TypeScript types for the new tables
 
-## Objective
-Implement `lib/csv-import/parse.ts` to parse CSV files using PapaParse with RFC4180 compliance and proper header validation.
+**Files:**
+- Modify: `types/database.ts`
+- Modify: `types/index.ts`
 
-## Deliverables
+**Interfaces:**
+- Consumes: schema from Task 1.
+- Produces: `Database['public']['Tables']['category_rules']`, `Database['public']['Tables']['product_categories']`; exported types `CategoryRule`, `CategoryRuleInsert`, `CategoryRuleUpdate`, `ProductCategory`, `ProductCategoryInsert`, `RuleField`, `RuleOperator`, `CategoryMatchType`, `ProductCategorySource`; `Category` row/insert/update gain `rule_match_type`.
 
-Create `lib/csv-import/parse.ts` with:
+- [ ] **Step 1: Add `rule_match_type` to the `categories` table entry**
 
-### Function: `parseCSV(csvText: string): ParseResult`
-- **Input:** Raw CSV text (string)
-- **Output:** `ParseResult` (from types.ts)
-- **Purpose:** Use PapaParse to parse CSV into row objects with header as keys
+In `types/database.ts`, replace the `categories` block (currently lines 17-21):
 
-**Implementation details:**
-- Use `Papa.parse(csvText, { header: true, skipEmptyLines: true })`
-- If PapaParse encounters parsing errors (e.g., unclosed quotes), include them in result
-- Return `ParseResult` with:
-  - `data`: array of row objects (each row is `Record<string, string>`)
-  - `errors`: any PapaParse errors
-  - `meta.fields`: the parsed headers (column names)
+```ts
+      categories: {
+        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; is_active: boolean; sort_order: number; rule_match_type: 'ALL' | 'ANY'; created_at: string; updated_at: string; deleted_at: string | null }
+        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY' }
+        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY'; deleted_at?: string | null }
+      }
+```
 
-### Function: `validateHeaders(headers: string[] | undefined): FileValidationError | null`
-- **Input:** Parsed headers from PapaParse (`meta.fields`)
-- **Output:** `FileValidationError` if invalid, `null` if headers are valid
-- **Purpose:** Ensure the CSV has the required columns
+- [ ] **Step 2: Add `category_rules` and `product_categories` table entries**
 
-**Required headers (exact column names, case-sensitive):**
-- `name`
-- `category_name`
-- `price`
-- `status`
-- `work_types`
-- `short_description`
-- `description`
-- `color_label`
-- `image_url`
+In `types/database.ts`, insert immediately after the `categories` block (before the `products` block):
 
-**Validation rules:**
-- Trim whitespace from each header before comparison
-- All 9 required headers must be present
-- Column order does NOT matter
-- Unknown extra columns are OK (silently ignored)
-- Duplicate headers should be treated as an error (use PapaParse's detection if available, or check manually)
-- If headers are missing/malformed, return error with type 'header' and clear message
+```ts
+      category_rules: {
+        Row: { id: string; category_id: string; field: 'name' | 'work_types' | 'price'; operator: 'contains' | 'is' | 'greater_than' | 'less_than'; value: string; created_at: string; updated_at: string }
+        Insert: { id?: string; category_id: string; field: 'name' | 'work_types' | 'price'; operator: 'contains' | 'is' | 'greater_than' | 'less_than'; value: string }
+        Update: { field?: 'name' | 'work_types' | 'price'; operator?: 'contains' | 'is' | 'greater_than' | 'less_than'; value?: string }
+      }
+      product_categories: {
+        Row: { id: string; product_id: string; category_id: string; source: 'manual' | 'rule'; created_at: string }
+        Insert: { id?: string; product_id: string; category_id: string; source: 'manual' | 'rule' }
+        Update: { source?: 'manual' | 'rule' }
+      }
+```
 
-### Function: `parseAndValidateFile(csvText: string): { result: ParseResult | null; fileError: FileValidationError | null; rows: Array<Record<string, string>> | null }`
-- **Input:** Raw CSV text
-- **Output:** Object with parsed result, any file-level errors, and cleaned rows (headers validated, empty rows filtered)
-- **Purpose:** One-shot function to parse CSV and validate file structure
+- [ ] **Step 3: Add the new enums**
 
-**Implementation:**
-1. Handle empty file → return `fileError: { type: 'empty', message: 'CSV file is empty' }`
-2. Parse with PapaParse
-3. If PapaParse failed → return `fileError: { type: 'parser', message: ... }`
-4. Validate headers → if error, return it
-5. If headers OK, return cleaned rows
+In `types/database.ts`, in the `Enums` block (currently lines 68-74), add:
 
-## Requirements
+```ts
+      rule_field: 'name' | 'work_types' | 'price'
+      rule_operator: 'contains' | 'is' | 'greater_than' | 'less_than'
+      category_match_type: 'ALL' | 'ANY'
+      product_category_source: 'manual' | 'rule'
+```
 
-- Import PapaParse: `import Papa from 'papaparse'`
-- Use types from `lib/csv-import/types.ts`
-- TypeScript strict mode (no `any`)
-- Pure functions only
-- No console.log, no side effects
-- Handle edge cases:
-  - Empty file
-  - Header-only file (no data rows)
-  - Quoted fields with commas/newlines
-  - Escaped quotes within quoted fields
-  - UTF-8 BOM (PapaParse handles this)
-  - Trailing blank rows (PapaParse's skipEmptyLines should skip these)
+- [ ] **Step 4: Export the new app-level types**
 
-## Testing
+In `types/index.ts`, after the existing `export type CategoryUpdate = Tables['categories']['Update']` line, add:
 
-Write unit tests (Vitest) in `lib/csv-import/parse.test.ts`:
+```ts
+export type CategoryRule = Tables['category_rules']['Row']
+export type CategoryRuleInsert = Tables['category_rules']['Insert']
+export type CategoryRuleUpdate = Tables['category_rules']['Update']
+export type ProductCategory = Tables['product_categories']['Row']
+export type ProductCategoryInsert = Tables['product_categories']['Insert']
 
-1. **Test:** parseCSV with quoted fields
-   - Input: CSV with quoted field containing comma: `"name","category_name","price"..."Product A","Bridal","45000"`
-   - Assert: parsed correctly, data array has correct columns
+export type RuleField = Database['public']['Enums']['rule_field']
+export type RuleOperator = Database['public']['Enums']['rule_operator']
+export type CategoryMatchType = Database['public']['Enums']['category_match_type']
+export type ProductCategorySource = Database['public']['Enums']['product_category_source']
+```
 
-2. **Test:** parseCSV with quoted newline
-   - Input: CSV with quoted multiline description
-   - Assert: description preserved with newline
+- [ ] **Step 5: Type-check**
 
-3. **Test:** parseCSV with escaped quotes
-   - Input: CSV with escaped quotes inside quoted field: `"desc","title ""Lehenga"" edition",...`
-   - Assert: unescaped correctly
+Run: `npx tsc --noEmit`
+Expected: no new errors (existing `Category` consumers still compile since `rule_match_type` is additive).
 
-4. **Test:** validateHeaders with missing required column
-   - Input: headers missing `price`
-   - Assert: returns FileValidationError with type 'header'
+- [ ] **Step 6: Commit**
 
-5. **Test:** validateHeaders with unknown extra column
-   - Input: headers include `unknown_column`
-   - Assert: returns null (valid)
+```bash
+git add types/database.ts types/index.ts
+git commit -m "feat(types): add category_rules and product_categories types"
+```
 
-6. **Test:** parseAndValidateFile with empty file
-   - Input: empty string
-   - Assert: returns `fileError.type === 'empty'`
+---
 
-7. **Test:** parseAndValidateFile with valid CSV
-   - Input: minimal valid CSV (header + 1 data row)
-   - Assert: returns cleaned rows, no fileError
-
-8. **Test:** parseAndValidateFile with header-only
-   - Input: CSV header row, no data
-   - Assert: returns cleaned rows as empty array
-
-9. **Test:** parseAndValidateFile with trailing blank rows
-   - Input: CSV with 2 data rows followed by blank rows
-   - Assert: cleaned rows has exactly 2 entries
-
-10. **Test:** UTF-8 with special characters
-    - Input: CSV with UTF-8 accents/symbols in description
-    - Assert: parsed correctly
-
-## Acceptance Criteria
-
-✅ PapaParse used (not custom parser)
-✅ All required headers validated with trimming
-✅ Unknown extra columns don't crash
-✅ RFC4180 compliance (quoted fields, escaped quotes, multiline)
-✅ All 10 unit tests passing
-✅ No console.log, no side effects
-✅ TypeScript strict mode passes

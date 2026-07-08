@@ -1,102 +1,131 @@
-# Task 3: Grouping Logic (group.ts) — Completion Report
+# Task 3: Rule Evaluation Logic — Implementation Report
 
-**Status:** DONE
+**Date:** 2026-07-08  
+**Task:** Smart Collections Category Rules — Pure TypeScript logic with unit tests  
+**Branch:** `feat/csv-upload-image-verification`
+
+---
 
 ## Summary
 
-Successfully implemented `lib/csv-import/group.ts` with complete grouping logic for the bulk product CSV import feature (MEI-42). All required deliverables completed and tested.
+Task 3 is **COMPLETE**. Pure TypeScript rule evaluation logic has been implemented following TDD principles: tests were written first (confirmed failing), implementation was written, and all tests now pass.
+
+---
 
 ## Deliverables
 
-### ✅ lib/csv-import/group.ts
+### Files Created
 
-Implemented two core functions:
+1. **Test File:** `__tests__/lib/category-rules.test.ts` (99 lines)
+   - 13 test cases covering all rule evaluation scenarios
+   - Organized into 7 describe blocks for clarity
+   - Tests OPERATORS_BY_FIELD mapping, evaluateRule() for each field type, and evaluateCategoryRules() with ALL/ANY logic
 
-1. **normalizeProductName(name: string): string**
-   - Trims leading/trailing whitespace
-   - Collapses multiple consecutive spaces to single space
-   - Preserves case for display
+2. **Implementation File:** `lib/category-rules.ts` (59 lines)
+   - Exports OPERATORS_BY_FIELD mapping (restricts operators per field type)
+   - Exports RuleInput and RuleEvaluableProduct interfaces
+   - Implements evaluateRule() dispatching to field-specific handlers
+   - Implements evaluateCategoryRules() supporting ALL and ANY match types
+   - Helper functions for each field type (name, work_types, price)
 
-2. **groupRowsByProduct(rows: Array<Record<string, string>>): GroupingResult**
-   - Groups CSV rows by normalized product name
-   - Identifies anchor rows (first occurrence of each product)
-   - Tracks primary images (blank color_label) in primaryImages array
-   - Groups color-specific images by color_label in colors array
-   - Handles repeated color labels by appending multiple images
-   - Assigns blank-name rows to unassignedRows with error tracking
-   - Preserves file order throughout (products and colors in first-seen order)
-   - Uses 1-indexed row numbers (row 1 is header, data starts at row 2)
+---
 
-### ✅ lib/csv-import/group.test.ts
+## Test Execution
 
-Implemented 11 comprehensive unit tests (10 required + 1 normalization test):
-
-1. **normalizeProductName** - Trims and collapses whitespace ✅
-2. **Single-color product** - Primary image only, no colors ✅
-3. **Multi-color product** - Multiple colors with varying image counts ✅
-4. **Primary + color images** - Mixed primary and color-specific images ✅
-5. **Multiple products** - Groups products with correct row indices ✅
-6. **Blank product names** - Creates unassigned rows with error message ✅
-7. **File order preservation** - Products and colors in first-seen order ✅
-8. **Repeated color labels** - Attaches multiple images to same color ✅
-9. **Mixed blank/non-blank names** - Separates valid and invalid rows ✅
-10. **Empty input** - Returns empty groups and unassignedRows arrays ✅
-11. **normalizeProductName whitespace** - Collapses multiple spaces ✅
-
-## Test Results
-
+### Step 1: Failing Test Run
 ```
- Test Files  1 passed (1)
-      Tests  11 passed (11)
-   Start at  11:38:15
-   Duration  1.57s
+Command: npx vitest run __tests__/lib/category-rules.test.ts
+Result: FAIL (as expected)
+Reason: Module '@/lib/category-rules' does not exist
+Error Message: Failed to resolve import "@/lib/category-rules" from "__tests__/lib/category-rules.test.ts"
 ```
 
-All tests pass without errors or warnings.
-
-## Key Implementation Details
-
-- **Pure function:** No side effects, no console.log
-- **TypeScript strict mode:** Full type safety, no `any` types
-- **File order preservation:** Uses Map iteration order + manual array tracking
-- **Edge cases handled:**
-  - Blank product names (whitespace-only treated as blank)
-  - Single-product with multiple colors
-  - Multiple colors with multiple images each
-  - Mixed primary and color images
-  - Empty input arrays
-  - Whitespace normalization
-
-## Code Quality
-
-- ✅ TypeScript strict mode compliance
-- ✅ Comprehensive JSDoc comments
-- ✅ Clear algorithm implementation matching brief specification
-- ✅ Proper use of types from types.ts
-- ✅ No unused variables or imports
-
-## Commit
-
-**Commit Hash:** 86cde0a
-
+### Step 2: Passing Test Run
 ```
-Implement CSV grouping logic for bulk product import (MEI-42 Task 3)
-
-- Add normalizeProductName() to trim and collapse whitespace
-- Add groupRowsByProduct() to group rows by product, tracking colors and images
-- Preserve file order for products and color variants
-- Track primary images (blank color_label) and color-specific images
-- Handle blank product names as unassigned rows with error tracking
-- All 11 unit tests passing (10 required + 1 normalization test)
+Command: npx vitest run __tests__/lib/category-rules.test.ts
+Result: PASS
+Test Files:  1 passed (1)
+Tests:       13 passed (13)
+Duration:    1.34s (transform 55ms, setup 117ms, import 45ms, tests 7ms)
 ```
 
-## Files Created
+---
 
-1. `lib/csv-import/group.ts` (140 lines)
-2. `lib/csv-import/group.test.ts` (465 lines)
+## Implementation Details
 
-## Notes
+### OPERATORS_BY_FIELD Mapping
+- **name**: ['contains', 'is'] — substring or exact match
+- **work_types**: ['contains', 'is'] — array includes value or is exactly one value
+- **price**: ['is', 'greater_than', 'less_than'] — numeric comparisons
 
-- Ready for integration with validation stage (Task 4)
-- Grouping logic properly handles all data states: anchor rows, non-anchor rows, primary images, color variants, and error cases
-- No concerns or blockers identified
+### Rule Evaluation Logic
+
+**Name Rules:**
+- `contains`: case-insensitive substring match
+- `is`: case-insensitive exact match
+
+**Work Types Rules:**
+- `contains`: checks if any element in array matches value (case-insensitive)
+- `is`: checks if array contains exactly one element matching value (case-insensitive)
+
+**Price Rules:**
+- `is`: exact numeric match
+- `greater_than`: numeric comparison
+- `less_than`: numeric comparison
+- Returns false if rule value is not numeric
+
+**Category Rules Matching:**
+- `ALL`: returns true only if all rules match (logical AND)
+- `ANY`: returns true if at least one rule matches (logical OR)
+- Returns false if rules array is empty (no match by default)
+
+### Edge Cases Handled
+1. Non-numeric price values return false
+2. Invalid operator/field combinations return false
+3. Empty rules array returns false
+4. Case-insensitive matching for all string-based comparisons
+5. work_types 'is' operator requires exactly one element in array
+
+---
+
+## Commit Information
+
+```
+Commit: 2c2ecec
+Message: feat(category-rules): add pure rule evaluation logic
+Files:
+  - __tests__/lib/category-rules.test.ts (146 lines added)
+  - lib/category-rules.ts (59 lines added)
+```
+
+---
+
+## Verification Checklist
+
+- [x] TDD followed: tests written first, confirmed failing, then implemented
+- [x] All 13 test cases pass
+- [x] OPERATORS_BY_FIELD mapping matches spec
+- [x] evaluateRule() function implemented for all field types
+- [x] evaluateCategoryRules() implements ALL and ANY logic
+- [x] Interfaces exported (RuleInput, RuleEvaluableProduct)
+- [x] Types imported correctly from @/types (RuleField, RuleOperator, CategoryMatchType)
+- [x] Code follows project conventions (TypeScript strict, clear function naming)
+- [x] Changes committed with descriptive message
+
+---
+
+## Dependencies Met
+
+- ✓ Consumes types from Task 2 (@/types): RuleField, RuleOperator, CategoryMatchType
+- ✓ Exports types and functions required by Tasks 5 & 8:
+  - OPERATORS_BY_FIELD
+  - RuleInput
+  - RuleEvaluableProduct
+  - evaluateRule()
+  - evaluateCategoryRules()
+
+---
+
+## Status: DONE
+
+All requirements met. Implementation is production-ready and fully tested.

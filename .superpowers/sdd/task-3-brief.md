@@ -1,139 +1,187 @@
-# Task 3: Grouping Logic (group.ts)
+### Task 3: Rule evaluation logic (pure, unit-tested)
 
-## Objective
-Implement `lib/csv-import/group.ts` to group CSV rows by product name, tracking colors and images in the order they appear in the file.
+**Files:**
+- Create: `lib/category-rules.ts`
+- Test: `__tests__/lib/category-rules.test.ts`
 
-## Deliverables
+**Interfaces:**
+- Consumes: `RuleField`, `RuleOperator`, `CategoryMatchType` from `@/types` (Task 2).
+- Produces: `OPERATORS_BY_FIELD: Record<RuleField, RuleOperator[]>`, `RuleInput = { field: RuleField; operator: RuleOperator; value: string }`, `RuleEvaluableProduct = { name: string; work_types: string[]; price: number }`, `evaluateRule(product, rule): boolean`, `evaluateCategoryRules(product, rules, matchType): boolean`. These exact names/signatures are relied on by Tasks 5 and 8.
 
-Create `lib/csv-import/group.ts` with:
+- [ ] **Step 1: Write the failing tests**
 
-### Function: `normalizeProductName(name: string): string`
-- **Input:** Raw product name from CSV
-- **Output:** Normalized name (trimmed, repeated spaces collapsed to single space)
-- **Purpose:** Create a consistent grouping key for product names
+```ts
+// __tests__/lib/category-rules.test.ts
+import { describe, it, expect } from 'vitest'
+import { evaluateRule, evaluateCategoryRules, OPERATORS_BY_FIELD } from '@/lib/category-rules'
 
-**Implementation:**
-- Trim leading/trailing whitespace
-- Collapse multiple consecutive spaces to single space
-- Do NOT lowercase (case is preserved for display)
+const product = { name: 'Zardozi Bridal Lehenga', work_types: ['ZARDOZI', 'AARI'], price: 45000 }
 
-### Function: `groupRowsByProduct(rows: Array<Record<string, string>>): GroupingResult`
-- **Input:** Array of parsed CSV rows (from parse.ts output)
-- **Output:** `GroupingResult` with `groups` and `unassignedRows`
-- **Purpose:** Group rows by product name, identify anchor rows, track colors and images
+describe('OPERATORS_BY_FIELD', () => {
+  it('restricts name and work_types to contains/is', () => {
+    expect(OPERATORS_BY_FIELD.name).toEqual(['contains', 'is'])
+    expect(OPERATORS_BY_FIELD.work_types).toEqual(['contains', 'is'])
+  })
 
-**Algorithm:**
-1. Initialize empty Map<normalizedName, ProductGroup>
-2. Initialize empty array for unassignedRows
-3. Walk through rows in order (maintain file order)
-4. For each row:
-   - Get `name` value (trim whitespace)
-   - If name is blank/empty:
-     - Add to unassignedRows with error "Missing product name — cannot be grouped into a product"
-     - Continue to next row
-   - Normalize name
-   - If this is the first occurrence of normalized name:
-     - Create new ProductGroup (anchor row):
-       - name: normalized name
-       - rawName: original name from row
-       - originalRowIndex: 1-indexed row number
-       - categoryName: from row (may be null/invalid, will validate later)
-       - price: from row (may be null/invalid, will validate later)
-       - rawPrice: from row
-       - status: from row (may be null/invalid, will validate later)
-       - rawStatus: from row
-       - workTypes: from row (semicolon-separated, will normalize later)
-       - rawWorkTypes: from row
-       - shortDescription: from row
-       - description: from row
-       - colors: empty array
-       - primaryImages: empty array
-       - errors: empty array
-       - groupRowIndices: [current 1-indexed row]
-   - If not the first occurrence (non-anchor row):
-     - Add current 1-indexed row to groupRowIndices
-     - Extract color_label and image_url from this row
-     - If color_label is blank/empty:
-       - This is a primary image row
-       - Add image_url to primaryImages (create ProductImage with url and isFromRow)
-     - If color_label is non-blank:
-       - Check if this color already exists in the group's colors array
-       - If yes: append image_url to that color's imageUrls
-       - If no: create new ProductColor with label and imageUrls: [image_url]
-5. Return GroupingResult with groups and unassignedRows
+  it('restricts price to is/greater_than/less_than', () => {
+    expect(OPERATORS_BY_FIELD.price).toEqual(['is', 'greater_than', 'less_than'])
+  })
+})
 
-**Key behaviors:**
-- Preserve file order: products and colors appear in first-seen order
-- Rows with blank `color_label` are ALWAYS primary images (regardless of other fields)
-- Repeated color labels attach multiple images to one color
-- Non-anchor rows ignore non-image/non-color fields (category, price, status, etc.)
-- Row numbers are 1-indexed (row 1 is header, row 2 is first data row)
+describe('evaluateRule — name', () => {
+  it('contains matches case-insensitive substring', () => {
+    expect(evaluateRule(product, { field: 'name', operator: 'contains', value: 'bridal' })).toBe(true)
+    expect(evaluateRule(product, { field: 'name', operator: 'contains', value: 'saree' })).toBe(false)
+  })
 
-## Requirements
+  it('is matches case-insensitive exact name', () => {
+    expect(evaluateRule(product, { field: 'name', operator: 'is', value: 'zardozi bridal lehenga' })).toBe(true)
+    expect(evaluateRule(product, { field: 'name', operator: 'is', value: 'bridal' })).toBe(false)
+  })
+})
 
-- Use types from `lib/csv-import/types.ts`
-- TypeScript strict mode (no `any`)
-- Pure function only, no side effects
-- No console.log
-- Maintain file order throughout
-- Handle edge cases:
-  - Product with only primary images (no colors)
-  - Product with multiple colors, some with one image, some with multiple
-  - Product with only color images (no primary images)
-  - Blank names (unassigned)
-  - Whitespace-only names (treat as blank)
+describe('evaluateRule — work_types', () => {
+  it('contains matches when the array includes the value, case-insensitive', () => {
+    expect(evaluateRule(product, { field: 'work_types', operator: 'contains', value: 'aari' })).toBe(true)
+    expect(evaluateRule(product, { field: 'work_types', operator: 'contains', value: 'kundan' })).toBe(false)
+  })
 
-## Testing
+  it('is matches only when the array is exactly that single value', () => {
+    expect(evaluateRule({ ...product, work_types: ['ZARDOZI'] }, { field: 'work_types', operator: 'is', value: 'zardozi' })).toBe(true)
+    expect(evaluateRule(product, { field: 'work_types', operator: 'is', value: 'zardozi' })).toBe(false)
+  })
+})
 
-Write unit tests (Vitest) in `lib/csv-import/group.test.ts`:
+describe('evaluateRule — price', () => {
+  it('is matches exact price', () => {
+    expect(evaluateRule(product, { field: 'price', operator: 'is', value: '45000' })).toBe(true)
+    expect(evaluateRule(product, { field: 'price', operator: 'is', value: '1' })).toBe(false)
+  })
 
-1. **Test:** normalizeProductName
-   - Input: "  Product A  " → Assert: "Product A"
-   - Input: "Product  B" → Assert: "Product B"
+  it('greater_than and less_than compare numerically', () => {
+    expect(evaluateRule(product, { field: 'price', operator: 'greater_than', value: '40000' })).toBe(true)
+    expect(evaluateRule(product, { field: 'price', operator: 'greater_than', value: '50000' })).toBe(false)
+    expect(evaluateRule(product, { field: 'price', operator: 'less_than', value: '50000' })).toBe(true)
+  })
 
-2. **Test:** groupRowsByProduct with single-color product
-   - Input: 1 row with name, blank color_label, one image_url
-   - Assert: 1 group, 1 primary image, 0 colors
+  it('returns false when the rule value is not numeric', () => {
+    expect(evaluateRule(product, { field: 'price', operator: 'greater_than', value: 'abc' })).toBe(false)
+  })
+})
 
-3. **Test:** groupRowsByProduct with multi-color product
-   - Input: 3 rows (same name, different color labels, multiple images for one color)
-   - Assert: 1 group, 2 colors with correct image counts, file order preserved
+describe('evaluateRule — invalid operator/field combination', () => {
+  it('returns false for greater_than on name', () => {
+    expect(evaluateRule(product, { field: 'name', operator: 'greater_than', value: '10' })).toBe(false)
+  })
+})
 
-4. **Test:** groupRowsByProduct with primary + color images
-   - Input: 4 rows (1 primary, 3 color)
-   - Assert: 1 group, 1 primary image, correct colors and images
+describe('evaluateCategoryRules', () => {
+  const rules = [
+    { field: 'work_types' as const, operator: 'contains' as const, value: 'zardozi' },
+    { field: 'price' as const, operator: 'greater_than' as const, value: '40000' },
+  ]
 
-5. **Test:** groupRowsByProduct with multiple products
-   - Input: 5 rows (2 products: product A twice, product B thrice)
-   - Assert: 2 groups, correct row indices per group
+  it('ALL requires every rule to match', () => {
+    expect(evaluateCategoryRules(product, rules, 'ALL')).toBe(true)
+    expect(evaluateCategoryRules({ ...product, price: 100 }, rules, 'ALL')).toBe(false)
+  })
 
-6. **Test:** groupRowsByProduct with blank product name
-   - Input: 1 row with blank name
-   - Assert: unassignedRows has 1 entry with error
+  it('ANY requires at least one rule to match', () => {
+    expect(evaluateCategoryRules({ ...product, price: 100 }, rules, 'ANY')).toBe(true)
+    expect(evaluateCategoryRules({ ...product, price: 100, work_types: ['KUNDAN'] }, rules, 'ANY')).toBe(false)
+  })
 
-7. **Test:** groupRowsByProduct preserves order
-   - Input: 6 rows (product B first, then product A, then product B again)
-   - Assert: groups in order [productB, productA], productB.colors in first-seen order
+  it('returns false when there are no rules', () => {
+    expect(evaluateCategoryRules(product, [], 'ALL')).toBe(false)
+    expect(evaluateCategoryRules(product, [], 'ANY')).toBe(false)
+  })
+})
+```
 
-8. **Test:** groupRowsByProduct with repeated color labels
-   - Input: 3 rows (same product, same color label twice)
-   - Assert: 1 color with 2 images
+- [ ] **Step 2: Run the tests to verify they fail**
 
-9. **Test:** groupRowsByProduct with mixed blank/non-blank names
-   - Input: 4 rows (1 valid name, 1 blank, 1 valid different name, 1 blank)
-   - Assert: 2 groups, 2 unassignedRows
+Run: `npx vitest run __tests__/lib/category-rules.test.ts`
+Expected: FAIL — `Cannot find module '@/lib/category-rules'`
 
-10. **Test:** groupRowsByProduct returns empty groups for empty input
-    - Input: []
-    - Assert: groups = [], unassignedRows = []
+- [ ] **Step 3: Write the implementation**
 
-## Acceptance Criteria
+```ts
+// lib/category-rules.ts
+import type { RuleField, RuleOperator, CategoryMatchType } from '@/types'
 
-✅ Grouping preserves file order (products and colors)
-✅ Anchor row correctly identified (first occurrence)
-✅ Primary images (blank color_label) collected separately
-✅ Color images grouped by color_label with repeated labels attaching multiple images
-✅ Unassigned rows (blank name) identified and tracked
-✅ All 10 unit tests passing
-✅ No side effects, no console.log
-✅ TypeScript strict mode passes
+export const OPERATORS_BY_FIELD: Record<RuleField, RuleOperator[]> = {
+  name: ['contains', 'is'],
+  work_types: ['contains', 'is'],
+  price: ['is', 'greater_than', 'less_than'],
+}
+
+export interface RuleInput {
+  field: RuleField
+  operator: RuleOperator
+  value: string
+}
+
+export interface RuleEvaluableProduct {
+  name: string
+  work_types: string[]
+  price: number
+}
+
+function evaluateNameRule(product: RuleEvaluableProduct, rule: RuleInput): boolean {
+  const name = product.name.toLowerCase()
+  const value = rule.value.toLowerCase()
+  if (rule.operator === 'contains') return name.includes(value)
+  if (rule.operator === 'is') return name === value
+  return false
+}
+
+function evaluateWorkTypesRule(product: RuleEvaluableProduct, rule: RuleInput): boolean {
+  const types = (product.work_types ?? []).map((t) => t.toLowerCase())
+  const value = rule.value.toLowerCase()
+  if (rule.operator === 'contains') return types.includes(value)
+  if (rule.operator === 'is') return types.length === 1 && types[0] === value
+  return false
+}
+
+function evaluatePriceRule(product: RuleEvaluableProduct, rule: RuleInput): boolean {
+  const numericValue = Number(rule.value)
+  if (Number.isNaN(numericValue)) return false
+  if (rule.operator === 'is') return product.price === numericValue
+  if (rule.operator === 'greater_than') return product.price > numericValue
+  if (rule.operator === 'less_than') return product.price < numericValue
+  return false
+}
+
+export function evaluateRule(product: RuleEvaluableProduct, rule: RuleInput): boolean {
+  switch (rule.field) {
+    case 'name': return evaluateNameRule(product, rule)
+    case 'work_types': return evaluateWorkTypesRule(product, rule)
+    case 'price': return evaluatePriceRule(product, rule)
+    default: return false
+  }
+}
+
+export function evaluateCategoryRules(
+  product: RuleEvaluableProduct,
+  rules: RuleInput[],
+  matchType: CategoryMatchType
+): boolean {
+  if (rules.length === 0) return false
+  return matchType === 'ALL' ? rules.every((r) => evaluateRule(product, r)) : rules.some((r) => evaluateRule(product, r))
+}
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `npx vitest run __tests__/lib/category-rules.test.ts`
+Expected: PASS (17 tests)
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/category-rules.ts __tests__/lib/category-rules.test.ts
+git commit -m "feat(category-rules): add pure rule evaluation logic"
+```
+
+---
+
