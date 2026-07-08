@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { getProductBySlug, getProductByCode, deleteProduct } from '@/services/products'
+import { uploadProductImage } from '@/services/storage'
 import { generateSlug } from '@/lib/slug'
 import { generateProductCode } from '@/lib/product-code'
 import { normalizeForComparison } from '@/lib/csv-import/validate'
@@ -8,6 +9,7 @@ import { classifyError, ImportStageError, type ImportErrorCode } from '@/lib/imp
 import { MAX_SLUG_CODE_ATTEMPTS, MAX_IMPORT_PRODUCTS, PRODUCT_INSERT_CHUNK_SIZE } from '@/lib/product-import-constants'
 import { logAuditEvent } from '@/lib/audit'
 import { captureError } from '@/lib/monitoring'
+import { validateImageFile } from '@/lib/validators/image'
 import type { ProductGroup } from '@/lib/csv-import/types'
 import type { Json } from '@/types/database'
 
@@ -120,9 +122,78 @@ interface ResolvedProductRow {
   categoryId: string
 }
 
+/**
+ * Downloads an image from an external URL, validates it (MIME type, size),
+ * uploads it to Supabase Storage, and returns the Storage public URL.
+ * On any error (download, validation, or upload), logs the error but returns
+ * null instead of crashing — this allows the import to continue with other
+ * images/products even if a single image fails.
+ */
+async function downloadValidateAndUploadImage(
+  imageUrl: string,
+  productId: string
+): Promise<string | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  try {
+    // Step 1: Download the image with a short timeout
+    const controller = new AbortController()
+    timeoutId = setTimeout(() => controller.abort(), 500)
+
+    const response = await fetch(imageUrl, { signal: controller.signal })
+
+    if (!response.ok) {
+      captureError(new Error(`Failed to download image: ${response.statusText}`), {
+        context: 'csv-import-image-download',
+        imageUrl,
+        productId,
+        status: String(response.status),
+      })
+      return null
+    }
+
+    const buffer = await response.arrayBuffer()
+    const contentType = response.headers.get('content-type') || 'image/jpeg'
+
+    // Step 2: Create a File object with proper MIME type
+    const file = new File([buffer], `image-${Date.now()}`, { type: contentType })
+
+    // Step 3: Validate the file
+    const validationError = validateImageFile(file)
+    if (validationError) {
+      captureError(new Error(`Image validation failed: ${validationError.message}`), {
+        context: 'csv-import-image-validation',
+        imageUrl,
+        productId,
+        validationCode: validationError.code,
+      })
+      return null
+    }
+
+    // Step 4: Upload to Supabase Storage
+    const storageUrl = await uploadProductImage(file, productId)
+    return storageUrl
+  } catch (err) {
+    // Log download/upload failures but don't crash the import
+    if (err instanceof Error) {
+      captureError(err, {
+        context: 'csv-import-image-upload-error',
+        imageUrl,
+        productId,
+        errorName: err.name,
+      })
+    }
+    return null
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId)
+    }
+  }
+}
+
 interface ColorAndMediaCounts {
   colorsCreated: number
   mediaCreated: number
+  primaryImageStorageUrl?: string
 }
 
 /**
@@ -136,6 +207,10 @@ interface ColorAndMediaCounts {
  * exactly one image per color (and one product-level primary image) as
  * is_primary — matching the partial unique indexes on product_media
  * (idx_pm_primary_product / idx_pm_primary_color).
+ *
+ * Also downloads and uploads external image URLs to Supabase Storage,
+ * storing the Storage public URLs in product_media.url instead of external URLs.
+ * Image upload failures are logged but do not crash the import.
  */
 async function createColorsAndMedia(productId: string, group: ProductGroup, signal?: AbortSignal): Promise<ColorAndMediaCounts> {
   const supabase = createClient()
@@ -162,27 +237,62 @@ async function createColorsAndMedia(productId: string, group: ProductGroup, sign
   }
 
   const seenUrls = new Set<string>()
+  const uploadedUrls = new Map<string, string>()  // Maps external URL -> Storage URL
   const mediaRows: Array<{ product_id: string; color_id: string | null; url: string; is_primary: boolean; sort_order: number }> = []
 
+  // Download and upload color images
   for (const color of group.colors) {
     const colorId = colorIdByLabel.get(color.label)
     if (!colorId) continue
     let index = 0
-    for (const url of color.imageUrls) {
-      const dedupeKey = `${colorId}:${url}`
+    for (const externalUrl of color.imageUrls) {
+      const dedupeKey = `${colorId}:${externalUrl}`
       if (seenUrls.has(dedupeKey)) continue
       seenUrls.add(dedupeKey)
-      mediaRows.push({ product_id: productId, color_id: colorId, url, is_primary: index === 0, sort_order: index })
+
+      // Try to upload the image; fall back to external URL if upload fails
+      let finalUrl = externalUrl
+      if (!uploadedUrls.has(externalUrl)) {
+        const uploadedUrl = await downloadValidateAndUploadImage(externalUrl, productId)
+        if (uploadedUrl) {
+          uploadedUrls.set(externalUrl, uploadedUrl)
+          finalUrl = uploadedUrl
+        }
+      } else {
+        finalUrl = uploadedUrls.get(externalUrl)!
+      }
+
+      mediaRows.push({ product_id: productId, color_id: colorId, url: finalUrl, is_primary: index === 0, sort_order: index })
       index++
     }
   }
 
+  // Download and upload primary images
   let primaryIndex = 0
+  let primaryImageStorageUrl: string | undefined
   for (const image of group.primaryImages) {
     const dedupeKey = `primary:${image.url}`
     if (seenUrls.has(dedupeKey)) continue
     seenUrls.add(dedupeKey)
-    mediaRows.push({ product_id: productId, color_id: null, url: image.url, is_primary: primaryIndex === 0, sort_order: primaryIndex })
+
+    // Try to upload the image; fall back to external URL if upload fails
+    let finalUrl = image.url
+    if (!uploadedUrls.has(image.url)) {
+      const uploadedUrl = await downloadValidateAndUploadImage(image.url, productId)
+      if (uploadedUrl) {
+        uploadedUrls.set(image.url, uploadedUrl)
+        finalUrl = uploadedUrl
+      }
+    } else {
+      finalUrl = uploadedUrls.get(image.url)!
+    }
+
+    // Capture the first primary image's Storage URL (if successfully uploaded)
+    if (primaryIndex === 0 && uploadedUrls.has(image.url)) {
+      primaryImageStorageUrl = finalUrl
+    }
+
+    mediaRows.push({ product_id: productId, color_id: null, url: finalUrl, is_primary: primaryIndex === 0, sort_order: primaryIndex })
     primaryIndex++
   }
 
@@ -198,7 +308,7 @@ async function createColorsAndMedia(productId: string, group: ProductGroup, sign
     mediaCreated = data?.length ?? 0
   }
 
-  return { colorsCreated, mediaCreated }
+  return { colorsCreated, mediaCreated, primaryImageStorageUrl }
 }
 
 /**
@@ -411,6 +521,26 @@ export async function bulkImportProducts(
       const counts = await createColorsAndMedia(inserted.id, inserted.group, options.signal)
       colorsCreated += counts.colorsCreated
       mediaCreated += counts.mediaCreated
+
+      // Update product's image_url with the Storage URL if available
+      if (counts.primaryImageStorageUrl) {
+        const storageUrl = counts.primaryImageStorageUrl
+        const updateResponse = await withRetryableQuery(async () => {
+          let query = supabase.from('products').update({ image_url: storageUrl } as never).eq('id', inserted.id)
+          if (options.signal) query = query.abortSignal(options.signal)
+          return await query
+        })
+        const { error: updateError } = updateResponse as { error: { message: string } | null }
+        if (updateError) {
+          // Log the error but don't crash the import — the media rows are already created,
+          // and the product still has a usable image URL from the initial insert
+          captureError(updateError, {
+            context: 'bulk-import-image-url-update',
+            productId: inserted.id,
+          })
+        }
+      }
+
       results.push({ name: inserted.group.name, success: true, productId: inserted.id })
     } catch (err) {
       const errorCode = err instanceof ImportStageError ? err.code : classifyError(err)
