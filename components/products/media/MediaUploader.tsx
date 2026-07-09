@@ -26,7 +26,7 @@ export default function MediaUploader({ productId, colorId }: Props) {
     <form onSubmit={handleSubmit} className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-4">
       <div className="flex items-start gap-2">
         <Upload size={16} className="text-gray-400 mt-2.5 shrink-0" />
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 min-w-0 space-y-2">
           <input
             value={url}
             onChange={e => setUrl(e.target.value)}
