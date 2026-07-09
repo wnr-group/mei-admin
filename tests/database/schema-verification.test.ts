@@ -16,7 +16,8 @@ describe('Schema Verification', () => {
       'size_systems', 'size_system_entries', 'product_colors',
       'product_variants', 'product_media', 'measurement_templates',
       'measurement_template_fields', 'blouse_configurations', 'order_item_measurements',
-      'category_rules', 'product_categories'
+      'category_rules', 'product_categories',
+      'shipping_rates', 'shipping_settings'
     ];
 
     for (const table of tables) {
