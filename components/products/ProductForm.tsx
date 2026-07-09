@@ -11,6 +11,7 @@ import type { Category } from '@/types';
 import { generateSlug } from '@/lib/slug'
 import ColorList from '@/components/products/colors/ColorList'
 import MediaGallery from '@/components/products/media/MediaGallery';
+import { uploadMedia } from '@/lib/services/product-media';
 
 const WORK_TYPES = ['Aari', 'Zardozi', 'Mirror', 'Cut', 'Thread', 'Tailoring', 'Kundan'];
 
@@ -246,6 +247,8 @@ export default function ProductForm({ editId }: ProductFormProps) {
             imageUrl = images[0];
           }
           await updateProduct(newProduct.id, { image_url: imageUrl });
+          // Also insert into product_media so the image appears in the gallery on edit
+          await uploadMedia({ product_id: newProduct.id, url: imageUrl, is_primary: true, sort_order: 0 });
         }
       }
 
