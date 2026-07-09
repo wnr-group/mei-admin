@@ -8,7 +8,9 @@ import { getCategories } from '@/services/categories';
 import { Upload, X, ChevronDown, ChevronUp, Loader2, Plus } from 'lucide-react';
 import Link from 'next/link';
 import type { Category } from '@/types';
-import { generateSlug } from '@/lib/slug';
+import { generateSlug } from '@/lib/slug'
+import ColorList from '@/components/products/colors/ColorList'
+import MediaGallery from '@/components/products/media/MediaGallery';
 
 const WORK_TYPES = ['Aari', 'Zardozi', 'Mirror', 'Cut', 'Thread', 'Tailoring', 'Kundan'];
 
@@ -210,18 +212,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
       if (editId) {
         // ── EDIT FLOW ──────────────────────────────────────────────
-        const existingProduct = await getProductById(editId);
-        let finalImageUrl: string | null = existingProduct?.image_url ?? null;
-
-        if (images[0]?.startsWith('data:') && imageFiles[0] instanceof File) {
-          // New image selected — use the original File directly (no fetch(data:) needed).
-          finalImageUrl = await uploadProductImage(imageFiles[0], editId);
-        } else if (images[0]?.startsWith('http')) {
-          finalImageUrl = images[0];
-        } else if (images.length === 0) {
-          finalImageUrl = null;
-        }
-
+        // Media is managed by ColorList + MediaGallery — not through form submit.
         await updateProduct(editId, {
           name: name.trim(),
           slug: slug.trim() || null,
@@ -231,7 +222,6 @@ export default function ProductForm({ editId }: ProductFormProps) {
           status: published ? 'PUBLISHED' : 'DRAFT',
           work_types: workTypesArr,
           description: descriptionVal,
-          image_url: finalImageUrl,
         });
       } else {
         // ── CREATE FLOW ────────────────────────────────────────────
@@ -562,99 +552,107 @@ export default function ProductForm({ editId }: ProductFormProps) {
           {/* Right Column (1/3 width) */}
           <div className="space-y-6">
             
-            {/* Card 5: MEDIA */}
-            <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
-                  MEDIA
-                </h3>
-                <span className="text-[9px] text-zinc-400 font-medium font-sans">
-                  {images.length}/10 images
-                </span>
-              </div>
-
-              {/* Upload Drop Zone */}
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={triggerFileInput}
-                className={`border border-dashed p-8 text-center cursor-pointer transition-colors duration-200 flex flex-col items-center justify-center min-h-[160px] bg-[#FAF8F5]/30 ${
-                  isDragging
-                    ? 'border-[#B38B5D] bg-[#FAF8F5]/50'
-                    : 'border-[#E8E0D5] hover:border-[#B38B5D] hover:bg-[#FAF8F5]/10'
-                }`}
-              >
-                <input
-                  type="file"
-                  id="image-file-input"
-                  multiple
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                
-                <Upload className="w-6 h-6 stroke-[1.5] text-zinc-400 mb-2" />
-                <p className="text-[12px] text-zinc-500 font-medium">
-                  Click or drag images here
-                </p>
-              </div>
-
-              {/* Thumbnail Display Grid */}
-              <div className="flex flex-wrap gap-3 pt-2">
-                {images.map((img, idx) => (
-                  <div 
-                    key={idx} 
-                    className="relative border border-[#E8E0D5] bg-[#E0E0E0] w-[60px] h-[90px] flex items-center justify-center overflow-hidden group"
-                  >
-                    <img 
-                      src={img} 
-                      alt={`Preview ${idx + 1}`} 
-                      className="w-full h-full object-cover" 
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                    
-                    {idx === 0 && (
-                      <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wider font-sans">
-                        Thumbnail
-                      </div>
-                    )}
-                    
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveImage(idx);
-                      }}
-                      className="absolute right-0.5 top-0.5 bg-black/60 hover:bg-black text-white rounded-full p-0.5 transition-colors cursor-pointer"
-                    >
-                      <X className="w-2.5 h-2.5" />
-                    </button>
+            {/* Card 5: MEDIA / COLORS */}
+            <div className="bg-white border border-[#E8E0D5] p-8 space-y-8">
+              {editId ? (
+                <>
+                  <ColorList productId={editId} />
+                  <div className="border-t border-[#E8E0D5] pt-6">
+                    <MediaGallery productId={editId} />
                   </div>
-                ))}
-
-                {images.length === 0 && (
-                  /* Initial Empty Placeholder Box matching screenshot exactly */
-                  <div className="border border-zinc-300 bg-[#E0E0E0] w-[60px] h-[90px] flex flex-col p-1.5 text-left text-zinc-500 select-none overflow-hidden">
-                    <span className="text-[9px] font-sans leading-none break-all text-zinc-600 font-medium">
-                      Thumbnail
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
+                      MEDIA
+                    </h3>
+                    <span className="text-[9px] text-zinc-400 font-medium font-sans">
+                      {images.length}/10 images
                     </span>
                   </div>
-                )}
-                
-                {/* Gray box with plus icon */}
-                {images.length < 10 && (
-                  <button
-                    type="button"
+
+                  {/* Upload Drop Zone */}
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
                     onClick={triggerFileInput}
-                    className="border border-zinc-300 bg-[#E0E0E0] w-[60px] h-[90px] hover:border-[#B38B5D] transition-colors flex items-center justify-center text-zinc-400 hover:text-zinc-600 cursor-pointer"
+                    className={`border border-dashed p-8 text-center cursor-pointer transition-colors duration-200 flex flex-col items-center justify-center min-h-[160px] bg-[#FAF8F5]/30 ${
+                      isDragging
+                        ? 'border-[#B38B5D] bg-[#FAF8F5]/50'
+                        : 'border-[#E8E0D5] hover:border-[#B38B5D] hover:bg-[#FAF8F5]/10'
+                    }`}
                   >
-                    <Plus className="w-4 h-4 stroke-[2]" />
-                  </button>
-                )}
-              </div>
+                    <input
+                      type="file"
+                      id="image-file-input"
+                      multiple
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <Upload className="w-6 h-6 stroke-[1.5] text-zinc-400 mb-2" />
+                    <p className="text-[12px] text-zinc-500 font-medium">
+                      Click or drag images here
+                    </p>
+                  </div>
+
+                  {/* Thumbnail Display Grid */}
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    {images.map((img, idx) => (
+                      <div
+                        key={idx}
+                        className="relative border border-[#E8E0D5] bg-[#E0E0E0] w-[60px] h-[90px] flex items-center justify-center overflow-hidden group"
+                      >
+                        <img
+                          src={img}
+                          alt={`Preview ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                        {idx === 0 && (
+                          <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wider font-sans">
+                            Thumbnail
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveImage(idx);
+                          }}
+                          className="absolute right-0.5 top-0.5 bg-black/60 hover:bg-black text-white rounded-full p-0.5 transition-colors cursor-pointer"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    ))}
+                    {images.length === 0 && (
+                      <div className="border border-zinc-300 bg-[#E0E0E0] w-[60px] h-[90px] flex flex-col p-1.5 text-left text-zinc-500 select-none overflow-hidden">
+                        <span className="text-[9px] font-sans leading-none break-all text-zinc-600 font-medium">
+                          Thumbnail
+                        </span>
+                      </div>
+                    )}
+                    {images.length < 10 && (
+                      <button
+                        type="button"
+                        onClick={triggerFileInput}
+                        className="border border-zinc-300 bg-[#E0E0E0] w-[60px] h-[90px] hover:border-[#B38B5D] transition-colors flex items-center justify-center text-zinc-400 hover:text-zinc-600 cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4 stroke-[2]" />
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="text-[10px] text-zinc-400 font-sans">
+                    Save the product to manage colors and additional images.
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Card 6: VISIBILITY & STATUS */}
