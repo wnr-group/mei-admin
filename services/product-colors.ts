@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { createClient } from '@/lib/supabase/client'
 
 export interface ProductColor {
   id: string
@@ -32,6 +27,7 @@ export interface ProductColorUpdate {
 }
 
 export async function getProductColors(productId: string): Promise<ProductColor[]> {
+  const supabase = createClient()
   const { data, error } = await supabase
     .from('product_colors')
     .select('*')
@@ -44,6 +40,7 @@ export async function getProductColors(productId: string): Promise<ProductColor[
 }
 
 export async function createColor(input: ProductColorInsert): Promise<ProductColor> {
+  const supabase = createClient()
   const { data, error } = await supabase
     .from('product_colors')
     .insert({
@@ -58,6 +55,7 @@ export async function createColor(input: ProductColorInsert): Promise<ProductCol
 }
 
 export async function updateColor(id: string, input: ProductColorUpdate): Promise<ProductColor> {
+  const supabase = createClient()
   const { data, error } = await supabase
     .from('product_colors')
     .update(input)
@@ -70,6 +68,7 @@ export async function updateColor(id: string, input: ProductColorUpdate): Promis
 }
 
 export async function deleteColor(id: string): Promise<void> {
+  const supabase = createClient()
   const { error } = await supabase
     .from('product_colors')
     .update({ deleted_at: new Date().toISOString() })
