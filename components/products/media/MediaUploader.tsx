@@ -39,7 +39,7 @@ export default function MediaUploader({ productId, colorId }: Props) {
               value={altText}
               onChange={e => setAltText(e.target.value)}
               placeholder="Alt text (optional)"
-              className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#c9a465]"
+              className="flex-1 min-w-0 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#c9a465]"
             />
             <select value={mediaType} onChange={e => setMediaType(e.target.value as 'IMAGE' | 'VIDEO')} className="border border-gray-300 rounded px-2 py-2 text-sm focus:outline-none">
               <option value="IMAGE">Image</option>
