@@ -21,7 +21,7 @@ async function getCategoriesWithRules(): Promise<CategoryWithRules[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('categories')
-    .select('id, rule_match_type, category_rules(field, operator, value)')
+    .select('id, rule_match_type, category_rules!category_rules_category_id_fkey(field, operator, value)')
     .is('deleted_at', null)
 
   if (error) throw toAppError(new Error(error.message))
