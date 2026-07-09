@@ -26,10 +26,10 @@ export default function MediaCard({ media, onDelete, onSetPrimary, onMoveUp, onM
           // eslint-disable-next-line @next/next/no-img-element
           <img src={media.url} alt={media.alt_text ?? ''} className="w-full h-full object-cover" />
         )}
-        {media.is_primary && (
-          <div className="absolute top-1 left-1 bg-[#c9a465] text-white text-xs px-1.5 py-0.5 rounded font-medium">Primary</div>
-        )}
       </div>
+      {media.is_primary && (
+        <div className="absolute top-1 left-1 bg-[#c9a465] text-white text-xs px-1.5 py-0.5 font-medium z-10">Primary</div>
+      )}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors">
         <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {!isFirst && <button onClick={onMoveUp} className="p-1 bg-white rounded shadow text-gray-700 hover:bg-gray-100"><ChevronUp size={12} /></button>}
