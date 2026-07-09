@@ -35,6 +35,8 @@ export default function ColorFormDialog({ productId, open, onClose, initialColor
       setLabel(initialColor?.label ?? '')
       setHexCode(initialColor?.hex_code ?? '')
       setSwatchUrl(initialColor?.swatch_image_url ?? '')
+      createColor.reset()
+      updateColor.reset()
     }
   }
 
