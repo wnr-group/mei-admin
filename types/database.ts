@@ -504,6 +504,16 @@ export type Database = {
         Args: { p_job_ids: string[] }
         Returns: number
       }
+      shipping_rates: {
+        Row: { id: string; state: string; charge: number; updated_at: string }
+        Insert: { id?: string; state: string; charge: number }
+        Update: { charge?: number }
+      }
+      shipping_settings: {
+        Row: { id: number; free_shipping_enabled: boolean; free_shipping_threshold: number | null; updated_at: string }
+        Insert: never
+        Update: { free_shipping_enabled?: boolean; free_shipping_threshold?: number | null }
+      }
     }
     Enums: {
       admin_role: "super_admin" | "admin"
