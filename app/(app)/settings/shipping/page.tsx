@@ -36,7 +36,6 @@ export default function ShippingSettingsPage() {
     if (!settings) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFreeShippingEnabled(settings.free_shipping_enabled)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFreeShippingThreshold(settings.free_shipping_threshold != null ? String(settings.free_shipping_threshold) : '')
   }, [settings])
 

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { toAppError } from '@/lib/errors'
 import { logAuditEvent } from '@/lib/audit'
-import type { ShippingRate, ShippingSettings, ShippingRateInsert, ShippingSettingsUpdate } from '@/types'
+import type { ShippingRate, ShippingSettings, ShippingSettingsUpdate } from '@/types'
 import type { Json } from '@/types/database'
 
 export async function getShippingRates() {
