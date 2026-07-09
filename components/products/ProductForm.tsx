@@ -83,10 +83,12 @@ export default function ProductForm({ editId }: ProductFormProps) {
           // Set category ID directly
           setCategory(prod.category_id ?? '');
 
+          // Load featured and new arrival flags
+          setFeatured(prod.is_featured ?? false);
+          setNewArrival(prod.is_new_arrival ?? false);
+
           // Fields not stored in DB — clear to defaults
           setCompareAtPrice('0.00');
-          setFeatured(false);
-          setNewArrival(false);
           setMetaTitle('');
           setMetaDescription('');
           setMetaKeywords('');
@@ -240,6 +242,8 @@ export default function ProductForm({ editId }: ProductFormProps) {
           work_types: workTypesArr,
           description: descriptionVal,
           image_url: finalImageUrl,
+          is_featured: featured,
+          is_new_arrival: newArrival,
         });
       } else {
         // ── CREATE FLOW ────────────────────────────────────────────
@@ -249,10 +253,12 @@ export default function ProductForm({ editId }: ProductFormProps) {
           short_description: shortDescription.trim() || null,
           category_id: category,
           price: priceNum,
-          status: published ? 'PUBLISHED' : 'DRAFT',
+          status: published ? "PUBLISHED" : "DRAFT",
           work_types: workTypesArr,
           description: descriptionVal,
           image_url: null,
+          is_featured: featured,
+          is_new_arrival: newArrival,
         });
 
         if (images[0]) {

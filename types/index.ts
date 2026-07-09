@@ -33,7 +33,7 @@ export type Banner = Tables['banners']['Row']
 export type Setting = Tables['settings']['Row']
 export type AuditLog = Tables['audit_logs']['Row']
 
-export type ProductInsert = Tables['products']['Insert']
+export type ProductInsert = Omit<Tables['products']['Insert'], 'product_code'> & { product_code?: string }
 export type ProductUpdate = Tables['products']['Update']
 export type CategoryInsert = Tables['categories']['Insert']
 export type CategoryUpdate = Tables['categories']['Update']
