@@ -26,10 +26,10 @@ export default function ColorCard({ color, onEdit, onDelete }: Props) {
         {color.hex_code && <p className="text-xs text-gray-500">{color.hex_code}</p>}
       </div>
       <div className="flex gap-1 shrink-0">
-        <button title="Edit color" onClick={() => onEdit(color)} className="p-1.5 rounded hover:bg-gray-100 text-gray-500">
+        <button type="button" title="Edit color" onClick={() => onEdit(color)} className="p-1.5 rounded hover:bg-gray-100 text-gray-500">
           <Pencil size={14} />
         </button>
-        <button title="Delete color" onClick={() => onDelete(color)} className="p-1.5 rounded hover:bg-gray-100 text-red-500">
+        <button type="button" title="Delete color" onClick={() => onDelete(color)} className="p-1.5 rounded hover:bg-gray-100 text-red-500">
           <Trash2 size={14} />
         </button>
       </div>

@@ -25,10 +25,10 @@ export default function MediaCard({ media, onDelete, onSetPrimary, onMoveUp, onM
       )}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors">
         <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {!isFirst && <button onClick={onMoveUp} className="p-1 bg-white rounded shadow text-gray-700 hover:bg-gray-100"><ChevronUp size={12} /></button>}
-          {!isLast && <button onClick={onMoveDown} className="p-1 bg-white rounded shadow text-gray-700 hover:bg-gray-100"><ChevronDown size={12} /></button>}
-          {!media.is_primary && <button onClick={() => onSetPrimary(media.id)} title="Set as primary" className="p-1 bg-white rounded shadow text-yellow-600 hover:bg-yellow-50"><Star size={12} /></button>}
-          <button onClick={() => onDelete(media.id)} title="Delete media" className="p-1 bg-white rounded shadow text-red-600 hover:bg-red-50"><Trash2 size={12} /></button>
+          {!isFirst && <button type="button" onClick={onMoveUp} className="p-1 bg-white rounded shadow text-gray-700 hover:bg-gray-100"><ChevronUp size={12} /></button>}
+          {!isLast && <button type="button" onClick={onMoveDown} className="p-1 bg-white rounded shadow text-gray-700 hover:bg-gray-100"><ChevronDown size={12} /></button>}
+          {!media.is_primary && <button type="button" onClick={() => onSetPrimary(media.id)} title="Set as primary" className="p-1 bg-white rounded shadow text-yellow-600 hover:bg-yellow-50"><Star size={12} /></button>}
+          <button type="button" onClick={() => onDelete(media.id)} title="Delete media" className="p-1 bg-white rounded shadow text-red-600 hover:bg-red-50"><Trash2 size={12} /></button>
         </div>
       </div>
     </div>
