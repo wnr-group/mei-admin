@@ -40,8 +40,7 @@ export default function ColorFormDialog({ productId, open, onClose, initialColor
 
   if (!open) return null
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSave() {
     if (!label.trim()) return
     if (initialColor) {
       await updateColor.mutateAsync({ id: initialColor.id, input: { label, hex_code: hexCode || undefined, swatch_image_url: swatchUrl || undefined } })
@@ -55,7 +54,7 @@ export default function ColorFormDialog({ productId, open, onClose, initialColor
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
         <h2 className="text-lg font-semibold mb-4">{initialColor ? 'Edit Color' : 'Add Color'}</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           <div>
             <label htmlFor="color-label" className="block text-sm font-medium text-gray-700 mb-1">Label</label>
             <input
@@ -102,11 +101,11 @@ export default function ColorFormDialog({ productId, open, onClose, initialColor
           )}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 text-sm rounded hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={isPending} className="px-4 py-2 bg-[#c9a465] text-white text-sm rounded hover:bg-[#b8934f] disabled:opacity-50">
+            <button type="button" onClick={handleSave} disabled={isPending} className="px-4 py-2 bg-[#c9a465] text-white text-sm rounded hover:bg-[#b8934f] disabled:opacity-50">
               {isPending ? 'Saving…' : 'Save'}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   )
