@@ -146,6 +146,41 @@ Deno.serve(async (req)=>{
           product_id: failingId
         }, 400);
       }
+      if (error.message?.includes('SHIPPING_STATE_NOT_CONFIGURED')) {
+        // Format: SHIPPING_STATE_NOT_CONFIGURED:<state>
+        const failingState = error.message.split(':').slice(1).join(':').trim();
+        log('shipping state not configured', {
+          failing_state: failingState,
+          supabase_url: supabaseUrl
+        });
+        return jsonResponse({
+          success: false,
+          error: 'SHIPPING_STATE_NOT_CONFIGURED',
+          state: failingState
+        }, 400);
+      }
+      if (error.message?.includes('SHIPPING_STATE_MISSING')) {
+        log('shipping state missing from request', {
+          supabase_url: supabaseUrl
+        });
+        return jsonResponse({
+          success: false,
+          error: 'SHIPPING_STATE_MISSING'
+        }, 400);
+      }
+      if (error.message?.includes('INVALID_QUANTITY')) {
+        // Format: INVALID_QUANTITY:<product_id>
+        const failingProductId = error.message.split(':').slice(1).join(':').trim();
+        log('invalid quantity', {
+          failing_product_id: failingProductId,
+          supabase_url: supabaseUrl
+        });
+        return jsonResponse({
+          success: false,
+          error: 'INVALID_QUANTITY',
+          product_id: failingProductId
+        }, 400);
+      }
       return jsonResponse({
         success: false,
         error: 'ORDER_CREATION_FAILED',
