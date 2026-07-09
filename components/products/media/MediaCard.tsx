@@ -1,6 +1,6 @@
 'use client'
 
-import { Trash2, Star, ChevronUp, ChevronDown, Play } from 'lucide-react'
+import { Trash2, Star, ChevronUp, ChevronDown } from 'lucide-react'
 import type { ProductMedia } from '@/lib/services/product-media'
 
 interface Props {
@@ -17,15 +17,8 @@ export default function MediaCard({ media, onDelete, onSetPrimary, onMoveUp, onM
   return (
     <div className={`relative group border-2 ${media.is_primary ? 'border-[#c9a465]' : 'border-gray-200'}`}>
       <div className="aspect-square bg-gray-100 relative overflow-hidden">
-        {media.media_type === 'VIDEO' ? (
-          <div className="w-full h-full flex items-center justify-center bg-gray-800">
-            <Play size={32} className="text-white" />
-            <span className="absolute bottom-1 left-1 text-xs text-white bg-black/60 rounded px-1">VIDEO</span>
-          </div>
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={media.url} alt={media.alt_text ?? ''} className="w-full h-full object-cover" />
-        )}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={media.url} alt={media.alt_text ?? ''} className="w-full h-full object-cover" />
       </div>
       {media.is_primary && (
         <div className="absolute top-1 left-1 bg-[#c9a465] text-white text-xs px-1.5 py-0.5 font-medium z-10">Primary</div>

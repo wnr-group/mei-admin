@@ -39,7 +39,7 @@ export default function MediaGrid({ productId, colorId }: Props) {
         </div>
       )}
       {error && <ErrorState message="Could not load media." onRetry={refetch} />}
-      {!isLoading && !error && media?.length === 0 && <EmptyState message="No media yet. Add an image or video URL above." />}
+      {!isLoading && !error && media?.length === 0 && <EmptyState message="No media yet. Add an image URL above." />}
       {!isLoading && !error && media && media.length > 0 && (
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
           {media.map((m, i) => (
