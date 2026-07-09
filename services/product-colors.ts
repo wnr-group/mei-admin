@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { createUntypedClient } from '@/lib/supabase/client'
 
 export interface ProductColor {
   id: string
@@ -27,7 +27,7 @@ export interface ProductColorUpdate {
 }
 
 export async function getProductColors(productId: string): Promise<ProductColor[]> {
-  const supabase = createClient()
+  const supabase = createUntypedClient()
   const { data, error } = await supabase
     .from('product_colors')
     .select('*')
@@ -40,7 +40,7 @@ export async function getProductColors(productId: string): Promise<ProductColor[
 }
 
 export async function createColor(input: ProductColorInsert): Promise<ProductColor> {
-  const supabase = createClient()
+  const supabase = createUntypedClient()
   const { data, error } = await supabase
     .from('product_colors')
     .insert({
@@ -55,7 +55,7 @@ export async function createColor(input: ProductColorInsert): Promise<ProductCol
 }
 
 export async function updateColor(id: string, input: ProductColorUpdate): Promise<ProductColor> {
-  const supabase = createClient()
+  const supabase = createUntypedClient()
   const { data, error } = await supabase
     .from('product_colors')
     .update(input)
@@ -68,7 +68,7 @@ export async function updateColor(id: string, input: ProductColorUpdate): Promis
 }
 
 export async function deleteColor(id: string): Promise<void> {
-  const supabase = createClient()
+  const supabase = createUntypedClient()
   const { error } = await supabase
     .from('product_colors')
     .update({ deleted_at: new Date().toISOString() })
