@@ -15,8 +15,8 @@ interface Props {
 
 export default function MediaCard({ media, onDelete, onSetPrimary, onMoveUp, onMoveDown, isFirst, isLast }: Props) {
   return (
-    <div className={`relative group rounded-lg overflow-hidden border-2 ${media.is_primary ? 'border-[#c9a465]' : 'border-gray-200'}`}>
-      <div className="aspect-square bg-gray-100 relative">
+    <div className={`relative group border-2 ${media.is_primary ? 'border-[#c9a465]' : 'border-gray-200'}`}>
+      <div className="aspect-square bg-gray-100 relative overflow-hidden">
         {media.media_type === 'VIDEO' ? (
           <div className="w-full h-full flex items-center justify-center bg-gray-800">
             <Play size={32} className="text-white" />
