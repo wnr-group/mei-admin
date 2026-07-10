@@ -22,9 +22,7 @@ export interface OrderWithDetails extends Order {
 export interface OrderDetail extends Order {
   customers: Customer | null
   order_items: Array<OrderItem & {
-    products: {
-      image_url: string | null
-    } | null
+    products: { image_url: string | null } | null
   }>
 }
 

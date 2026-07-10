@@ -150,7 +150,7 @@ export default function FormatGuide({ isExpanded, onToggle }: FormatGuideProps) 
             </h4>
             <pre className="bg-[#FAF8F5] border border-[#E8E0D5] rounded px-4 py-3 text-[11px] text-zinc-700 overflow-x-auto whitespace-pre">
 {`name,category_name,price,status,work_types,short_description,description,color_label,image_url
-Bridal Lehenga A1,Bridal Lehengas,45000,PUBLISHED,Zardozi;Kundan,A stunning bridal lehenga,"Intricate zardozi work...",,https://example.com/lehenga-a1.jpg`}
+Bridal Lehenga A1,Bridal Lehengas,45000,DRAFT,Zardozi;Kundan,A stunning bridal lehenga,"Intricate zardozi work...",,https://example.com/lehenga-a1.jpg`}
             </pre>
             <p className="text-[11px] text-zinc-500 leading-relaxed">
               One row, everything filled in. <code className="bg-white px-1">color_label</code> is
@@ -165,7 +165,7 @@ Bridal Lehenga A1,Bridal Lehengas,45000,PUBLISHED,Zardozi;Kundan,A stunning brid
             </h4>
             <pre className="bg-[#FAF8F5] border border-[#E8E0D5] rounded px-4 py-3 text-[11px] text-zinc-700 overflow-x-auto whitespace-pre">
 {`name,category_name,price,status,work_types,short_description,description,color_label,image_url
-Evening Gown B1,Evening Gowns,35000,PUBLISHED,Cut;Thread,Elegant evening gown,"Timeless design...",Red,https://example.com/gown-b1-red-front.jpg
+Evening Gown B1,Evening Gowns,35000,DRAFT,Cut;Thread,Elegant evening gown,"Timeless design...",Red,https://example.com/gown-b1-red-front.jpg
 Evening Gown B1,,,,,,,,https://example.com/gown-b1-red-back.jpg
 Evening Gown B1,,,,,,,Gold,https://example.com/gown-b1-gold-front.jpg`}
             </pre>

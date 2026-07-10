@@ -120,13 +120,9 @@ export function validateProductGroup(
     }
   }
 
-  // Validate status (anchor row only)
+  // Validate status (anchor row only) — blank defaults to DRAFT
   if (!group.rawStatus || group.rawStatus.trim() === '') {
-    errors.push({
-      row: group.originalRowIndex,
-      field: 'status',
-      message: 'Required field is empty',
-    });
+    group.status = 'DRAFT';
   } else {
     const normalizedStatus = normalizeForComparison(group.rawStatus, false);
     const statusIsValid = context.allowedStatuses.some(

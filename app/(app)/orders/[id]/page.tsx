@@ -100,32 +100,41 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
   const customerPhone = order.customers?.phone ?? 'No Phone provided'
   const customerCity = order.customers?.city ?? 'New City provided'
 
-  // Shipping Address block
+  // Shipping Address — from real DB data
+  const addr = order.shipping_address as Record<string, string> | null
   const shippingAddress = {
     name: customerName,
-    line1: '123 Heritage Lane',
-    line2: 'Apt 4B',
-    cityStateZip: `${customerCity}, India`,
+    line1: addr?.addressLine1 ?? '',
+    line2: addr?.addressLine2 ?? '',
+    cityStateZip: [addr?.city, addr?.state].filter(Boolean).join(', ') || customerCity,
+    pincode: addr?.pincode ?? '',
+    country: addr?.country ?? 'India',
   }
 
-  // Items
-  const items = order.order_items && order.order_items.length > 0 ? order.order_items.map((item) => ({
-    name: item.product_name,
-    quantity: item.quantity,
-    price: Number(item.unit_price) * item.quantity,
-    image: item.products?.image_url || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop'
-  })) : [
+  // Items — read color_label from product_snapshot if available
+  const items = order.order_items && order.order_items.length > 0 ? order.order_items.map((item) => {
+    const snapshot = (item.product_snapshot ?? {}) as Record<string, string | null>
+    return {
+      name: item.product_name,
+      quantity: item.quantity,
+      price: Number(item.unit_price) * item.quantity,
+      image: item.products?.image_url || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop',
+      color_label: snapshot.color_label ?? null,
+    }
+  }) : [
     {
       name: 'The Noor Lehenga',
       quantity: 1,
       price: order.total,
       image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop',
+      color_label: null,
     },
   ]
 
-  // Payment defaults since these aren't columns in the orders table
-  const paymentMethod = 'Razorpay'
-  const gatewayOrderId = 'pay_' + order.id.slice(0, 12).replace(/-/g, '')
+  // Payment — real fields from DB
+  const paymentMethod = order.payment_provider ?? 'Razorpay'
+  const paymentMeta = order.payment_metadata as Record<string, string> | null
+  const gatewayOrderId = order.payment_id ?? paymentMeta?.razorpay_order_id ?? ''
   const paymentStatus = order.status === 'CANCELLED' ? 'FAILED' : 'PAID'
 
   return (
@@ -222,9 +231,11 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
           </h3>
           <div className="space-y-1 text-[12px] text-zinc-700 font-inter leading-relaxed">
             <div className="font-medium text-zinc-800 text-[13px]">{shippingAddress.name}</div>
-            <div>{shippingAddress.line1}</div>
-            <div>{shippingAddress.line2}</div>
-            <div>{shippingAddress.cityStateZip}</div>
+            {shippingAddress.line1 && <div>{shippingAddress.line1}</div>}
+            {shippingAddress.line2 && <div>{shippingAddress.line2}</div>}
+            {shippingAddress.cityStateZip && <div>{shippingAddress.cityStateZip}</div>}
+            {shippingAddress.pincode && <div>{shippingAddress.pincode}</div>}
+            {shippingAddress.country && <div>{shippingAddress.country}</div>}
           </div>
         </div>
       </div>
@@ -247,6 +258,11 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                 </div>
                 <div>
                   <div className="text-[13px] font-medium text-zinc-800">{item.name}</div>
+                  {item.color_label && (
+                    <div className="text-[10px] text-[#B38B5D] font-semibold uppercase tracking-wider mt-0.5">
+                      {item.color_label}
+                    </div>
+                  )}
                   <div className="text-[11px] text-zinc-700 font-inter font-medium mt-1">
                     Qty: {item.quantity}
                   </div>
@@ -260,22 +276,31 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         </div>
 
         {/* Totals Section */}
-        <div className="pt-6 flex justify-end">
-          <div className="w-full sm:w-[320px] space-y-3 text-[12px] font-inter font-medium text-zinc-700">
-            <div className="flex justify-between items-center">
-              <span>Subtotal</span>
-              <span className="text-zinc-600 font-medium">{formatTotal(order.total)}</span>
+        {(() => {
+          const itemsSubtotal = items.reduce((sum, item) => sum + item.price, 0)
+          const shipping = Number(order.total) - itemsSubtotal
+          return (
+            <div className="pt-6 flex justify-end">
+              <div className="w-full sm:w-[320px] space-y-3 text-[12px] font-inter font-medium text-zinc-700">
+                <div className="flex justify-between items-center">
+                  <span>Subtotal</span>
+                  <span className="text-zinc-600 font-medium">{formatTotal(itemsSubtotal)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Shipping</span>
+                  {shipping <= 0
+                    ? <span className="text-[#B38B5D] font-semibold">Free</span>
+                    : <span className="text-zinc-600">{formatTotal(shipping)}</span>
+                  }
+                </div>
+                <div className="flex justify-between items-center pt-3 text-[13px]">
+                  <span className="text-[#B38B5D] font-semibold">Total</span>
+                  <span className="text-[#B38B5D] font-medium font-inter">{formatTotal(order.total)}</span>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span>Shipping</span>
-              <span className="text-zinc-600">₹0 (Free)</span>
-            </div>
-            <div className="flex justify-between items-center pt-3 text-[13px]">
-              <span className="text-[#B38B5D] font-semibold">Total</span>
-              <span className="text-[#B38B5D] font-medium font-inter">{formatTotal(order.total)}</span>
-            </div>
-          </div>
-        </div>
+          )
+        })()}
       </div>
 
       {/* PAYMENT Card */}
@@ -294,12 +319,14 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-[12px] text-zinc-800 font-inter">
-            <span>Razorpay Order ID:</span>
-            <span className="border border-[#E8E0D5] bg-[#FAF8F5] px-2.5 py-1 text-[11px] text-zinc-500 font-mono">
-              {gatewayOrderId}
-            </span>
-          </div>
+          {gatewayOrderId && (
+            <div className="flex flex-wrap items-center gap-3 text-[12px] text-zinc-800 font-inter">
+              <span>Payment ID:</span>
+              <span className="border border-[#E8E0D5] bg-[#FAF8F5] px-2.5 py-1 text-[11px] text-zinc-500 font-mono">
+                {gatewayOrderId}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
