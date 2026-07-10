@@ -1,85 +1,66 @@
-# Task 6 Report — Phase 6 Observability Logging
+# Task 6: Wire sync into product create/update — Report
 
-## Files Created/Modified
+## Overview
+Successfully implemented the integration of `syncProductCategoryAssignments` into the `createProduct` and `updateProduct` functions, following TDD approach.
 
-- [x] Created: supabase/functions/_shared/log.ts
-- [x] Created: supabase/functions/_shared/log.test.ts (1 test, PASSED)
-- [x] Modified: supabase/functions/notification-worker/index.ts (added provider_request_* events)
-- [x] Modified: supabase/functions/create-order/index.ts (added notification_enqueue_* events)
+## Implementation Summary
 
-## Test Results
+### Changes Made
+1. **`services/products.ts`**
+   - Added import: `import { syncProductCategoryAssignments } from '@/services/product-categories'`
+   - Added `syncCategoriesOrLog` helper function that wraps the sync call with error handling (logs failures, never blocks product save)
+   - Wired sync call in no-slug branch of `createProduct` (after audit log)
+   - Wired sync call in slug-disambiguation loop of `createProduct` (after audit log)
+   - Wired sync call in `updateProduct` (after audit log)
 
+2. **`__tests__/services/products.test.ts`**
+   - Added mock for `syncProductCategoryAssignments` at top of file
+   - Added test: `createProduct: syncs product-category assignments after a successful create`
+   - Added test: `updateProduct: syncs product-category assignments after a successful update`
+
+## Test Evidence
+
+### Initial State (Before Implementation)
 ```
-deno test --allow-env supabase/functions/_shared/log.test.ts
---- output ---
-Check supabase/functions/_shared/log.test.ts
-running 1 test from ./supabase/functions/_shared/log.test.ts
-buildLogLine always includes every required field, defaulting to null ... ok (1ms)
+Test Files: 1 failed (1)
+Tests: 2 failed | 27 passed (29)
 
-ok | 1 passed | 0 failed (10ms)
-```
+FAIL: createProduct > syncs product-category assignments after a successful create
+AssertionError: expected "vi.fn()" to be called with arguments
+Number of calls: 0
 
-## Type Check Results
-
-```
-deno check --node-modules-dir=auto supabase/functions/notification-worker/index.ts
---- output ---
-Check supabase/functions/notification-worker/index.ts
-(exit 0 — no errors)
-
-deno check --node-modules-dir=auto supabase/functions/create-order/index.ts
---- output ---
-Check supabase/functions/create-order/index.ts
-(exit 0 — no errors)
-```
-
-Note: `--node-modules-dir=auto` was required because the root package.json is present; without it deno cannot resolve jsr npm deps. PromiseLike<void> annotation used for `enqueueAdmin` (supabase chain returns PromiseLike, not Promise).
-
-## Deployment
-
-```
-supabase functions deploy notification-worker --project-ref hjhqemsyufsifmgespur
---- output ---
-Bundling Function: notification-worker
-Deploying Function: notification-worker (script size: 676 kB)
-{"project_ref":"hjhqemsyufsifmgespur","functions":["notification-worker"],"dashboard_url":"https://supabase.com/dashboard/project/hjhqemsyufsifmgespur/functions","message":"Deployed Functions."}
-
-supabase functions deploy create-order --project-ref hjhqemsyufsifmgespur
---- output ---
-Bundling Function: create-order
-Deploying Function: create-order (script size: 671 kB)
-{"project_ref":"hjhqemsyufsifmgespur","functions":["create-order"],"dashboard_url":"https://supabase.com/dashboard/project/hjhqemsyufsifmgespur/functions","message":"Deployed Functions."}
+FAIL: updateProduct > syncs product-category assignments after a successful update
+AssertionError: expected "vi.fn()" to be called with arguments
+Number of calls: 0
 ```
 
-## Verification
+Status: ✅ Confirmed both new tests FAILED with 0 calls to mockSyncProductCategoryAssignments
+Status: ✅ Confirmed all 27 pre-existing tests still PASSED
 
-Sample log line structure (from worker on provider_request_success):
-```json
-{
-  "service": "notification-worker",
-  "environment": "production",
-  "ts": "2026-07-02T11:30:00.000Z",
-  "order_id": "123",
-  "order_number": "ORD-001",
-  "customer_id": null,
-  "customer_email": "customer@example.com",
-  "customer_phone": null,
-  "notification_type": "ORDER_CONFIRMATION_CUSTOMER",
-  "provider": "mailgun",
-  "provider_message_id": "20260702...@mg.example.com",
-  "error_code": null,
-  "error_message": null,
-  "correlation_id": "req-uuid-from-create-order",
-  "event": "provider_request_success"
-}
+### Final State (After Implementation)
+```
+Test Files: 1 passed (1)
+Tests: 29 passed (29)
 ```
 
-All 6 event types are wired:
-- create-order emits: notification_enqueue_started, notification_enqueue_success, notification_enqueue_failed (per notification type: CUSTOMER + ADMIN)
-- notification-worker emits: provider_request_started, provider_request_success, provider_request_failed
+Status: ✅ All 29 tests PASS
+Status: ✅ The 2 new tests now PASS (sync function called with correct product)
+Status: ✅ All 27 pre-existing tests still PASS, including slug-disambiguation tests with `expect(mockFrom).toHaveBeenCalledTimes(...)` assertions
 
-Correlation ID flows: create-order sets `correlationId: requestId` in the job payload; worker reads `job.payload?.correlationId` and falls back to `job.id`.
+## Key Validations
+
+1. ✅ Sync call wrapping in `syncCategoriesOrLog` prevents any sync error from blocking product save
+2. ✅ Sync is called in both branches of `createProduct` (no-slug and slug-disambiguation loop)
+3. ✅ Sync is called in `updateProduct` after successful save
+4. ✅ All previous call-count assertions still pass (mockFrom call counts unaffected)
+5. ✅ Mock framework properly isolates the sync from the main Supabase mock chain
 
 ## Commit
+```
+f65c3ef feat(category-rules): sync category assignments on every product save
+```
 
-commit: 25b1256 feat(notifications): add Phase-6 structured logging with correlation ids
+## Test Runner Output
+Duration: 1.50s
+Passed: 29/29 tests
+Status: ALL PASS

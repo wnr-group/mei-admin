@@ -45,6 +45,20 @@ export type Database = {
         Insert: { created_at?: string; deleted_at?: string | null; id?: string; image_url: string; is_active?: boolean; link_url?: string | null; sort_order?: number; title: string; updated_at?: string; }
         Update: { created_at?: string; deleted_at?: string | null; id?: string; image_url?: string; is_active?: boolean; link_url?: string | null; sort_order?: number; title?: string; updated_at?: string; }
         Relationships: []
+      categories: {
+        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; is_active: boolean; sort_order: number; rule_match_type: 'ALL' | 'ANY'; created_at: string; updated_at: string; deleted_at: string | null }
+        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY' }
+        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY'; deleted_at?: string | null }
+      }
+      category_rules: {
+        Row: { id: string; category_id: string; field: 'name' | 'work_types' | 'price'; operator: 'contains' | 'is' | 'greater_than' | 'less_than'; value: string; created_at: string; updated_at: string }
+        Insert: { id?: string; category_id: string; field: 'name' | 'work_types' | 'price'; operator: 'contains' | 'is' | 'greater_than' | 'less_than'; value: string }
+        Update: { field?: 'name' | 'work_types' | 'price'; operator?: 'contains' | 'is' | 'greater_than' | 'less_than'; value?: string }
+      }
+      product_categories: {
+        Row: { id: string; product_id: string; category_id: string; source: 'manual' | 'rule'; created_at: string }
+        Insert: { id?: string; product_id: string; category_id: string; source: 'manual' | 'rule' }
+        Update: { source?: 'manual' | 'rule' }
       }
       blouse_configurations: {
         Row: { blouse_measurement_template_id: string | null; created_at: string; customization_type: | Database["public"]["Enums"]["customization_type"] | null; id: string; includes_blouse: boolean; product_id: string; stitching_options: string[]; }
@@ -498,6 +512,10 @@ export type Database = {
     }
     Enums: {
       admin_role: "super_admin" | "admin"
+      rule_field: "name" | "work_types" | "price"
+      rule_operator: "contains" | "is" | "greater_than" | "less_than"
+      category_match_type: "ALL" | "ANY"
+      product_category_source: "manual" | "rule"
       customization_type:
         | "UNSTITCHED"
         | "SEMI_STITCHED"

@@ -12,6 +12,8 @@ import {
 import { uploadCategoryImage, deleteCategoryImage } from '@/services/storage';
 import { Upload, X, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import RuleList from '@/components/categories/rules/RuleList';
+import type { CategoryMatchType } from '@/types';
 
 function CategoryForm() {
   const router = useRouter();
@@ -27,6 +29,7 @@ function CategoryForm() {
   const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);  // for cleanup on replace
   const [sortOrder, setSortOrder] = useState(0);
   const [active, setActive] = useState(true);
+  const [ruleMatchType, setRuleMatchType] = useState<CategoryMatchType>('ALL');
   const [loading, setLoading] = useState(editId ? true : false);
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -46,6 +49,7 @@ function CategoryForm() {
           setOriginalImageUrl(cat.image_url ?? null);
           setSortOrder(cat.sort_order);
           setActive(cat.is_active ?? true);
+          setRuleMatchType(cat.rule_match_type ?? 'ALL');
         } else {
           alert('Category not found.');
           router.push('/categories');
@@ -150,6 +154,7 @@ function CategoryForm() {
           sort_order: sortOrder,
           is_active: active,
           image_url: finalImageUrl,
+          rule_match_type: ruleMatchType,
         });
       } else {
         // ── CREATE FLOW ──────────────────────────────────────────
@@ -378,6 +383,16 @@ function CategoryForm() {
           </div>
         </form>
       </div>
+
+      {editId && (
+        <div className="bg-white border border-[#E8E0D5] p-8 shadow-xs mt-6">
+          <RuleList
+            categoryId={editId}
+            matchType={ruleMatchType}
+            onMatchTypeChange={setRuleMatchType}
+          />
+        </div>
+      )}
     </div>
   );
 }

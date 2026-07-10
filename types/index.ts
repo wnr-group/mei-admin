@@ -22,9 +22,7 @@ export interface OrderWithDetails extends Order {
 export interface OrderDetail extends Order {
   customers: Customer | null
   order_items: Array<OrderItem & {
-    products: {
-      image_url: string | null
-    } | null
+    products: { image_url: string | null } | null
   }>
 }
 
@@ -37,6 +35,11 @@ export type ProductInsert = Omit<Tables['products']['Insert'], 'product_code'> &
 export type ProductUpdate = Tables['products']['Update']
 export type CategoryInsert = Tables['categories']['Insert']
 export type CategoryUpdate = Tables['categories']['Update']
+export type CategoryRule = Tables['category_rules']['Row']
+export type CategoryRuleInsert = Tables['category_rules']['Insert']
+export type CategoryRuleUpdate = Tables['category_rules']['Update']
+export type ProductCategory = Tables['product_categories']['Row']
+export type ProductCategoryInsert = Tables['product_categories']['Insert']
 export type OrderUpdate = Tables['orders']['Update']
 export type EnquiryUpdate = Tables['enquiries']['Update']
 export type BannerInsert = Tables['banners']['Insert']
@@ -46,3 +49,7 @@ export type SettingUpdate = Tables['settings']['Update']
 export type OrderStatus = Database['public']['Enums']['order_status']
 export type ProductStatus = Database['public']['Enums']['product_status']
 export type EnquiryStatus = Database['public']['Enums']['enquiry_status']
+export type RuleField = Database['public']['Enums']['rule_field']
+export type RuleOperator = Database['public']['Enums']['rule_operator']
+export type CategoryMatchType = Database['public']['Enums']['category_match_type']
+export type ProductCategorySource = Database['public']['Enums']['product_category_source']

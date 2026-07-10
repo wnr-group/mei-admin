@@ -209,11 +209,10 @@ export default function MediaLibraryPage() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => document.getElementById('media-file-input')?.click()}
-        className={`border border-dashed p-10 text-center cursor-pointer transition-colors duration-200 flex flex-col items-center justify-center min-h-[140px] ${
-          isDragging
+        className={`border border-dashed p-10 text-center cursor-pointer transition-colors duration-200 flex flex-col items-center justify-center min-h-[140px] ${isDragging
             ? 'border-[#B38B5D] bg-[#FAF8F5]/50'
             : 'border-[#E8E0D5] hover:border-[#B38B5D] bg-[#FAF8F5]/30 hover:bg-[#FAF8F5]/50'
-        }`}
+          }`}
       >
         <input
           type="file"
@@ -225,6 +224,7 @@ export default function MediaLibraryPage() {
         />
         <Upload className="w-6 h-6 stroke-[1.5] text-zinc-400 mb-2" />
         <p className="text-[12px] text-zinc-500 font-medium">Click or drag images here to upload</p>
+        <p className="text-[10px] text-zinc-400 mt-1">JPG/JPEG, PNG, WEBP, or GIF — max 5MB per image</p>
       </div>
 
       {/* Search */}

@@ -36,6 +36,19 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
+    const { data: mediaRow } = await supabase
+      .from('product_media')
+      .select('url')
+      .eq('id', media_id)
+      .single();
+
+    if (mediaRow?.url) {
+      await supabase
+        .from('products')
+        .update({ image_url: mediaRow.url })
+        .eq('id', product_id);
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }

@@ -2,13 +2,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { verifyWebhookSignature } from '@/lib/services/razorpay'
-import type { Database } from '@/types/database'
 
-let supabaseInstance: SupabaseClient<Database> | null = null
+let supabaseInstance: SupabaseClient | null = null
 
-function getServiceClient(): SupabaseClient<Database> {
+function getServiceClient(): SupabaseClient {
   if (!supabaseInstance) {
-    supabaseInstance = createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    supabaseInstance = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
   }
   return supabaseInstance
 }
@@ -39,25 +38,37 @@ export async function POST(request: NextRequest) {
         .eq('razorpay_order_id', p.order_id)
         .maybeSingle()) as { data: { id: string; webhook_verified: boolean } | null; error: unknown }
       if (existing?.webhook_verified) break
-      await (supabase.from('orders') as any).update({ payment_status: 'captured', webhook_verified: true, razorpay_payment_id: p.id ?? null, payment_method: p.method ?? null, payment_captured_at: new Date().toISOString() }).eq('razorpay_order_id', p.order_id)
+      await supabase
+        .from('orders')
+        .update({ payment_status: 'captured', webhook_verified: true, razorpay_payment_id: p.id ?? null, payment_method: p.method ?? null, payment_captured_at: new Date().toISOString() })
+        .eq('razorpay_order_id', p.order_id)
       break
     }
     case 'payment.failed': {
       const p = event.payload.payment?.entity
       if (!p?.order_id) break
-      await (supabase.from('orders') as any).update({ payment_status: 'failed', webhook_verified: true }).eq('razorpay_order_id', p.order_id)
+      await supabase
+        .from('orders')
+        .update({ payment_status: 'failed', webhook_verified: true })
+        .eq('razorpay_order_id', p.order_id)
       break
     }
     case 'refund.created': {
       const r = event.payload.refund?.entity
       if (!r?.payment_id) break
-      await (supabase.from('orders') as any).update({ reconciliation_status: 'refund_initiated' }).eq('razorpay_payment_id', r.payment_id)
+      await supabase
+        .from('orders')
+        .update({ reconciliation_status: 'refund_initiated' })
+        .eq('razorpay_payment_id', r.payment_id)
       break
     }
     case 'refund.processed': {
       const r = event.payload.refund?.entity
       if (!r?.payment_id) break
-      await (supabase.from('orders') as any).update({ reconciliation_status: 'refund_processed' }).eq('razorpay_payment_id', r.payment_id)
+      await supabase
+        .from('orders')
+        .update({ reconciliation_status: 'refund_processed' })
+        .eq('razorpay_payment_id', r.payment_id)
       break
     }
     default:

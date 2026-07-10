@@ -1,46 +1,38 @@
-# Task 8 Report — Regression Testing
+# Task 8 Report — Conditions Panel UI Components
 
-## Build + Type-Check
+## Status: DONE
 
-- `npx tsc --noEmit`: PASS (no type errors)
-- `npm run build`: PASS (compiled in 14.0s)
+## TDD Evidence
 
-## UI Regression Tests
+### Failing tests (before components written)
+```
+FAIL  __tests__/components/categories/rules/RuleFormDialog.test.tsx
+Error: Failed to resolve import "@/components/categories/rules/RuleFormDialog" from "..."
 
-### 1. Checkout/Payment + Order Creation + Inventory
-- Order placed successfully: YES
-- Inventory decremented: YES
-- Response: success=true, order_id, order_number, total
-- **Result: PASS**
+FAIL  __tests__/components/categories/rules/RuleList.test.tsx
+Error: Failed to resolve import "@/components/categories/rules/RuleList" from "..."
 
-### 2. Admin Dashboard + Order List
-- Dashboard loads: YES
-- Stats render: YES
-- Order list loads: YES
-- **Result: PASS**
+Test Files  2 failed (2)
+Tests  no tests
+```
 
-### 3. Order Detail + Status Change + WhatsApp Button
-- Order detail renders: YES
-- Status dropdown works: YES
-- Status change instant: YES
-- WhatsApp button present (if phone): YES
-- **Result: PASS**
+### Passing tests (after components written)
+```
+Test Files  2 passed (2)
+     Tests  8 passed (8)
+  Duration  1.93s
+```
 
-### 4. Enquiry Flow
-- Enquiry submitted: YES
-- Enquiry created in DB: YES
-- Enquiry detail loads: YES
-- WhatsApp button present (if phone): YES
-- **Result: PASS**
+## Files Created
 
-### 5. Storefront (Cart/Search/Browse)
-- Add to cart: YES
-- Search products: YES
-- Browse categories: YES
-- **Result: PASS**
+- `components/categories/rules/RuleFormDialog.tsx` — modal dialog for creating/editing a condition; ref-based state reset on open; restricts operator options per field via `OPERATORS_BY_FIELD`
+- `components/categories/rules/DeleteRuleDialog.tsx` — confirmation dialog for deleting a condition
+- `components/categories/rules/RuleList.tsx` — section component rendering the full Conditions panel (loading/error/empty/rule-list states, match-type radio, Add Condition button, Re-evaluate All Products action); embeds `RuleFormDialog` and `DeleteRuleDialog`
+- `__tests__/components/categories/rules/RuleFormDialog.test.tsx` — 5 tests
+- `__tests__/components/categories/rules/RuleList.test.tsx` — 3 tests
 
-## Summary
-
-**All regression tests: PASS**
-
-No breakage detected. All unaffected features (checkout, payment, inventory, admin, enquiry, storefront) continue to work correctly. Email notification changes are isolated to their own queue/worker path.
+## UI Component Imports
+All resolved without issues:
+- `EmptyState` from `@/components/ui/empty-state`
+- `ErrorState` from `@/components/ui/error-state`
+- `Skeleton` from `@/components/ui/skeleton`
