@@ -11,14 +11,15 @@ import type { CustomizationType } from '@/lib/services/blouse-config'
 interface Props {
   productId: string
   customizationType?: CustomizationType
+  availableStitchingOptions?: string[]
 }
 
-export default function BlouseConfigurationCard({ productId, customizationType }: Props) {
+export default function BlouseConfigurationCard({ productId, customizationType, availableStitchingOptions }: Props) {
   const { data: config, isLoading, error, refetch } = useBlouseConfig(productId, customizationType)
   const upsert = useUpsertBlouseConfig(productId)
 
   const [includesBlouse, setIncludesBlouse] = useState(true)
-  const [stitchingOptions, setStitchingOptions] = useState<string[]>(['STITCHED', 'UNSTITCHED'])
+  const [stitchingOptions, setStitchingOptions] = useState<string[]>(availableStitchingOptions ?? ['STITCHED', 'UNSTITCHED'])
   const [templateId, setTemplateId] = useState<string | undefined>()
 
   const prevConfigRef = useRef(config)
@@ -61,7 +62,7 @@ export default function BlouseConfigurationCard({ productId, customizationType }
           <>
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">Stitching Options</p>
-              <StitchingOptionsSelector value={stitchingOptions} onChange={setStitchingOptions} />
+              <StitchingOptionsSelector value={stitchingOptions} onChange={setStitchingOptions} availableOptions={availableStitchingOptions} />
             </div>
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">Blouse Measurement Template</p>

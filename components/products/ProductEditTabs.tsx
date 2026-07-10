@@ -7,7 +7,12 @@ import MediaGalleryTab from './tabs/MediaGalleryTab';
 import CustomizationTab from './tabs/CustomizationTab';
 import MeasurementsTab from './tabs/MeasurementsTab';
 
-export default function ProductEditTabs({ productId, product }: { productId: string; product: unknown }) {
+interface EditableProduct {
+  price_unstitched: number | null
+  price_stitched: number | null
+}
+
+export default function ProductEditTabs({ productId, product }: { productId: string; product: EditableProduct }) {
   return (
     <>
       <TabsContent value="basic">
@@ -23,7 +28,7 @@ export default function ProductEditTabs({ productId, product }: { productId: str
       </TabsContent>
 
       <TabsContent value="customization">
-        <CustomizationTab productId={productId} />
+        <CustomizationTab productId={productId} product={product} />
       </TabsContent>
 
       <TabsContent value="measurements">

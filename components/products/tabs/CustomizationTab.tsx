@@ -5,7 +5,7 @@ import { useState } from 'react'
 import BlouseConfigurationCard from '@/components/products/customization/BlouseConfigurationCard'
 import SizeSystemSelector from '@/components/products/sizes/SizeSystemSelector'
 
-export default function CustomizationTab({ productId }: { productId: string }) {
+export default function CustomizationTab({ productId, product }: { productId: string; product: { price_unstitched: number | null; price_stitched: number | null } }) {
   const [sizeSystemId, setSizeSystemId] = useState<string | undefined>()
 
   return (
@@ -19,7 +19,12 @@ export default function CustomizationTab({ productId }: { productId: string }) {
           </div>
           <div>
             <h3 className="font-medium text-gray-900 mb-3">Blouse Configuration</h3>
-            <BlouseConfigurationCard productId={productId} />
+            <BlouseConfigurationCard productId={productId} availableStitchingOptions={
+              [
+                ...(product.price_unstitched != null ? ['UNSTITCHED'] : []),
+                ...(product.price_stitched != null ? ['STITCHED'] : []),
+              ]
+            } />
           </div>
         </div>
       </div>

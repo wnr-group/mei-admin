@@ -4,12 +4,10 @@ import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ProductEditTabs from '@/components/products/ProductEditTabs';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/client';
+import type { Product } from '@/types';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase = createClient();
 
 export default function ProductEditPage() {
   const params = useParams();
@@ -18,12 +16,13 @@ export default function ProductEditPage() {
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['products', productId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const response = await supabase
         .from('products')
         .select('*')
         .eq('id', productId)
         .single();
-      if (error) throw error;
+      const { data, error } = response as { data: Product | null; error: { message: string } | null };
+      if (error) throw new Error(error.message);
       return data;
     }
   });
