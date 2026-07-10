@@ -22,9 +22,14 @@ describe('create_order_txn — state-based shipping', () => {
   const createdCustomerEmails: string[] = [];
 
   beforeAll(async () => {
+    // Order by price ascending — an unordered `.limit(1)` can land on any
+    // product, and this store's catalog includes items priced well above the
+    // ₹5000 free-shipping threshold, which would make the "below threshold"
+    // tests below assert on a product that's never actually below it.
     const { data: product, error } = await supabase
       .from('products')
       .select('id, price')
+      .order('price', { ascending: true })
       .limit(1)
       .single();
     expect(error).toBeNull();

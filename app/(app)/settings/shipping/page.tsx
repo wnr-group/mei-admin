@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   useShippingRates,
   useUpsertShippingRate,
@@ -22,14 +22,38 @@ export default function ShippingSettingsPage() {
   const [freeShippingEnabled, setFreeShippingEnabled] = useState(false)
   const [freeShippingThreshold, setFreeShippingThreshold] = useState('')
 
+  // Tracks the value we last synced into formValues from the server, per
+  // state. A refetch (e.g. refetchOnWindowFocus, or another admin's save)
+  // must not clobber a row the admin is actively editing — only rows whose
+  // current form value still matches what we last synced are "clean" and
+  // safe to overwrite with fresh server data.
+  const lastSyncedRef = useRef<Record<string, string>>({})
+
   useEffect(() => {
-    const values: Record<string, string> = {}
+    // Snapshot before overwriting the ref — the setFormValues updater below
+    // may run after this line, so it must close over the OLD synced values
+    // rather than read the ref (which would already hold the new ones).
+    const previousSynced = lastSyncedRef.current
+    const nextSynced: Record<string, string> = {}
     indianStates.forEach((state) => {
       const existing = rates.find((r) => r.state === state)
-      values[state] = existing ? String(existing.charge) : ''
+      nextSynced[state] = existing ? String(existing.charge) : ''
     })
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFormValues(values)
+    lastSyncedRef.current = nextSynced
+
+    setFormValues((prev) => {
+      const values: Record<string, string> = { ...prev }
+      let hasChanges = false
+      indianStates.forEach((state) => {
+        const chargeStr = nextSynced[state]
+        const isDirty = prev[state] !== undefined && prev[state] !== previousSynced[state]
+        if (!isDirty && prev[state] !== chargeStr) {
+          values[state] = chargeStr
+          hasChanges = true
+        }
+      })
+      return hasChanges ? values : prev
+    })
   }, [rates])
 
   useEffect(() => {
@@ -56,6 +80,7 @@ export default function ShippingSettingsPage() {
   // alert after a round trip. The DB constraint remains the authoritative
   // guard — this is a UX improvement layered on top of it, not a replacement.
   const isValidCharge = (raw: string) => {
+    if (raw === undefined || raw === null || raw.trim() === '') return false
     const parsed = Number(raw)
     return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100000
   }
@@ -63,7 +88,7 @@ export default function ShippingSettingsPage() {
   const handleSaveRates = async () => {
     const dirtyStates = indianStates.filter((state) => {
       const original = originalByState.get(state) ?? ''
-      return formValues[state] !== original && formValues[state]?.trim() !== ''
+      return formValues[state] !== original
     })
 
     const nextRowErrors: Record<string, string> = {}
@@ -167,7 +192,7 @@ export default function ShippingSettingsPage() {
                   <td className="px-6 py-3 text-[12px] font-medium text-zinc-800">{state}</td>
                   <td className="px-6 py-3">
                     <input
-                      type="number"
+                      type="text"
                       min={0}
                       max={100000}
                       placeholder="Not set"

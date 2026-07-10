@@ -1,5 +1,5 @@
 // __tests__/components/settings/ShippingSettingsPage.test.tsx
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
@@ -16,13 +16,16 @@ vi.mock('@/services/shipping', () => ({
 const { default: ShippingSettingsPage } = await import('@/app/(app)/settings/shipping/page')
 const { upsertShippingRate } = await import('@/services/shipping')
 
+let currentClient: QueryClient
 function wrapper({ children }: { children: React.ReactNode }) {
-  return React.createElement(QueryClientProvider, {
-    client: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
-  }, children)
+  currentClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return React.createElement(QueryClientProvider, { client: currentClient }, children)
 }
 
 describe('ShippingSettingsPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
   it('renders every canonical Indian state as a row', async () => {
     render(<ShippingSettingsPage />, { wrapper })
     expect(await screen.findByText('Karnataka')).toBeInTheDocument()
@@ -88,5 +91,32 @@ describe('ShippingSettingsPage', () => {
   it('labels the free shipping threshold input accessibly', async () => {
     render(<ShippingSettingsPage />, { wrapper })
     expect(await screen.findByLabelText('Threshold (₹)')).toBeInTheDocument()
+  })
+
+  it('preserves an unsaved edit in one row when a background refetch reflects a genuine change in a different row', async () => {
+    const { getShippingRates } = await import('@/services/shipping')
+    vi.mocked(getShippingRates)
+      .mockResolvedValueOnce([{ id: 'r1', state: 'Tamil Nadu', charge: 300, updated_at: '' }])
+      .mockResolvedValueOnce([{ id: 'r1', state: 'Tamil Nadu', charge: 320, updated_at: '' }])
+
+    render(<ShippingSettingsPage />, { wrapper })
+    const kaRow = (await screen.findByText('Karnataka')).closest('tr')!
+    const kaInput = kaRow.querySelector('input') as HTMLInputElement
+    const tnRow = (await screen.findByText('Tamil Nadu')).closest('tr')!
+    const tnInput = tnRow.querySelector('input') as HTMLInputElement
+
+    // Admin types into Karnataka but hasn't clicked "Save All Changes" yet.
+    fireEvent.change(kaInput, { target: { value: '999' } })
+
+    // Simulate a background refetch unrelated to this admin's own save
+    // (e.g. refetchOnWindowFocus, or another admin's edit landing).
+    await currentClient.invalidateQueries({ queryKey: ['shipping', 'rates'] })
+
+    // The refetch's genuine change to Tamil Nadu should still land...
+    await waitFor(() => {
+      expect(tnInput.value).toBe('320')
+    })
+    // ...but Karnataka's unsaved edit must not be silently wiped.
+    expect(kaInput.value).toBe('999')
   })
 })
