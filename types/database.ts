@@ -15,9 +15,19 @@ export type Database = {
         Update: { role?: 'admin' | 'super_admin'; full_name?: string | null }
       }
       categories: {
-        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string; deleted_at: string | null }
-        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number }
-        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; deleted_at?: string | null }
+        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; is_active: boolean; sort_order: number; rule_match_type: 'ALL' | 'ANY'; created_at: string; updated_at: string; deleted_at: string | null }
+        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY' }
+        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY'; deleted_at?: string | null }
+      }
+      category_rules: {
+        Row: { id: string; category_id: string; field: 'name' | 'work_types' | 'price'; operator: 'contains' | 'is' | 'greater_than' | 'less_than'; value: string; created_at: string; updated_at: string }
+        Insert: { id?: string; category_id: string; field: 'name' | 'work_types' | 'price'; operator: 'contains' | 'is' | 'greater_than' | 'less_than'; value: string }
+        Update: { field?: 'name' | 'work_types' | 'price'; operator?: 'contains' | 'is' | 'greater_than' | 'less_than'; value?: string }
+      }
+      product_categories: {
+        Row: { id: string; product_id: string; category_id: string; source: 'manual' | 'rule'; created_at: string }
+        Insert: { id?: string; product_id: string; category_id: string; source: 'manual' | 'rule' }
+        Update: { source?: 'manual' | 'rule' }
       }
       products: {
         Row: { id: string; name: string; slug: string | null; short_description: string | null; category_id: string | null; price: number; work_types: string[]; status: 'PUBLISHED' | 'DRAFT'; description: string | null; image_url: string | null; created_at: string; updated_at: string; deleted_at: string | null; product_code: string; has_variants: boolean; size_system_id: string | null; supported_customization_types: string[] }
@@ -30,14 +40,14 @@ export type Database = {
         Update: { name?: string; email?: string | null; phone?: string | null; city?: string | null }
       }
       orders: {
-        Row: { id: string; order_number: string; customer_id: string | null; status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes: string | null; created_at: string; updated_at: string; deleted_at: string | null; razorpay_order_id: string | null; razorpay_payment_id: string | null; payment_method: string | null; payment_status: string | null; payment_captured_at: string | null; webhook_verified: boolean; reconciliation_status: string | null }
-        Insert: { id?: string; order_number?: string; customer_id?: string | null; status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes?: string | null; razorpay_order_id?: string | null; razorpay_payment_id?: string | null; payment_method?: string | null; payment_status?: string | null; payment_captured_at?: string | null; webhook_verified?: boolean; reconciliation_status?: string | null }
-        Update: { status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total?: number; notes?: string | null; deleted_at?: string | null; razorpay_order_id?: string | null; razorpay_payment_id?: string | null; payment_method?: string | null; payment_status?: string | null; payment_captured_at?: string | null; webhook_verified?: boolean; reconciliation_status?: string | null }
+        Row: { id: string; order_number: string; customer_id: string | null; status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes: string | null; created_at: string; updated_at: string; deleted_at: string | null; payment_id: string | null; payment_provider: string | null; payment_metadata: Record<string, unknown> | null; shipping_address: Record<string, string> | null; razorpay_order_id: string | null; razorpay_payment_id: string | null; payment_method: string | null; payment_status: string | null; payment_captured_at: string | null; webhook_verified: boolean; reconciliation_status: string | null }
+        Insert: { id?: string; order_number?: string; customer_id?: string | null; status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total: number; notes?: string | null; payment_id?: string | null; payment_provider?: string | null; payment_metadata?: Record<string, unknown> | null; shipping_address?: Record<string, string> | null; razorpay_order_id?: string | null; razorpay_payment_id?: string | null; payment_method?: string | null; payment_status?: string | null; payment_captured_at?: string | null; webhook_verified?: boolean; reconciliation_status?: string | null }
+        Update: { status?: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'; total?: number; notes?: string | null; deleted_at?: string | null; payment_id?: string | null; payment_provider?: string | null; payment_metadata?: Record<string, unknown> | null; shipping_address?: Record<string, string> | null; razorpay_order_id?: string | null; razorpay_payment_id?: string | null; payment_method?: string | null; payment_status?: string | null; payment_captured_at?: string | null; webhook_verified?: boolean; reconciliation_status?: string | null }
       }
       order_items: {
-        Row: { id: string; order_id: string; product_id: string | null; product_name: string; quantity: number; unit_price: number; created_at: string }
-        Insert: { id?: string; order_id: string; product_id?: string | null; product_name: string; quantity?: number; unit_price: number }
-        Update: { quantity?: number; unit_price?: number }
+        Row: { id: string; order_id: string; product_id: string | null; product_name: string; quantity: number; unit_price: number; created_at: string; variant_id: string | null; product_snapshot: Record<string, unknown> | null; variant_snapshot: Record<string, unknown> | null }
+        Insert: { id?: string; order_id: string; product_id?: string | null; product_name: string; quantity?: number; unit_price: number; variant_id?: string | null; product_snapshot?: Record<string, unknown> | null; variant_snapshot?: Record<string, unknown> | null }
+        Update: { quantity?: number; unit_price?: number; product_snapshot?: Record<string, unknown> | null }
       }
       product_media: {
         Row: { id: string; product_id: string; color_id: string | null; variant_id: string | null; url: string; alt_text: string | null; is_primary: boolean; media_type: 'IMAGE' | 'VIDEO'; thumbnail_url: string | null; video_provider: string | null; sort_order: number; created_by: string | null; created_at: string; deleted_at: string | null }
@@ -71,6 +81,10 @@ export type Database = {
       product_status: 'PUBLISHED' | 'DRAFT'
       enquiry_status: 'NEW' | 'REPLIED' | 'CLOSED'
       media_type: 'IMAGE' | 'VIDEO'
+      rule_field: 'name' | 'work_types' | 'price'
+      rule_operator: 'contains' | 'is' | 'greater_than' | 'less_than'
+      category_match_type: 'ALL' | 'ANY'
+      product_category_source: 'manual' | 'rule'
     }
   }
 }

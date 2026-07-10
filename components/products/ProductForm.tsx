@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createProduct, updateProduct, getProductById } from '@/services/products';
-import { uploadProductImage } from '@/services/storage';
 import { getCategories } from '@/services/categories';
-import { Upload, X, ChevronDown, ChevronUp, Loader2, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import type { Category } from '@/types';
+import { generateSlug } from '@/lib/slug'
+import ColorList from '@/components/products/colors/ColorList'
+import MediaGallery from '@/components/products/media/MediaGallery';
 
 const WORK_TYPES = ['Aari', 'Zardozi', 'Mirror', 'Cut', 'Thread', 'Tailoring', 'Kundan'];
 
@@ -39,13 +41,6 @@ export default function ProductForm({ editId }: ProductFormProps) {
   const [metaDescription, setMetaDescription] = useState('');
   const [metaKeywords, setMetaKeywords] = useState('');
 
-  // Media state
-  const [images, setImages] = useState<string[]>([]);
-  // Parallel array of original File objects for upload (index-aligned with images[])
-  // data: preview strings are kept for <img> display; Files are used for actual upload.
-  const [imageFiles, setImageFiles] = useState<(File | null)[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
-
   // Status & Visibility state
   const [published, setPublished] = useState(false);
   const [featured, setFeatured] = useState(false);
@@ -66,9 +61,6 @@ export default function ProductForm({ editId }: ProductFormProps) {
           setDescription(prod.description ?? '');
           setPrice(prod.price.toString());
           setPublished(prod.status === 'PUBLISHED');
-          setImages(prod.image_url ? [prod.image_url] : []);
-          setImageFiles(prod.image_url ? [null] : []);
-
           // Populate slug and short_description from DB
           setSlug(prod.slug ?? '');
           setShortDescription(prod.short_description ?? '');
@@ -119,15 +111,6 @@ export default function ProductForm({ editId }: ProductFormProps) {
   }, []);
 
   // Auto-generate slug from name
-  const generateSlug = (val: string) => {
-    return val
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '') // remove non-word characters
-      .replace(/[\s_-]+/g, '-') // replace spaces/underscores with hyphens
-      .replace(/^-+|-+$/g, ''); // remove leading/trailing hyphens
-  };
-
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setName(val);
@@ -141,59 +124,6 @@ export default function ProductForm({ editId }: ProductFormProps) {
     } else {
       setSelectedWorkTypes([...selectedWorkTypes, wt]);
     }
-  };
-
-  // Drag-and-drop file handlers
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files) {
-      const filesArray = Array.from(e.dataTransfer.files);
-      addFiles(filesArray);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const filesArray = Array.from(e.target.files);
-      addFiles(filesArray);
-    }
-  };
-
-  const addFiles = (files: File[]) => {
-    const remainingSlots = 10 - images.length;
-    const filesToProcess = files.slice(0, remainingSlots);
-
-    filesToProcess.forEach((file) => {
-      // Keep the original File for upload; generate a data URL only for preview rendering.
-      // Using fetch(data:) on preview strings is blocked by CSP connect-src.
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setImages((prev) => [...prev, reader.result as string]);
-          setImageFiles((prev) => [...prev, file]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setImages(images.filter((_, idx) => idx !== index));
-    setImageFiles(imageFiles.filter((_, idx) => idx !== index));
-  };
-
-  const triggerFileInput = () => {
-    document.getElementById('image-file-input')?.click();
   };
 
   // Submit Handler
@@ -218,18 +148,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
 
       if (editId) {
         // ── EDIT FLOW ──────────────────────────────────────────────
-        const existingProduct = await getProductById(editId);
-        let finalImageUrl: string | null = existingProduct?.image_url ?? null;
-
-        if (images[0]?.startsWith('data:') && imageFiles[0] instanceof File) {
-          // New image selected — use the original File directly (no fetch(data:) needed).
-          finalImageUrl = await uploadProductImage(imageFiles[0], editId);
-        } else if (images[0]?.startsWith('http')) {
-          finalImageUrl = images[0];
-        } else if (images.length === 0) {
-          finalImageUrl = null;
-        }
-
+        // Media is managed by ColorList + MediaGallery — not through form submit.
         await updateProduct(editId, {
           name: name.trim(),
           slug: slug.trim() || null,
@@ -239,7 +158,6 @@ export default function ProductForm({ editId }: ProductFormProps) {
           status: published ? 'PUBLISHED' : 'DRAFT',
           work_types: workTypesArr,
           description: descriptionVal,
-          image_url: finalImageUrl,
         });
       } else {
         // ── CREATE FLOW ────────────────────────────────────────────
@@ -255,16 +173,9 @@ export default function ProductForm({ editId }: ProductFormProps) {
           image_url: null,
         });
 
-        if (images[0]) {
-          let imageUrl: string;
-          if (images[0].startsWith('data:') && imageFiles[0] instanceof File) {
-            // Use the original File directly — avoids fetch(data:) which CSP blocks.
-            imageUrl = await uploadProductImage(imageFiles[0], newProduct.id);
-          } else {
-            imageUrl = images[0];
-          }
-          await updateProduct(newProduct.id, { image_url: imageUrl });
-        }
+        // Redirect to edit so the admin can add images via the same MediaGallery used for all edits
+        router.push(`/products/${newProduct.id}/edit`);
+        return;
       }
 
       router.push('/products');
@@ -570,99 +481,25 @@ export default function ProductForm({ editId }: ProductFormProps) {
           {/* Right Column (1/3 width) */}
           <div className="space-y-6">
             
-            {/* Card 5: MEDIA */}
-            <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
-                  MEDIA
-                </h3>
-                <span className="text-[9px] text-zinc-400 font-medium font-sans">
-                  {images.length}/10 images
-                </span>
-              </div>
-
-              {/* Upload Drop Zone */}
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={triggerFileInput}
-                className={`border border-dashed p-8 text-center cursor-pointer transition-colors duration-200 flex flex-col items-center justify-center min-h-[160px] bg-[#FAF8F5]/30 ${
-                  isDragging
-                    ? 'border-[#B38B5D] bg-[#FAF8F5]/50'
-                    : 'border-[#E8E0D5] hover:border-[#B38B5D] hover:bg-[#FAF8F5]/10'
-                }`}
-              >
-                <input
-                  type="file"
-                  id="image-file-input"
-                  multiple
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                
-                <Upload className="w-6 h-6 stroke-[1.5] text-zinc-400 mb-2" />
-                <p className="text-[12px] text-zinc-500 font-medium">
-                  Click or drag images here
-                </p>
-              </div>
-
-              {/* Thumbnail Display Grid */}
-              <div className="flex flex-wrap gap-3 pt-2">
-                {images.map((img, idx) => (
-                  <div 
-                    key={idx} 
-                    className="relative border border-[#E8E0D5] bg-[#E0E0E0] w-[60px] h-[90px] flex items-center justify-center overflow-hidden group"
-                  >
-                    <img 
-                      src={img} 
-                      alt={`Preview ${idx + 1}`} 
-                      className="w-full h-full object-cover" 
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                    
-                    {idx === 0 && (
-                      <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wider font-sans">
-                        Thumbnail
-                      </div>
-                    )}
-                    
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveImage(idx);
-                      }}
-                      className="absolute right-0.5 top-0.5 bg-black/60 hover:bg-black text-white rounded-full p-0.5 transition-colors cursor-pointer"
-                    >
-                      <X className="w-2.5 h-2.5" />
-                    </button>
+            {/* Card 5: MEDIA / COLORS */}
+            <div className="bg-white border border-[#E8E0D5] p-8 space-y-8">
+              {editId ? (
+                <>
+                  <ColorList productId={editId} />
+                  <div className="border-t border-[#E8E0D5] pt-6">
+                    <MediaGallery productId={editId} />
                   </div>
-                ))}
-
-                {images.length === 0 && (
-                  /* Initial Empty Placeholder Box matching screenshot exactly */
-                  <div className="border border-zinc-300 bg-[#E0E0E0] w-[60px] h-[90px] flex flex-col p-1.5 text-left text-zinc-500 select-none overflow-hidden">
-                    <span className="text-[9px] font-sans leading-none break-all text-zinc-600 font-medium">
-                      Thumbnail
-                    </span>
-                  </div>
-                )}
-                
-                {/* Gray box with plus icon */}
-                {images.length < 10 && (
-                  <button
-                    type="button"
-                    onClick={triggerFileInput}
-                    className="border border-zinc-300 bg-[#E0E0E0] w-[60px] h-[90px] hover:border-[#B38B5D] transition-colors flex items-center justify-center text-zinc-400 hover:text-zinc-600 cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4 stroke-[2]" />
-                  </button>
-                )}
-              </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
+                    MEDIA
+                  </h3>
+                  <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
+                    Images and color variants can be added after saving. You'll be taken to the edit page automatically.
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Card 6: VISIBILITY & STATUS */}

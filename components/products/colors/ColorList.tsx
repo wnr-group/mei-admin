@@ -25,7 +25,7 @@ export default function ColorList({ productId }: { productId: string }) {
     <section>
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-medium text-gray-900">Colors</h3>
-        <button onClick={openCreate} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#c9a465] text-white text-sm rounded hover:bg-[#b8934f]">
+        <button type="button" onClick={openCreate} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#c9a465] text-white text-sm rounded hover:bg-[#b8934f]">
           <Plus size={14} /> Add Color
         </button>
       </div>

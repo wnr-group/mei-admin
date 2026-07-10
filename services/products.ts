@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/client'
 import { toAppError, AppError } from '@/lib/errors'
 import { logAuditEvent } from '@/lib/audit'
+import { generateProductCode } from '@/lib/product-code'
+import { syncProductCategoryAssignments } from '@/services/product-categories'
 import type { Product, ProductInsert, ProductUpdate } from '@/types'
 import type { Json } from '@/types/database'
 
@@ -44,7 +46,7 @@ export async function createProduct(product: ProductInsert) {
   // Auto-generate unique product_code if not provided
   const productWithCode = {
     ...product,
-    product_code: product.product_code || `MEI-${product.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 6)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+    product_code: product.product_code || generateProductCode(product.name)
   }
 
   // No slug provided — simple insert, no disambiguation needed
@@ -58,6 +60,7 @@ export async function createProduct(product: ProductInsert) {
     if (error) throw toAppError(new Error(error.message))
     if (!data) throw new AppError('NOT_FOUND', 'Product not returned after insert')
     await logAuditEvent({ action: 'CREATE', resourceType: 'product', resourceId: data.id, newData: data as Json })
+    await syncCategoriesOrLog(data)
     return data as Product
   }
 
@@ -84,6 +87,7 @@ export async function createProduct(product: ProductInsert) {
     if (!data) throw new AppError('NOT_FOUND', 'Product not returned after insert')
 
     await logAuditEvent({ action: 'CREATE', resourceType: 'product', resourceId: data.id, newData: data as Json })
+    await syncCategoriesOrLog(data)
     return data as Product
   }
 
@@ -109,6 +113,7 @@ export async function updateProduct(id: string, updates: ProductUpdate) {
     resourceId: id,
     newData: updates as Json,
   })
+  await syncCategoriesOrLog(data)
 
   return data as Product
 }
@@ -142,8 +147,29 @@ export async function getProductBySlug(slug: string): Promise<{ id: string; slug
   return data ?? null
 }
 
+export async function getProductByCode(productCode: string): Promise<{ id: string; product_code: string } | null> {
+  const supabase = createClient()
+  const response = await supabase
+    .from('products')
+    .select('id, product_code')
+    .eq('product_code', productCode)
+    .is('deleted_at', null)
+    .single()
+  const { data, error } = response as { data: { id: string; product_code: string } | null; error: { message: string; code: string } | null }
+  if (error && error.code !== 'PGRST116') throw toAppError(new Error(error.message))
+  return data ?? null
+}
+
 function isUniqueSlugViolation(error: { message: string; code?: string }): boolean {
   return error.code === '23505' || error.message.includes('products_slug_unique')
+}
+
+async function syncCategoriesOrLog(product: Product) {
+  try {
+    await syncProductCategoryAssignments(product)
+  } catch (err) {
+    console.error('[products] Failed to sync category assignments:', err)
+  }
 }
 
 export async function deleteProduct(id: string) {

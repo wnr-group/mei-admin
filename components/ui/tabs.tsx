@@ -57,6 +57,7 @@ export function TabsTrigger({ value, children, className }: { value: string; chi
 
   return (
     <button
+      type="button"
       role="tab"
       aria-selected={active}
       onClick={() => onValueChange(value)}

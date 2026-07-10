@@ -56,13 +56,21 @@ export default function ProductsPage() {
         <h3 className="text-[14px] font-bold tracking-wider text-zinc-800 uppercase font-sans">
           Products
         </h3>
-        <Link
-          href="/products/add"
-          className="bg-[#B38B5D] hover:bg-[#A37B4D] text-white text-[10px] font-bold tracking-widest px-6 py-3.5 transition-colors duration-200 rounded-none uppercase cursor-pointer flex items-center gap-1.5"
-        >
-          <Plus className="w-3.5 h-3.5 stroke-[3]" />
-          ADD PRODUCT
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/products/import"
+            className="bg-[#B38B5D] hover:bg-[#A37B4D] text-white text-[10px] font-bold tracking-widest px-6 py-3.5 transition-colors duration-200 rounded-none uppercase cursor-pointer flex items-center gap-1.5"
+          >
+            BULK IMPORT
+          </Link>
+          <Link
+            href="/products/add"
+            className="bg-[#B38B5D] hover:bg-[#A37B4D] text-white text-[10px] font-bold tracking-widest px-6 py-3.5 transition-colors duration-200 rounded-none uppercase cursor-pointer flex items-center gap-1.5"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            ADD PRODUCT
+          </Link>
+        </div>
       </div>
 
       {/* Table */}
