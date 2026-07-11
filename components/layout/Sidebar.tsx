@@ -13,6 +13,7 @@ import {
   Settings,
   LogOut,
   ScrollText,
+  Ruler,
 } from 'lucide-react';
 import { signOut } from '@/services/auth';
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/dashboard', label: 'DASHBOARD', icon: LayoutDashboard },
   { href: '/products', label: 'PRODUCTS', icon: ShoppingBag },
   { href: '/categories', label: 'CATEGORIES', icon: Layers },
+  { href: '/measurement-templates', label: 'MEASUREMENTS', icon: Ruler },
   { href: '/media', label: 'MEDIA LIBRARY', icon: Images },
   { href: '/orders', label: 'ORDERS', icon: ShoppingCart },
   { href: '/enquiries', label: 'ENQUIRIES', icon: Mail },

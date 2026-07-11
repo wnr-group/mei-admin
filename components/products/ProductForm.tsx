@@ -10,6 +10,7 @@ import type { Category } from '@/types';
 import { generateSlug } from '@/lib/slug'
 import ColorList from '@/components/products/colors/ColorList'
 import MediaGallery from '@/components/products/media/MediaGallery';
+import ProductMeasurements from '@/components/products/measurements/ProductMeasurements';
 
 const WORK_TYPES = ['Aari', 'Zardozi', 'Mirror', 'Cut', 'Thread', 'Tailoring', 'Kundan'];
 
@@ -515,7 +516,17 @@ export default function ProductForm({ editId }: ProductFormProps) {
               )}
             </div>
 
-            {/* Card 6: VISIBILITY & STATUS */}
+            {/* Card 6: MEASUREMENTS */}
+            {editId && (
+              <div className="bg-white border border-[#E8E0D5] p-8">
+                <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase mb-6">
+                  MEASUREMENTS
+                </h3>
+                <ProductMeasurements productId={editId} categoryId={category || null} />
+              </div>
+            )}
+
+            {/* Card 7: VISIBILITY & STATUS */}
             <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
               <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
                 VISIBILITY & STATUS

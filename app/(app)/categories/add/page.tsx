@@ -13,6 +13,7 @@ import { uploadCategoryImage, deleteCategoryImage } from '@/services/storage';
 import { Upload, X, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import RuleList from '@/components/categories/rules/RuleList';
+import { useLibraryTemplates } from '@/lib/hooks/useMeasurementTemplates';
 import type { CategoryMatchType } from '@/types';
 
 function CategoryForm() {
@@ -30,6 +31,8 @@ function CategoryForm() {
   const [sortOrder, setSortOrder] = useState(0);
   const [active, setActive] = useState(true);
   const [ruleMatchType, setRuleMatchType] = useState<CategoryMatchType>('ALL');
+  const [measurementTemplateId, setMeasurementTemplateId] = useState<string>('');
+  const { data: templates } = useLibraryTemplates();
   const [loading, setLoading] = useState(editId ? true : false);
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -50,6 +53,7 @@ function CategoryForm() {
           setSortOrder(cat.sort_order);
           setActive(cat.is_active ?? true);
           setRuleMatchType(cat.rule_match_type ?? 'ALL');
+          setMeasurementTemplateId(cat.measurement_template_id ?? '');
         } else {
           alert('Category not found.');
           router.push('/categories');
@@ -155,6 +159,7 @@ function CategoryForm() {
           is_active: active,
           image_url: finalImageUrl,
           rule_match_type: ruleMatchType,
+          measurement_template_id: measurementTemplateId || null,
         });
       } else {
         // ── CREATE FLOW ──────────────────────────────────────────
@@ -166,6 +171,7 @@ function CategoryForm() {
           sort_order: sortOrder,
           is_active: active,
           image_url: null,
+          measurement_template_id: measurementTemplateId || null,
         });
 
         if (selectedFile) {
@@ -346,6 +352,25 @@ function CategoryForm() {
               onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
               className="w-[70px] border border-[#E8E0D5] px-3 py-1.5 text-center text-[13px] text-zinc-800 focus:outline-hidden focus:border-[#B38B5D] font-sans"
             />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
+              MEASUREMENT TEMPLATE
+            </label>
+            <select
+              value={measurementTemplateId}
+              onChange={(e) => setMeasurementTemplateId(e.target.value)}
+              className="w-full border-b border-[#E8E0D5] py-2 text-[13px] text-zinc-800 focus:outline-hidden focus:border-[#B38B5D] transition-colors bg-transparent"
+            >
+              <option value="">None</option>
+              {(templates ?? []).map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-zinc-400 mt-1 italic font-light">
+              Products in this category inherit these measurements unless overridden.
+            </p>
           </div>
 
           <div className="pt-2">

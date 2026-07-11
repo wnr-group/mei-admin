@@ -19,10 +19,17 @@ export interface OrderWithDetails extends Order {
   }[]
 }
 
+export interface OrderItemMeasurement {
+  field_key: string
+  label: string | null
+  value_in: number
+}
+
 export interface OrderDetail extends Order {
   customers: Customer | null
   order_items: Array<OrderItem & {
     products: { image_url: string | null } | null
+    order_item_measurements: OrderItemMeasurement[]
   }>
 }
 
