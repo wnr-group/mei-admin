@@ -34,7 +34,7 @@ export async function getOrderById(id: string) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('orders')
-    .select('*, customers(*), order_items(id, product_name, quantity, unit_price, product_snapshot, products(image_url))')
+    .select('*, customers(*), order_items(id, product_id, product_name, quantity, unit_price, stitching_type, product_snapshot, products(image_url), order_item_measurements(field_key, label, value_in))')
     .eq('id', id)
     .is('deleted_at', null)
     .single()

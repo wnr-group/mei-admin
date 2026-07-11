@@ -8,6 +8,16 @@ import type { OrderStatus } from '@/types'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
 
+const MEASUREMENT_LABELS: Record<string, string> = {
+  bust: 'Bust', upper_bust: 'Upper Bust', under_bust: 'Under Bust', waist: 'Waist',
+  hip: 'Hip', shoulder: 'Shoulder', blouse_length: 'Blouse Length', sleeve_length: 'Sleeve Length',
+  lehenga_length: 'Lehenga Length', bottom_length: 'Bottom Length', dupatta_length: 'Dupatta Length',
+  torso_length: 'Torso Length', back_length: 'Back Length', front_length: 'Front Length',
+  height: 'Height', armhole: 'Armhole', neck_depth_front: 'Neck Depth (Front)',
+  neck_depth_back: 'Neck Depth (Back)', neck_circumference: 'Neck Circumference', bicep: 'Bicep',
+  wrist: 'Wrist', elbow: 'Elbow', inseam: 'Inseam', thigh: 'Thigh', knee: 'Knee', calf: 'Calf', ankle: 'Ankle',
+}
+
 export default function OrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
 
@@ -114,20 +124,30 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
   // Items — read color_label from product_snapshot if available
   const items = order.order_items && order.order_items.length > 0 ? order.order_items.map((item) => {
     const snapshot = (item.product_snapshot ?? {}) as Record<string, string | null>
+    const measurements = (item.order_item_measurements ?? []).map((m) => ({
+      label: m.field_key === 'custom' ? (m.label ?? 'Custom') : (MEASUREMENT_LABELS[m.field_key] ?? m.field_key),
+      value_in: Number(m.value_in),
+    }))
     return {
       name: item.product_name,
+      product_id: item.product_id ?? null,
       quantity: item.quantity,
       price: Number(item.unit_price) * item.quantity,
       image: item.products?.image_url || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop',
       color_label: snapshot.color_label ?? null,
+      stitching_type: item.stitching_type ?? null,
+      measurements,
     }
   }) : [
     {
       name: 'The Noor Lehenga',
+      product_id: null as string | null,
       quantity: 1,
       price: order.total,
       image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=150&auto=format&fit=crop',
       color_label: null,
+      stitching_type: null as string | null,
+      measurements: [] as { label: string; value_in: number }[],
     },
   ]
 
@@ -247,30 +267,72 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         </h3>
         <div className="divide-y divide-[#E8E0D5] -mx-8 border-b border-[#E8E0D5]">
           {items.map((item, idx) => (
-            <div key={idx} className="px-8 py-5 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-[50px] h-[50px] border border-[#E8E0D5] overflow-hidden bg-zinc-100 flex-shrink-0">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                  />
+            <div key={idx} className="px-8 py-5">
+              <div className="flex items-center justify-between">
+                {(() => {
+                  const inner = (
+                    <>
+                      <div className="w-[50px] h-[50px] border border-[#E8E0D5] overflow-hidden bg-zinc-100 flex-shrink-0">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div>
+                        <div className={`text-[13px] font-medium text-zinc-800 ${item.product_id ? 'group-hover:text-[#B38B5D] transition-colors' : ''}`}>{item.name}</div>
+                        {item.color_label && (
+                          <div className="text-[10px] text-[#B38B5D] font-semibold uppercase tracking-wider mt-0.5">
+                            {item.color_label}
+                          </div>
+                        )}
+                        <div className="text-[11px] text-zinc-700 font-inter font-medium mt-1">
+                          {item.stitching_type && (
+                            <span className="text-[#B38B5D] font-semibold uppercase tracking-wider">
+                              {item.stitching_type === 'stitched' ? 'Stitched' : 'Unstitched'} ·{' '}
+                            </span>
+                          )}
+                          Qty: {item.quantity}
+                        </div>
+                      </div>
+                    </>
+                  )
+                  return item.product_id ? (
+                    <Link href={`/products/edit/${item.product_id}`} className="group flex items-center gap-4 min-w-0">
+                      {inner}
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-4 min-w-0">{inner}</div>
+                  )
+                })()}
+                <div className="text-[13px] font-medium text-zinc-800 font-inter">
+                  {formatTotal(item.price)}
                 </div>
-                <div>
-                  <div className="text-[13px] font-medium text-zinc-800">{item.name}</div>
-                  {item.color_label && (
-                    <div className="text-[10px] text-[#B38B5D] font-semibold uppercase tracking-wider mt-0.5">
-                      {item.color_label}
-                    </div>
-                  )}
-                  <div className="text-[11px] text-zinc-700 font-inter font-medium mt-1">
-                    Qty: {item.quantity}
+              </div>
+
+              {item.measurements.length > 0 && (
+                <div className="mt-3 ml-[66px] bg-[#FAF8F5] border border-[#E8E0D5] px-4 py-3">
+                  <p className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase mb-2">
+                    Measurements (inches)
+                  </p>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+                    {item.measurements.map((m, mIdx) => (
+                      <span key={mIdx} className="text-[12px] text-zinc-800">
+                        <span className="text-zinc-500">{m.label}:</span>{' '}
+                        <span className="font-semibold">{m.value_in}&quot;</span>
+                      </span>
+                    ))}
                   </div>
                 </div>
-              </div>
-              <div className="text-[13px] font-medium text-zinc-800 font-inter">
-                {formatTotal(item.price)}
-              </div>
+              )}
+
+              {item.stitching_type === 'stitched' && item.measurements.length === 0 && (
+                <div className="mt-3 ml-[66px] bg-amber-50 border border-amber-200 px-4 py-2.5">
+                  <p className="text-[11px] text-amber-700 font-medium">
+                    No measurements provided — follow up with the customer.
+                  </p>
+                </div>
+              )}
             </div>
           ))}
         </div>

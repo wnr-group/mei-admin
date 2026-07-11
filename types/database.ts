@@ -45,10 +45,11 @@ export type Database = {
         Insert: { created_at?: string; deleted_at?: string | null; id?: string; image_url: string; is_active?: boolean; link_url?: string | null; sort_order?: number; title: string; updated_at?: string; }
         Update: { created_at?: string; deleted_at?: string | null; id?: string; image_url?: string; is_active?: boolean; link_url?: string | null; sort_order?: number; title?: string; updated_at?: string; }
         Relationships: []
+      }
       categories: {
-        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; is_active: boolean; sort_order: number; rule_match_type: 'ALL' | 'ANY'; created_at: string; updated_at: string; deleted_at: string | null }
-        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY' }
-        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY'; deleted_at?: string | null }
+        Row: { id: string; name: string; slug: string; subtitle: string | null; description: string | null; image_url: string | null; is_active: boolean; sort_order: number; rule_match_type: 'ALL' | 'ANY'; measurement_template_id: string | null; created_at: string; updated_at: string; deleted_at: string | null }
+        Insert: { id?: string; name: string; slug: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY'; measurement_template_id?: string | null }
+        Update: { name?: string; slug?: string; subtitle?: string | null; description?: string | null; image_url?: string | null; is_active?: boolean; sort_order?: number; rule_match_type?: 'ALL' | 'ANY'; measurement_template_id?: string | null; deleted_at?: string | null }
       }
       category_rules: {
         Row: { id: string; category_id: string; field: 'name' | 'work_types' | 'price'; operator: 'contains' | 'is' | 'greater_than' | 'less_than'; value: string; created_at: string; updated_at: string }
@@ -88,12 +89,6 @@ export type Database = {
           },
         ]
       }
-      categories: {
-        Row: { created_at: string; deleted_at: string | null; description: string | null; id: string; image_url: string | null; is_active: boolean; name: string; slug: string; sort_order: number; subtitle: string | null; updated_at: string; }
-        Insert: { created_at?: string; deleted_at?: string | null; description?: string | null; id?: string; image_url?: string | null; is_active?: boolean; name: string; slug: string; sort_order?: number; subtitle?: string | null; updated_at?: string; }
-        Update: { created_at?: string; deleted_at?: string | null; description?: string | null; id?: string; image_url?: string | null; is_active?: boolean; name?: string; slug?: string; sort_order?: number; subtitle?: string | null; updated_at?: string; }
-        Relationships: []
-      }
       customers: {
         Row: { city: string | null; created_at: string; email: string | null; id: string; name: string; phone: string | null; }
         Insert: { city?: string | null; created_at?: string; email?: string | null; id?: string; name: string; phone?: string | null; }
@@ -107,9 +102,9 @@ export type Database = {
         Relationships: []
       }
       measurement_template_fields: {
-        Row: { created_at: string; field_key: Database["public"]["Enums"]["measurement_field_key"]; help_text: string | null; id: string; is_required: boolean; sort_order: number; template_id: string; }
-        Insert: { created_at?: string; field_key: Database["public"]["Enums"]["measurement_field_key"]; help_text?: string | null; id?: string; is_required?: boolean; sort_order?: number; template_id: string; }
-        Update: { created_at?: string; field_key?: Database["public"]["Enums"]["measurement_field_key"]; help_text?: string | null; id?: string; is_required?: boolean; sort_order?: number; template_id?: string; }
+        Row: { created_at: string; field_key: Database["public"]["Enums"]["measurement_field_key"]; help_text: string | null; id: string; is_required: boolean; label: string | null; sort_order: number; template_id: string; }
+        Insert: { created_at?: string; field_key: Database["public"]["Enums"]["measurement_field_key"]; help_text?: string | null; id?: string; is_required?: boolean; label?: string | null; sort_order?: number; template_id: string; }
+        Update: { created_at?: string; field_key?: Database["public"]["Enums"]["measurement_field_key"]; help_text?: string | null; id?: string; is_required?: boolean; label?: string | null; sort_order?: number; template_id?: string; }
         Relationships: [
           {
             foreignKeyName: "measurement_template_fields_template_id_fkey"
@@ -169,9 +164,9 @@ export type Database = {
         Relationships: []
       }
       order_item_measurements: {
-        Row: { field_key: Database["public"]["Enums"]["measurement_field_key"]; id: string; notes: string | null; order_item_id: string; recorded_at: string; recorded_by: string | null; value_cm: number; }
-        Insert: { field_key: Database["public"]["Enums"]["measurement_field_key"]; id?: string; notes?: string | null; order_item_id: string; recorded_at?: string; recorded_by?: string | null; value_cm: number; }
-        Update: { field_key?: Database["public"]["Enums"]["measurement_field_key"]; id?: string; notes?: string | null; order_item_id?: string; recorded_at?: string; recorded_by?: string | null; value_cm?: number; }
+        Row: { field_key: Database["public"]["Enums"]["measurement_field_key"]; id: string; label: string | null; notes: string | null; order_item_id: string; recorded_at: string; recorded_by: string | null; value_in: number; }
+        Insert: { field_key: Database["public"]["Enums"]["measurement_field_key"]; id?: string; label?: string | null; notes?: string | null; order_item_id: string; recorded_at?: string; recorded_by?: string | null; value_in: number; }
+        Update: { field_key?: Database["public"]["Enums"]["measurement_field_key"]; id?: string; label?: string | null; notes?: string | null; order_item_id?: string; recorded_at?: string; recorded_by?: string | null; value_in?: number; }
         Relationships: [
           {
             foreignKeyName: "order_item_measurements_order_item_id_fkey"
@@ -183,9 +178,9 @@ export type Database = {
         ]
       }
       order_items: {
-        Row: { created_at: string; id: string; order_id: string; product_id: string | null; product_name: string; product_snapshot: Json | null; quantity: number; unit_price: number; variant_id: string | null; variant_snapshot: Json | null; }
-        Insert: { created_at?: string; id?: string; order_id: string; product_id?: string | null; product_name: string; product_snapshot?: Json | null; quantity?: number; unit_price: number; variant_id?: string | null; variant_snapshot?: Json | null; }
-        Update: { created_at?: string; id?: string; order_id?: string; product_id?: string | null; product_name?: string; product_snapshot?: Json | null; quantity?: number; unit_price?: number; variant_id?: string | null; variant_snapshot?: Json | null; }
+        Row: { created_at: string; id: string; order_id: string; product_id: string | null; product_name: string; product_snapshot: Json | null; quantity: number; unit_price: number; variant_id: string | null; variant_snapshot: Json | null; stitching_type: 'stitched' | 'unstitched' | null; }
+        Insert: { created_at?: string; id?: string; order_id: string; product_id?: string | null; product_name: string; product_snapshot?: Json | null; quantity?: number; unit_price: number; variant_id?: string | null; variant_snapshot?: Json | null; stitching_type?: 'stitched' | 'unstitched' | null; }
+        Update: { created_at?: string; id?: string; order_id?: string; product_id?: string | null; product_name?: string; product_snapshot?: Json | null; quantity?: number; unit_price?: number; variant_id?: string | null; variant_snapshot?: Json | null; stitching_type?: 'stitched' | 'unstitched' | null; }
         Relationships: [
           {
             foreignKeyName: "order_items_order_id_fkey"
@@ -337,9 +332,9 @@ export type Database = {
         ]
       }
       products: {
-        Row: { category_id: string | null; created_at: string; deleted_at: string | null; description: string | null; has_variants: boolean; id: string; image_url: string | null; is_featured: boolean; is_new_arrival: boolean; name: string; price: number; product_code: string; short_description: string | null; size_system_id: string | null; slug: string | null; status: Database["public"]["Enums"]["product_status"]; supported_customization_types: Database["public"]["Enums"]["customization_type"][]; updated_at: string; work_types: string[]; }
-        Insert: { category_id?: string | null; created_at?: string; deleted_at?: string | null; description?: string | null; has_variants?: boolean; id?: string; image_url?: string | null; is_featured?: boolean; is_new_arrival?: boolean; name: string; price: number; product_code: string; short_description?: string | null; size_system_id?: string | null; slug?: string | null; status?: Database["public"]["Enums"]["product_status"]; supported_customization_types?: Database["public"]["Enums"]["customization_type"][]; updated_at?: string; work_types?: string[]; }
-        Update: { category_id?: string | null; created_at?: string; deleted_at?: string | null; description?: string | null; has_variants?: boolean; id?: string; image_url?: string | null; is_featured?: boolean; is_new_arrival?: boolean; name?: string; price?: number; product_code?: string; short_description?: string | null; size_system_id?: string | null; slug?: string | null; status?: Database["public"]["Enums"]["product_status"]; supported_customization_types?: Database["public"]["Enums"]["customization_type"][]; updated_at?: string; work_types?: string[]; }
+        Row: { category_id: string | null; created_at: string; deleted_at: string | null; description: string | null; has_variants: boolean; id: string; image_url: string | null; is_featured: boolean; is_new_arrival: boolean; name: string; price: number; price_unstitched: number | null; price_stitched: number | null; product_code: string; short_description: string | null; size_system_id: string | null; slug: string | null; status: Database["public"]["Enums"]["product_status"]; supported_customization_types: Database["public"]["Enums"]["customization_type"][]; updated_at: string; work_types: string[]; }
+        Insert: { category_id?: string | null; created_at?: string; deleted_at?: string | null; description?: string | null; has_variants?: boolean; id?: string; image_url?: string | null; is_featured?: boolean; is_new_arrival?: boolean; name: string; price: number; price_unstitched?: number | null; price_stitched?: number | null; product_code: string; short_description?: string | null; size_system_id?: string | null; slug?: string | null; status?: Database["public"]["Enums"]["product_status"]; supported_customization_types?: Database["public"]["Enums"]["customization_type"][]; updated_at?: string; work_types?: string[]; }
+        Update: { category_id?: string | null; created_at?: string; deleted_at?: string | null; description?: string | null; has_variants?: boolean; id?: string; image_url?: string | null; is_featured?: boolean; is_new_arrival?: boolean; name?: string; price?: number; price_unstitched?: number | null; price_stitched?: number | null; product_code?: string; short_description?: string | null; size_system_id?: string | null; slug?: string | null; status?: Database["public"]["Enums"]["product_status"]; supported_customization_types?: Database["public"]["Enums"]["customization_type"][]; updated_at?: string; work_types?: string[]; }
         Relationships: [
           {
             foreignKeyName: "products_category_id_fkey"
@@ -550,6 +545,7 @@ export type Database = {
         | "knee"
         | "calf"
         | "ankle"
+        | "custom"
       media_type: "IMAGE" | "VIDEO"
       notification_job_status:
         | "PENDING"

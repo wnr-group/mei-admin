@@ -10,6 +10,7 @@ import type { Category } from '@/types';
 import { generateSlug } from '@/lib/slug'
 import ColorList from '@/components/products/colors/ColorList'
 import MediaGallery from '@/components/products/media/MediaGallery';
+import ProductMeasurements from '@/components/products/measurements/ProductMeasurements';
 
 const WORK_TYPES = ['Aari', 'Zardozi', 'Mirror', 'Cut', 'Thread', 'Tailoring', 'Kundan'];
 
@@ -27,8 +28,8 @@ export default function ProductForm({ editId }: ProductFormProps) {
   const [description, setDescription] = useState('');
 
   // Pricing state
-  const [price, setPrice] = useState('0.00');
-  const [compareAtPrice, setCompareAtPrice] = useState('0.00');
+  const [priceUnstitched, setPriceUnstitched] = useState('');
+  const [priceStitched, setPriceStitched] = useState('');
 
   // Category & Attributes state
   const [category, setCategory] = useState('');
@@ -59,7 +60,8 @@ export default function ProductForm({ editId }: ProductFormProps) {
         if (prod) {
           setName(prod.name);
           setDescription(prod.description ?? '');
-          setPrice(prod.price.toString());
+          setPriceUnstitched(prod.price_unstitched?.toString() ?? '');
+          setPriceStitched(prod.price_stitched?.toString() ?? '');
           setPublished(prod.status === 'PUBLISHED');
           // Populate slug and short_description from DB
           setSlug(prod.slug ?? '');
@@ -80,7 +82,6 @@ export default function ProductForm({ editId }: ProductFormProps) {
           setNewArrival(prod.is_new_arrival ?? false);
 
           // Fields not stored in DB — clear to defaults
-          setCompareAtPrice('0.00');
           setMetaTitle('');
           setMetaDescription('');
           setMetaKeywords('');
@@ -144,7 +145,11 @@ export default function ProductForm({ editId }: ProductFormProps) {
     setIsSaving(true);
 
     try {
-      const priceNum = parseFloat(price) || 0;
+     const priceUnstitchedNum = priceUnstitched.trim() ? parseFloat(priceUnstitched) : null;
+      const priceStitchedNum = priceStitched.trim() ? parseFloat(priceStitched) : null;
+      // `price` is still NOT NULL in the DB (kept for backward compat per the ticket),
+      // so we derive a value for it even though it's no longer directly editable.
+      const priceNum = priceUnstitchedNum ?? priceStitchedNum ?? 0;
       const workTypesArr = selectedWorkTypes.map((wt) => wt.toUpperCase());
       const descriptionVal = description.trim() || null;
 
@@ -157,6 +162,8 @@ export default function ProductForm({ editId }: ProductFormProps) {
           short_description: shortDescription.trim() || null,
           category_id: category,
           price: priceNum,
+          price_unstitched: priceUnstitchedNum,
+          price_stitched: priceStitchedNum,
           status: published ? 'PUBLISHED' : 'DRAFT',
           work_types: workTypesArr,
           description: descriptionVal,
@@ -171,7 +178,9 @@ export default function ProductForm({ editId }: ProductFormProps) {
           short_description: shortDescription.trim() || null,
           category_id: category,
           price: priceNum,
-          status: published ? "PUBLISHED" : "DRAFT",
+          price_unstitched: priceUnstitchedNum,
+          price_stitched: priceStitchedNum,
+          status: published ? 'PUBLISHED' : 'DRAFT',
           work_types: workTypesArr,
           description: descriptionVal,
           image_url: null,
@@ -312,30 +321,29 @@ export default function ProductForm({ editId }: ProductFormProps) {
               </h3>
               
               <div className="grid grid-cols-2 gap-8">
-                {/* Price */}
+                {/* Unstitched Price */}
                 <div className="space-y-1">
                   <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
-                    PRICE (₹)
+                    UNSTITCHED PRICE (₹)
                   </label>
                   <input
                     type="text"
-                    required
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
+                    value={priceUnstitched}
+                    onChange={(e) => setPriceUnstitched(e.target.value)}
                     placeholder="0.00"
                     className="w-full border-b border-[#E8E0D5] py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors font-sans"
                   />
                 </div>
 
-                {/* Compare At Price */}
+                {/* Stitched Price */}
                 <div className="space-y-1">
                   <label className="block text-[9px] font-bold tracking-widest text-zinc-800 uppercase">
-                    COMPARE-AT PRICE (₹)
+                    STITCHED PRICE (₹)
                   </label>
                   <input
                     type="text"
-                    value={compareAtPrice}
-                    onChange={(e) => setCompareAtPrice(e.target.value)}
+                    value={priceStitched}
+                    onChange={(e) => setPriceStitched(e.target.value)}
                     placeholder="0.00"
                     className="w-full border-b border-[#E8E0D5] py-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-300 focus:outline-hidden focus:border-[#B38B5D] transition-colors font-sans"
                   />
@@ -508,7 +516,17 @@ export default function ProductForm({ editId }: ProductFormProps) {
               )}
             </div>
 
-            {/* Card 6: VISIBILITY & STATUS */}
+            {/* Card 6: MEASUREMENTS */}
+            {editId && (
+              <div className="bg-white border border-[#E8E0D5] p-8">
+                <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase mb-6">
+                  MEASUREMENTS
+                </h3>
+                <ProductMeasurements productId={editId} categoryId={category || null} />
+              </div>
+            )}
+
+            {/* Card 7: VISIBILITY & STATUS */}
             <div className="bg-white border border-[#E8E0D5] p-8 space-y-6">
               <h3 className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
                 VISIBILITY & STATUS

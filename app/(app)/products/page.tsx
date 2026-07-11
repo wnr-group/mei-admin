@@ -9,6 +9,13 @@ import { TableSkeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import type { Product } from '@/types'
 
+const formatPrice = (value: number) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0
+  }).format(value).replace('INR', '₹')
+
 export default function ProductsPage() {
   const [page, setPage] = useState(1)
   const { data, isLoading, error, refetch } = useProducts({ page, limit: 6 })
@@ -41,6 +48,7 @@ export default function ProductsPage() {
       deleteProductMutation.mutate(id)
     }
   }
+  
 
   return (
     <div className="space-y-6 px-8 pt-10 font-inter relative animate-fade-in">
@@ -91,11 +99,8 @@ export default function ProductsPage() {
             <tbody className="divide-y divide-[#E8E0D5]">
               {products.length > 0 ? (
                 products.map((product) => {
-                  const formattedPrice = new Intl.NumberFormat('en-IN', {
-                    style: 'currency',
-                    currency: 'INR',
-                    maximumFractionDigits: 0
-                  }).format(product.price)
+                  const hasUnstitched = product.price_unstitched !== null && product.price_unstitched !== undefined
+                  const hasStitched = product.price_stitched !== null && product.price_stitched !== undefined
 
                   const categoryName = categories.find((c: { id: string; name: string }) => c.id === product.category_id)?.name ?? '-'
 
@@ -104,7 +109,16 @@ export default function ProductsPage() {
                       <td className="px-6 py-3">{renderThumbnail(product)}</td>
                       <td className="px-6 py-3 text-[12px] font-medium text-zinc-800">{product.name}</td>
                       <td className="px-6 py-3 text-[12px] text-zinc-700 font-medium">{categoryName}</td>
-                      <td className="px-6 py-3 text-[12px] font-medium text-zinc-900 font-sans">{formattedPrice.replace('INR', '₹')}</td>
+                      <td className="px-6 py-3 text-[12px] font-medium text-zinc-900 font-sans">
+                        {hasUnstitched || hasStitched ? (
+                          <div className="flex flex-col gap-0.5">
+                            {hasUnstitched && <span>U: {formatPrice(product.price_unstitched!)}</span>}
+                            {hasStitched && <span>S: {formatPrice(product.price_stitched!)}</span>}
+                          </div>
+                        ) : (
+                          formatPrice(product.price)
+                        )}
+                      </td>
                       <td className="px-6 py-3">
                         <div className="flex flex-wrap gap-1">
                           {(product.work_types ?? []).map((wt, i) => (
