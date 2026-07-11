@@ -11,6 +11,8 @@ type ResourceType =
   | 'banner'
   | 'setting'
   | 'profile'
+  | 'shipping_rate'
+  | 'shipping_settings'
 
 export const RESOURCE_TYPES = [
   'product',
@@ -20,6 +22,8 @@ export const RESOURCE_TYPES = [
   'banner',
   'setting',
   'profile',
+  'shipping_rate',
+  'shipping_settings',
 ] as const
 
 interface AuditParams {

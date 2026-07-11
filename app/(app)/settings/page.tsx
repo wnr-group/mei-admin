@@ -44,8 +44,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 px-8 pt-10 font-inter relative animate-fade-in">
-
+    <>
       {/* Loading overlay for mutations */}
       {updateSettingMutation.isPending && (
         <div className="fixed inset-0 bg-white/50 z-50 flex items-center justify-center">
@@ -53,14 +52,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* 1. Header Page Section */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-[14px] font-bold tracking-wider text-zinc-800 uppercase font-sans">
-          Settings
-        </h3>
-      </div>
-
-      {/* 2. Settings Table */}
+      {/* Settings Table */}
       <div className="bg-white border border-[#E8E0D5] shadow-xs">
 
         <div className="overflow-x-auto">
@@ -155,6 +147,6 @@ export default function SettingsPage() {
 
       </div>
 
-    </div>
+    </>
   )
 }
