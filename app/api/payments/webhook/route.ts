@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { verifyWebhookSignature } from '@/lib/services/razorpay'
@@ -32,8 +33,7 @@ export async function POST(request: NextRequest) {
     case 'payment.captured': {
       const p = event.payload.payment?.entity
       if (!p?.order_id) break
-      const { data: existing } = (await supabase
-        .from('orders')
+      const { data: existing } = (await (supabase.from('orders') as any)
         .select('id, webhook_verified')
         .eq('razorpay_order_id', p.order_id)
         .maybeSingle()) as { data: { id: string; webhook_verified: boolean } | null; error: unknown }
