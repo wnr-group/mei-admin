@@ -384,6 +384,18 @@ export type Database = {
         Update: { created_at?: string; created_by?: string | null; deleted_at?: string | null; description?: string | null; id?: string; name?: string; }
         Relationships: []
       }
+      shipping_rates: {
+        Row: { id: string; state: string; charge: number; updated_at: string }
+        Insert: { id?: string; state: string; charge: number }
+        Update: { charge?: number }
+        Relationships: []
+      }
+      shipping_settings: {
+        Row: { id: number; free_shipping_enabled: boolean; free_shipping_threshold: number | null; updated_at: string }
+        Insert: never
+        Update: { free_shipping_enabled?: boolean; free_shipping_threshold?: number | null }
+        Relationships: []
+      }
     }
     Views: {
       notification_health: {
@@ -503,16 +515,6 @@ export type Database = {
       reset_dead_notification_jobs: {
         Args: { p_job_ids: string[] }
         Returns: number
-      }
-      shipping_rates: {
-        Row: { id: string; state: string; charge: number; updated_at: string }
-        Insert: { id?: string; state: string; charge: number }
-        Update: { charge?: number }
-      }
-      shipping_settings: {
-        Row: { id: number; free_shipping_enabled: boolean; free_shipping_threshold: number | null; updated_at: string }
-        Insert: never
-        Update: { free_shipping_enabled?: boolean; free_shipping_threshold?: number | null }
       }
     }
     Enums: {
