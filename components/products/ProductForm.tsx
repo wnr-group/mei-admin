@@ -160,7 +160,6 @@ export default function ProductForm({ editId }: ProductFormProps) {
           status: published ? 'PUBLISHED' : 'DRAFT',
           work_types: workTypesArr,
           description: descriptionVal,
-          image_url: finalImageUrl,
           is_featured: featured,
           is_new_arrival: newArrival,
         });
