@@ -16,30 +16,65 @@ export async function getShippingRates() {
   return (data as ShippingRate[] | null) ?? []
 }
 
-export async function upsertShippingRate(rate: { state: string; charge: number }) {
+export async function createShippingRate(rate: { state: string; charge: number }) {
   const supabase = createClient()
 
   const response = await supabase
     .from('shipping_rates')
-    .upsert(
-      [{ state: rate.state, charge: rate.charge }] as never,
-      { onConflict: 'state' }
-    )
+    .insert([{ state: rate.state, charge: rate.charge }] as never)
     .select()
     .single()
 
   const { data, error } = response as { data: ShippingRate | null; error: { message: string } | null }
   if (error) throw toAppError(new Error(error.message))
 
-  // Add logging
   await logAuditEvent({
-    action: 'UPDATE',
+    action: 'CREATE',
     resourceType: 'shipping_rate',
-    resourceId: rate.state,
+    resourceId: (data as ShippingRate).id,
     newData: { state: rate.state, charge: rate.charge } as Json,
   })
 
   return data as ShippingRate
+}
+
+// Update by primary-key id (not state name) so a rename is a single row edit
+// rather than an orphan-and-recreate. `state` is UNIQUE, so renaming to an
+// existing state surfaces as a DB unique-violation the caller can show inline.
+export async function updateShippingRate(id: string, patch: { state?: string; charge?: number }) {
+  const supabase = createClient()
+
+  const response = await supabase
+    .from('shipping_rates')
+    .update(patch as never)
+    .eq('id', id)
+    .select()
+    .single()
+
+  const { data, error } = response as { data: ShippingRate | null; error: { message: string } | null }
+  if (error) throw toAppError(new Error(error.message))
+
+  await logAuditEvent({
+    action: 'UPDATE',
+    resourceType: 'shipping_rate',
+    resourceId: id,
+    newData: patch as Json,
+  })
+
+  return data as ShippingRate
+}
+
+export async function deleteShippingRate(id: string) {
+  const supabase = createClient()
+
+  const { error } = await supabase.from('shipping_rates').delete().eq('id', id)
+  if (error) throw toAppError(new Error(error.message))
+
+  await logAuditEvent({
+    action: 'DELETE',
+    resourceType: 'shipping_rate',
+    resourceId: id,
+  })
 }
 
 export async function getShippingSettings() {

@@ -1,20 +1,23 @@
 // __tests__/components/settings/ShippingSettingsPage.test.tsx
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 
 vi.mock('@/services/shipping', () => ({
   getShippingRates: vi.fn().mockResolvedValue([
     { id: 'r1', state: 'Tamil Nadu', charge: 300, updated_at: '' },
+    { id: 'r2', state: 'Karnataka', charge: 350, updated_at: '' },
   ]),
-  upsertShippingRate: vi.fn().mockResolvedValue({ id: 'r1', state: 'Tamil Nadu', charge: 300, updated_at: '' }),
+  createShippingRate: vi.fn().mockResolvedValue({ id: 'r3', state: 'Puducherry', charge: 400, updated_at: '' }),
+  updateShippingRate: vi.fn().mockResolvedValue({ id: 'r1', state: 'Tamil Nadu', charge: 350, updated_at: '' }),
+  deleteShippingRate: vi.fn().mockResolvedValue(undefined),
   getShippingSettings: vi.fn().mockResolvedValue({ id: 1, free_shipping_enabled: true, free_shipping_threshold: 5000, updated_at: '' }),
   updateShippingSettings: vi.fn().mockResolvedValue({ id: 1, free_shipping_enabled: true, free_shipping_threshold: 5000, updated_at: '' }),
 }))
 
 const { default: ShippingSettingsPage } = await import('@/app/(app)/settings/shipping/page')
-const { upsertShippingRate } = await import('@/services/shipping')
+const { createShippingRate, updateShippingRate, deleteShippingRate } = await import('@/services/shipping')
 
 let currentClient: QueryClient
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -26,60 +29,118 @@ describe('ShippingSettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
-  it('renders every canonical Indian state as a row', async () => {
+
+  it('renders only the states that have configured rates', async () => {
     render(<ShippingSettingsPage />, { wrapper })
-    expect(await screen.findByText('Karnataka')).toBeInTheDocument()
-    expect(await screen.findByText('Tamil Nadu')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('Tamil Nadu')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('Karnataka')).toBeInTheDocument()
   })
 
   it('pre-fills the charge input for a configured state', async () => {
     render(<ShippingSettingsPage />, { wrapper })
-    const row = (await screen.findByText('Tamil Nadu')).closest('tr')!
-    const input = row.querySelector('input') as HTMLInputElement
+    const input = (await screen.findByLabelText('Shipping charge for Tamil Nadu')) as HTMLInputElement
     expect(input.value).toBe('300')
   })
 
-  it('saves an edited charge when Save All Changes is clicked', async () => {
+  it('saves an edited charge by row id when its Save button is clicked', async () => {
     render(<ShippingSettingsPage />, { wrapper })
-    const row = (await screen.findByText('Tamil Nadu')).closest('tr')!
-    const input = row.querySelector('input') as HTMLInputElement
+    const input = (await screen.findByLabelText('Shipping charge for Tamil Nadu')) as HTMLInputElement
     fireEvent.change(input, { target: { value: '350' } })
-    fireEvent.click(screen.getByText('Save All Changes'))
+    const row = input.closest('tr')!
+    fireEvent.click(within(row).getByText('Save'))
 
     await waitFor(() => {
-      expect(upsertShippingRate).toHaveBeenCalledWith({ state: 'Tamil Nadu', charge: 350 })
+      expect(updateShippingRate).toHaveBeenCalledWith('r1', { state: 'Tamil Nadu', charge: 350 })
     })
+  })
+
+  it('renames a state via its row Save button', async () => {
+    render(<ShippingSettingsPage />, { wrapper })
+    const nameInput = (await screen.findByLabelText('State name for Tamil Nadu')) as HTMLInputElement
+    fireEvent.change(nameInput, { target: { value: 'Tamil Nadu (South)' } })
+    const row = nameInput.closest('tr')!
+    fireEvent.click(within(row).getByText('Save'))
+
+    await waitFor(() => {
+      expect(updateShippingRate).toHaveBeenCalledWith('r1', { state: 'Tamil Nadu (South)', charge: 300 })
+    })
+  })
+
+  it('adds a new state through the Add State form', async () => {
+    render(<ShippingSettingsPage />, { wrapper })
+    fireEvent.change(await screen.findByLabelText('State / Region'), { target: { value: 'Puducherry' } })
+    fireEvent.change(screen.getByLabelText('Charge (₹)'), { target: { value: '400' } })
+    fireEvent.click(screen.getByText('Add State'))
+
+    await waitFor(() => {
+      expect(createShippingRate).toHaveBeenCalledWith({ state: 'Puducherry', charge: 400 })
+    })
+  })
+
+  it('rejects adding a state with no name', async () => {
+    render(<ShippingSettingsPage />, { wrapper })
+    fireEvent.change(await screen.findByLabelText('Charge (₹)'), { target: { value: '400' } })
+    fireEvent.click(screen.getByText('Add State'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/state name is required/i)).toBeInTheDocument()
+    })
+    expect(createShippingRate).not.toHaveBeenCalled()
+  })
+
+  it('rejects an invalid charge on add without calling createShippingRate', async () => {
+    render(<ShippingSettingsPage />, { wrapper })
+    fireEvent.change(await screen.findByLabelText('State / Region'), { target: { value: 'Goa' } })
+    fireEvent.change(screen.getByLabelText('Charge (₹)'), { target: { value: 'abc' } })
+    fireEvent.click(screen.getByText('Add State'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/charge must be a number between 0 and 100000/i)).toBeInTheDocument()
+    })
+    expect(createShippingRate).not.toHaveBeenCalled()
+  })
+
+  it('deletes a state after confirmation', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<ShippingSettingsPage />, { wrapper })
+    const row = (await screen.findByDisplayValue('Karnataka')).closest('tr')!
+    fireEvent.click(within(row).getByText('Delete'))
+
+    await waitFor(() => {
+      expect(deleteShippingRate).toHaveBeenCalledWith('r2')
+    })
+    confirmSpy.mockRestore()
+  })
+
+  it('does not delete when the confirmation is dismissed', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<ShippingSettingsPage />, { wrapper })
+    const row = (await screen.findByDisplayValue('Karnataka')).closest('tr')!
+    fireEvent.click(within(row).getByText('Delete'))
+
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalled()
+    })
+    expect(deleteShippingRate).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('rejects a negative charge on a row without calling updateShippingRate', async () => {
+    render(<ShippingSettingsPage />, { wrapper })
+    const input = (await screen.findByLabelText('Shipping charge for Tamil Nadu')) as HTMLInputElement
+    fireEvent.change(input, { target: { value: '-50' } })
+    const row = input.closest('tr')!
+    fireEvent.click(within(row).getByText('Save'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/charge must be a number between 0 and 100000/i)).toBeInTheDocument()
+    })
+    expect(updateShippingRate).not.toHaveBeenCalled()
   })
 
   it('shows the free shipping threshold from settings', async () => {
     render(<ShippingSettingsPage />, { wrapper })
     expect(await screen.findByDisplayValue('5000')).toBeInTheDocument()
-  })
-
-  it('rejects a negative charge without calling upsertShippingRate, and shows an inline error', async () => {
-    render(<ShippingSettingsPage />, { wrapper })
-    const row = (await screen.findByText('Tamil Nadu')).closest('tr')!
-    const input = row.querySelector('input') as HTMLInputElement
-    fireEvent.change(input, { target: { value: '-50' } })
-    fireEvent.click(screen.getByText('Save All Changes'))
-
-    await waitFor(() => {
-      expect(screen.getByText(/enter a number between 0 and 100000/i)).toBeInTheDocument()
-    })
-    expect(upsertShippingRate).not.toHaveBeenCalled()
-  })
-
-  it('rejects a non-numeric charge without calling upsertShippingRate', async () => {
-    render(<ShippingSettingsPage />, { wrapper })
-    const row = (await screen.findByText('Karnataka')).closest('tr')!
-    const input = row.querySelector('input') as HTMLInputElement
-    fireEvent.change(input, { target: { value: 'abc' } })
-    fireEvent.click(screen.getByText('Save All Changes'))
-
-    await waitFor(() => {
-      expect(screen.getByText(/enter a number between 0 and 100000/i)).toBeInTheDocument()
-    })
-    expect(upsertShippingRate).not.toHaveBeenCalled()
   })
 
   it('labels every charge input accessibly by state name', async () => {
@@ -96,20 +157,23 @@ describe('ShippingSettingsPage', () => {
   it('preserves an unsaved edit in one row when a background refetch reflects a genuine change in a different row', async () => {
     const { getShippingRates } = await import('@/services/shipping')
     vi.mocked(getShippingRates)
-      .mockResolvedValueOnce([{ id: 'r1', state: 'Tamil Nadu', charge: 300, updated_at: '' }])
-      .mockResolvedValueOnce([{ id: 'r1', state: 'Tamil Nadu', charge: 320, updated_at: '' }])
+      .mockResolvedValueOnce([
+        { id: 'r1', state: 'Tamil Nadu', charge: 300, updated_at: '' },
+        { id: 'r2', state: 'Karnataka', charge: 350, updated_at: '' },
+      ])
+      .mockResolvedValueOnce([
+        { id: 'r1', state: 'Tamil Nadu', charge: 320, updated_at: '' },
+        { id: 'r2', state: 'Karnataka', charge: 350, updated_at: '' },
+      ])
 
     render(<ShippingSettingsPage />, { wrapper })
-    const kaRow = (await screen.findByText('Karnataka')).closest('tr')!
-    const kaInput = kaRow.querySelector('input') as HTMLInputElement
-    const tnRow = (await screen.findByText('Tamil Nadu')).closest('tr')!
-    const tnInput = tnRow.querySelector('input') as HTMLInputElement
+    const kaInput = (await screen.findByLabelText('Shipping charge for Karnataka')) as HTMLInputElement
+    const tnInput = (await screen.findByLabelText('Shipping charge for Tamil Nadu')) as HTMLInputElement
 
-    // Admin types into Karnataka but hasn't clicked "Save All Changes" yet.
+    // Admin types into Karnataka but hasn't clicked its Save button yet.
     fireEvent.change(kaInput, { target: { value: '999' } })
 
-    // Simulate a background refetch unrelated to this admin's own save
-    // (e.g. refetchOnWindowFocus, or another admin's edit landing).
+    // Simulate a background refetch unrelated to this admin's own save.
     await currentClient.invalidateQueries({ queryKey: ['shipping', 'rates'] })
 
     // The refetch's genuine change to Tamil Nadu should still land...
