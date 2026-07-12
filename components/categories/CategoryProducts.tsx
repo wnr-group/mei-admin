@@ -30,6 +30,7 @@ function ProductImage({ src, alt }: { src: string | null; alt: string }) {
   }
   return (
     <div className="w-10 h-10 border border-[#E8E0D5] overflow-hidden flex items-center justify-center bg-zinc-50 select-none shrink-0">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt={alt}
@@ -86,7 +87,7 @@ export default function CategoryProducts({ categoryId }: CategoryProductsProps) 
     }
 
     loadData()
-  }, [categoryId])
+  }, [categoryId, supabase])
 
   // Helper to determine if a product is in the collection
   const isLinked = (productId: string) => {
@@ -124,18 +125,17 @@ export default function CategoryProducts({ categoryId }: CategoryProductsProps) 
     ])
 
     try {
-      const { error } = await (supabase
-        .from('product_categories') as any)
-        .upsert(
-          {
-            product_id: productId,
-            category_id: categoryId,
-            source: 'manual',
-            manually_included: true,
-            manually_excluded: false,
-          },
-          { onConflict: 'product_id, category_id, source' }
-        )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('product_categories') as any).upsert(
+        {
+          product_id: productId,
+          category_id: categoryId,
+          source: 'manual',
+          manually_included: true,
+          manually_excluded: false,
+        },
+        { onConflict: 'product_id, category_id, source' }
+      )
       if (error) throw error
     } catch (err) {
       console.error('Error adding product to collection:', err)
@@ -162,24 +162,22 @@ export default function CategoryProducts({ categoryId }: CategoryProductsProps) 
 
     try {
       // 1. Set manually_excluded = true on the 'manual' row
-      const { error: upsertErr } = await (supabase
-        .from('product_categories') as any)
-        .upsert(
-          {
-            product_id: productId,
-            category_id: categoryId,
-            source: 'manual',
-            manually_included: false,
-            manually_excluded: true,
-          },
-          { onConflict: 'product_id, category_id, source' }
-        )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: upsertErr } = await (supabase.from('product_categories') as any).upsert(
+        {
+          product_id: productId,
+          category_id: categoryId,
+          source: 'manual',
+          manually_included: false,
+          manually_excluded: true,
+        },
+        { onConflict: 'product_id, category_id, source' }
+      )
       if (upsertErr) throw upsertErr
 
       // 2. Delete the 'rule' row if it exists
-      const { error: deleteErr } = await (supabase
-        .from('product_categories') as any)
-        .delete()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: deleteErr } = await (supabase.from('product_categories') as any).delete()
         .eq('product_id', productId)
         .eq('category_id', categoryId)
         .eq('source', 'rule')
