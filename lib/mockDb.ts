@@ -741,9 +741,9 @@ export async function updateEnquiryAdminNotes(id: string, notes: string): Promis
 const SETTINGS_KEY = 'mei_settings_db_v1';
 
 const INITIAL_SETTINGS: StoreSettings = {
-  whatsappNumber: '919876543210',
+  whatsappNumber: '919930100431',
   storeEmail: 'info@navarachna.in',
-  storePhone: '+91 9876543210',
+  storePhone: '+91 99301 00431',
   streetAddress: '123, Heritage Lane, DLF Phase 3',
   city: 'Gurugram',
   state: 'Haryana',
