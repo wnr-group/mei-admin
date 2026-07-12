@@ -55,9 +55,10 @@ export default function CategoriesPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#FAF8F5] border-b border-[#E8E0D5]">
-                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[30%]">NAME</th>
-                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[50%]">DESCRIPTION</th>
-                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[20%] text-right">ACTIONS</th>
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[25%]">NAME</th>
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[45%]">DESCRIPTION</th>
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[15%]">PRODUCTS</th>
+                <th className="px-6 py-2.5 text-[9px] font-bold tracking-widest text-zinc-900 uppercase w-[15%] text-right">ACTIONS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E8E0D5]">
@@ -69,6 +70,9 @@ export default function CategoriesPage() {
                     </td>
                     <td className="px-6 py-3 text-[12px] text-zinc-700 font-medium">
                       {category.description ?? '-'}
+                    </td>
+                    <td className="px-6 py-3 text-[12px] text-zinc-700 font-medium">
+                      {category.product_count ?? 0}
                     </td>
                     <td className="px-6 py-4.5 text-right space-x-3 text-[10px] font-bold tracking-widest">
                       <Link
@@ -88,7 +92,7 @@ export default function CategoriesPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={3} className="px-6 py-12 text-center text-[12px] text-zinc-400 font-medium">
+                  <td colSpan={4} className="px-6 py-12 text-center text-[12px] text-zinc-400 font-medium">
                     No categories yet. Add your first category.
                   </td>
                 </tr>
