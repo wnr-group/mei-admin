@@ -510,7 +510,7 @@ export default function ProductForm({ editId }: ProductFormProps) {
                     MEDIA
                   </h3>
                   <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
-                    Images and color variants can be added after saving. You&apos;ll be taken to the edit page automatically.
+                    {"Images and color variants can be added after saving. You'll be taken to the edit page automatically."}
                   </p>
                 </>
               )}
