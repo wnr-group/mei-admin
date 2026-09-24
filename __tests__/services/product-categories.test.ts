@@ -5,7 +5,7 @@ vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ from: mockFrom }),
 }))
 
-const { syncProductCategoryAssignments, syncRuleCategoryAssignments, reevaluateAllProducts } = await import('@/services/product-categories')
+const { syncProductCategoryAssignments, syncManualCategoryAssignment, syncRuleCategoryAssignments, reevaluateAllProducts } = await import('@/services/product-categories')
 
 interface MockChain extends Record<string, unknown> {
   then: (onFulfilled?: ((value: unknown) => unknown) | null, onRejected?: ((reason: unknown) => unknown) | null) => Promise<unknown>
@@ -40,13 +40,15 @@ describe('syncProductCategoryAssignments', () => {
     mockSequence([
       // 1. categories-with-rules
       { data: [{ id: 'cat-rule', rule_match_type: 'ALL', category_rules: [{ field: 'work_types', operator: 'contains', value: 'zardozi' }] }], error: null },
-      // 2. existing rule rows for this product
+      // 2. manually excluded rows for rule check
       { data: [], error: null },
-      // 3. insert rule rows
+      // 3. existing rule rows for this product
+      { data: [], error: null },
+      // 4. insert rule rows
       { data: null, error: null },
-      // 4. existing manual rows for this product
+      // 5. existing manual rows for this product
       { data: [], error: null },
-      // 5. insert manual row
+      // 6. insert manual row
       { data: null, error: null },
     ])
 
@@ -58,11 +60,18 @@ describe('syncProductCategoryAssignments', () => {
 
   it('removes a stale rule row when the product no longer matches', async () => {
     mockSequence([
+      // 1. categories-with-rules
       { data: [{ id: 'cat-rule', rule_match_type: 'ALL', category_rules: [{ field: 'price', operator: 'greater_than', value: '999999' }] }], error: null }, // no longer matches (price too low)
-      { data: [{ id: 'row1', category_id: 'cat-rule' }], error: null }, // existing rule row for cat-rule
-      { data: null, error: null }, // delete stale rule row
-      { data: [], error: null }, // existing manual rows
-      { data: null, error: null }, // insert manual row
+      // 2. manually excluded rows
+      { data: [], error: null },
+      // 3. existing rule row for cat-rule
+      { data: [{ id: 'row1', category_id: 'cat-rule' }], error: null },
+      // 4. delete stale rule row
+      { data: null, error: null },
+      // 5. existing manual rows
+      { data: [], error: null },
+      // 6. insert manual row
+      { data: null, error: null },
     ])
 
     await syncProductCategoryAssignments(product)
@@ -71,68 +80,97 @@ describe('syncProductCategoryAssignments', () => {
 
   it('does not insert a manual row when category_id is null', async () => {
     mockSequence([
-      { data: [], error: null }, // no categories with rules
-      { data: [], error: null }, // existing rule rows
-      { data: [], error: null }, // existing manual rows
+      // 1. categories-with-rules
+      { data: [], error: null },
+      // 2. manually excluded rows
+      { data: [], error: null },
+      // 3. existing rule rows
+      { data: [], error: null },
+      // 4. existing manual rows
+      { data: [], error: null },
     ])
 
     await syncProductCategoryAssignments({ ...product, category_id: null })
-    // 3 calls total: categories, product_categories (rule read), product_categories (manual read) — no inserts
-    expect(mockFrom).toHaveBeenCalledTimes(3)
+    // 4 calls total: categories, manually excluded read, rule read, manual read — no inserts
+    expect(mockFrom).toHaveBeenCalledTimes(4)
   })
 
   it('ignores a category that has zero rules — an empty rule set never matches and never breaks evaluation', async () => {
     mockSequence([
-      { data: [{ id: 'cat-empty', rule_match_type: 'ALL', category_rules: [] }], error: null }, // category exists but getCategoriesWithRules filters it out (0 rules)
-      { data: [], error: null }, // existing rule rows — nothing to insert since cat-empty was filtered out
-      { data: [], error: null }, // existing manual rows
+      // 1. categories-with-rules (empty since filtered out by getCategoriesWithRules)
+      { data: [{ id: 'cat-empty', rule_match_type: 'ALL', category_rules: [] }], error: null },
+      // 2. manually excluded rows
+      { data: [], error: null },
+      // 3. existing rule rows
+      { data: [], error: null },
+      // 4. existing manual rows
+      { data: [], error: null },
     ])
 
     await syncProductCategoryAssignments({ ...product, category_id: null })
-    // Same shape as "no categories with rules": categories, rule read, manual read — no inserts for cat-empty
-    expect(mockFrom).toHaveBeenCalledTimes(3)
+    // Same shape as "no categories with rules": categories, excluded read, rule read, manual read — no inserts
+    expect(mockFrom).toHaveBeenCalledTimes(4)
   })
 
   it('matches a product into multiple categories at once by rule', async () => {
     mockSequence([
+      // 1. categories-with-rules
       { data: [
         { id: 'cat-a', rule_match_type: 'ALL', category_rules: [{ field: 'work_types', operator: 'contains', value: 'zardozi' }] },
         { id: 'cat-b', rule_match_type: 'ALL', category_rules: [{ field: 'price', operator: 'greater_than', value: '1000' }] },
       ], error: null },
-      { data: [], error: null }, // existing rule rows
-      { data: null, error: null }, // insert rule rows for both cat-a and cat-b in one call
-      { data: [], error: null }, // existing manual rows
-      { data: null, error: null }, // insert manual row
+      // 2. manually excluded rows
+      { data: [], error: null },
+      // 3. existing rule rows
+      { data: [], error: null },
+      // 4. insert rule rows for both cat-a and cat-b in one call
+      { data: null, error: null },
+      // 5. existing manual rows
+      { data: [], error: null },
+      // 6. insert manual row
+      { data: null, error: null },
     ])
 
     await syncProductCategoryAssignments(product)
-    expect(mockFrom).toHaveBeenCalledTimes(5)
+    expect(mockFrom).toHaveBeenCalledTimes(6)
   })
 
   it('keeps only a manual row when the product matches no rules (manual-only membership)', async () => {
     mockSequence([
-      { data: [], error: null }, // no categories with rules at all
-      { data: [], error: null }, // existing rule rows
-      { data: [], error: null }, // existing manual rows
-      { data: null, error: null }, // insert manual row for product.category_id
+      // 1. categories-with-rules
+      { data: [], error: null },
+      // 2. manually excluded rows
+      { data: [], error: null },
+      // 3. existing rule rows
+      { data: [], error: null },
+      // 4. existing manual rows
+      { data: [], error: null },
+      // 5. insert manual row for product.category_id
+      { data: null, error: null },
     ])
 
     await syncProductCategoryAssignments(product) // product.category_id = 'cat-manual'
-    expect(mockFrom).toHaveBeenCalledTimes(4)
+    expect(mockFrom).toHaveBeenCalledTimes(5)
   })
 
   it('keeps both a manual row and a rule row for the same category simultaneously', async () => {
     mockSequence([
-      // cat-manual (== product.category_id) also independently matches a rule
+      // 1. categories-with-rules
       { data: [{ id: 'cat-manual', rule_match_type: 'ALL', category_rules: [{ field: 'work_types', operator: 'contains', value: 'zardozi' }] }], error: null },
-      { data: [], error: null }, // existing rule rows
-      { data: null, error: null }, // insert rule row: (product, cat-manual, source='rule')
-      { data: [], error: null }, // existing manual rows
-      { data: null, error: null }, // insert manual row: (product, cat-manual, source='manual') — distinct row, allowed by the 3-column unique constraint
+      // 2. manually excluded rows
+      { data: [], error: null },
+      // 3. existing rule rows
+      { data: [], error: null },
+      // 4. insert rule row: (product, cat-manual, source='rule')
+      { data: null, error: null },
+      // 5. existing manual rows
+      { data: [], error: null },
+      // 6. insert manual row: (product, cat-manual, source='manual')
+      { data: null, error: null },
     ])
 
     await syncProductCategoryAssignments(product)
-    expect(mockFrom).toHaveBeenCalledTimes(5)
+    expect(mockFrom).toHaveBeenCalledTimes(6)
   })
 })
 
@@ -141,14 +179,55 @@ describe('syncRuleCategoryAssignments', () => {
 
   it('only reads/writes rule rows — never touches manual rows', async () => {
     mockSequence([
+      // 1. categories-with-rules
       { data: [{ id: 'cat-rule', rule_match_type: 'ALL', category_rules: [{ field: 'work_types', operator: 'contains', value: 'zardozi' }] }], error: null },
-      { data: [], error: null }, // existing rule rows
-      { data: null, error: null }, // insert rule row
+      // 2. manually excluded rows
+      { data: [], error: null },
+      // 3. existing rule rows
+      { data: [], error: null },
+      // 4. insert rule row
+      { data: null, error: null },
     ])
 
     await syncRuleCategoryAssignments(product)
-    // Exactly 3 calls: categories, product_categories(read rule), product_categories(insert rule) — no manual-row calls at all
+    // Exactly 4 calls: categories, excluded read, rule read, rule insert — no manual-row calls at all
+    expect(mockFrom).toHaveBeenCalledTimes(4)
+  })
+
+  it('does not insert a rule row if the category is manually excluded', async () => {
+    mockSequence([
+      // 1. categories-with-rules
+      { data: [{ id: 'cat-rule', rule_match_type: 'ALL', category_rules: [{ field: 'work_types', operator: 'contains', value: 'zardozi' }] }], error: null },
+      // 2. manually excluded rows (cat-rule is manually excluded)
+      { data: [{ category_id: 'cat-rule' }], error: null },
+      // 3. existing rule rows
+      { data: [], error: null },
+    ])
+
+    await syncRuleCategoryAssignments(product)
+    // Only 3 calls (categories, excluded read, rule read) and NO insert/delete since it is manually excluded
     expect(mockFrom).toHaveBeenCalledTimes(3)
+  })
+})
+
+describe('syncManualCategoryAssignment', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('does not delete manual rows that are manually included or manually excluded', async () => {
+    mockSequence([
+      // 1. existing manual rows for this product
+      { data: [
+        { id: 'row-included', category_id: 'cat-inc', manually_included: true, manually_excluded: false },
+        { id: 'row-excluded', category_id: 'cat-exc', manually_included: false, manually_excluded: true },
+      ], error: null },
+      // 2. insert manual row for the new target category
+      { data: null, error: null },
+    ])
+
+    await syncManualCategoryAssignment(product)
+
+    // Should only call select then insert (no delete because both existing rows have manual flags)
+    expect(mockFrom).toHaveBeenCalledTimes(2)
   })
 })
 
@@ -180,9 +259,8 @@ describe('reevaluateAllProducts', () => {
     })
 
     await reevaluateAllProducts()
-    // products (fetch all) -> categories (rule lookup) -> product_categories (rule read) = 3 calls total.
-    // If this ever grows to 4, it means a manual-row call snuck in — reevaluateAllProducts must never do that.
-    expect(calledTables).toHaveLength(3)
+    // products (fetch all) -> categories (rule lookup) -> product_categories (excluded read) -> product_categories (rule read) = 4 calls total.
+    expect(calledTables).toHaveLength(4)
   })
 
   it('throws on Supabase error fetching products', async () => {

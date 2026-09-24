@@ -39,17 +39,26 @@ async function reconcileSource(
 
   const { data: existingRows, error: readError } = await supabase
     .from('product_categories')
-    .select('id, category_id')
+    .select('id, category_id, manually_included, manually_excluded')
     .eq('product_id', productId)
     .eq('source', source)
   if (readError) throw toAppError(new Error(readError.message))
 
-  const rows = (existingRows as { id: string; category_id: string }[] | null) ?? []
+  const rows = (existingRows as { id: string; category_id: string; manually_included: boolean; manually_excluded: boolean }[] | null) ?? []
   const existingIds = new Set(rows.map((r) => r.category_id))
   const desiredIds = new Set(desiredCategoryIds)
 
   const toInsert = desiredCategoryIds.filter((id) => !existingIds.has(id))
-  const staleRowIds = rows.filter((r) => !desiredIds.has(r.category_id)).map((r) => r.id)
+  const staleRowIds = rows
+    .filter((r) => {
+      const isStale = !desiredIds.has(r.category_id)
+      if (!isStale) return false
+      if (source === 'manual') {
+        return !r.manually_included && !r.manually_excluded
+      }
+      return true
+    })
+    .map((r) => r.id)
 
   if (toInsert.length > 0) {
     const { error } = await supabase
@@ -71,9 +80,24 @@ async function syncRuleCategoryAssignmentsWithCategories(
   product: RuleEvaluableProductRow,
   categoriesWithRules: CategoryWithRules[]
 ): Promise<void> {
+  const supabase = createClient()
+
+  // Fetch manually excluded category IDs for this product
+  const { data: excludedRows, error: excludedError } = await supabase
+    .from('product_categories')
+    .select('category_id')
+    .eq('product_id', product.id)
+    .eq('manually_excluded', true)
+  if (excludedError) throw toAppError(new Error(excludedError.message))
+
+  const excludedCategoryIds = new Set(
+    ((excludedRows as { category_id: string }[] | null) ?? []).map((r) => r.category_id)
+  )
+
   const matchedCategoryIds = categoriesWithRules
     .filter((c) => evaluateCategoryRules(product, c.category_rules, c.rule_match_type))
     .map((c) => c.id)
+    .filter((id) => !excludedCategoryIds.has(id))
 
   await reconcileSource(product.id, 'rule', matchedCategoryIds)
 }

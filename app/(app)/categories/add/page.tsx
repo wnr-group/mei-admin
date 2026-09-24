@@ -15,6 +15,8 @@ import Link from 'next/link';
 import RuleList from '@/components/categories/rules/RuleList';
 import { useLibraryTemplates } from '@/lib/hooks/useMeasurementTemplates';
 import type { CategoryMatchType } from '@/types';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import CategoryProducts from '@/components/categories/CategoryProducts';
 
 function CategoryForm() {
   const router = useRouter();
@@ -211,7 +213,7 @@ function CategoryForm() {
   }
 
   return (
-    <div className="max-w-[480px] mx-auto pt-6 pb-16 font-inter animate-fade-in">
+    <div className="max-w-5xl mx-auto pt-6 pb-16 font-inter animate-fade-in px-4">
       <div className="flex items-center text-[10px] tracking-widest uppercase text-zinc-400 font-bold select-none mb-1.5">
         <Link href="/categories" className="hover:text-zinc-600 transition-colors">
           Categories
@@ -224,7 +226,7 @@ function CategoryForm() {
         {editId ? 'Edit Category' : 'Add Category'}
       </h1>
 
-      <div className="bg-white border border-[#E8E0D5] p-8 shadow-xs">
+      <div className="bg-white border border-[#E8E0D5] p-8 shadow-xs max-w-[480px]">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-1">
             <label className="block text-[9px] font-bold tracking-widest text-zinc-900 uppercase">
@@ -410,13 +412,26 @@ function CategoryForm() {
       </div>
 
       {editId && (
-        <div className="bg-white border border-[#E8E0D5] p-8 shadow-xs mt-6">
-          <RuleList
-            categoryId={editId}
-            matchType={ruleMatchType}
-            onMatchTypeChange={setRuleMatchType}
-          />
-        </div>
+        <>
+          <div className="bg-white border border-[#E8E0D5] p-8 shadow-xs mt-6">
+            <RuleList
+              categoryId={editId}
+              matchType={ruleMatchType}
+              onMatchTypeChange={setRuleMatchType}
+            />
+          </div>
+
+          <div className="bg-white border border-[#E8E0D5] p-8 shadow-xs mt-6">
+            <Tabs defaultValue="products">
+              <TabsList className="mb-6">
+                <TabsTrigger value="products">Products</TabsTrigger>
+              </TabsList>
+              <TabsContent value="products">
+                <CategoryProducts categoryId={editId} />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </>
       )}
     </div>
   );

@@ -21,7 +21,34 @@ export async function getCategories(options: GetCategoriesOptions = {}) {
     .range((page - 1) * limit, page * limit - 1)
 
   if (error) throw toAppError(new Error(error.message))
-  return { categories: (data as Category[] | null) ?? [], total: count ?? 0 }
+
+  // Fetch unique category-product mappings that are not manually excluded
+  const { data: mappings, error: mappingError } = await supabase
+    .from('product_categories')
+    .select('category_id, product_id')
+    .eq('manually_excluded', false)
+
+  const countMap: Record<string, number> = {}
+  if (mappings) {
+    const productSets: Record<string, Set<string>> = {}
+    const rows = (mappings as { category_id: string; product_id: string }[] | null) ?? []
+    for (const row of rows) {
+      if (!productSets[row.category_id]) {
+        productSets[row.category_id] = new Set()
+      }
+      productSets[row.category_id].add(row.product_id)
+    }
+    for (const catId in productSets) {
+      countMap[catId] = productSets[catId].size
+    }
+  }
+
+  const categoriesWithCount = ((data as Category[] | null) ?? []).map((cat) => ({
+    ...cat,
+    product_count: countMap[cat.id] ?? 0,
+  }))
+
+  return { categories: categoriesWithCount, total: count ?? 0 }
 }
 
 export async function getCategoryById(id: string): Promise<Category | null> {
